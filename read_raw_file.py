@@ -260,7 +260,7 @@ class bot_decoder(decoder):
 
 
     def read_evt(self, i):
-        
+        print('hello')
 
 
     def close_file(self):
