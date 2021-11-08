@@ -1,21 +1,24 @@
 import config as cf
+import data_containers as dc
 import numpy as np
 import numba as nb
 import os
 import glob as glob
 import sys
+import tables as tab
 from abc import ABC, abstractmethod
 
 
 
 @nb.jit
 def read_evt_uint12_nb(data):
-    #tt = np.frombuffer(data, dtype=np.uint8)
-    #assert np.mod(tt.shape[0],3)==0
+    """ reads the top electronics event """
+    l = len(data)
+    assert np.mod(l,3)==0
 
-    out=np.empty(len(data)//3*2,dtype=np.uint16)
+    out=np.empty(l//3*2,dtype=np.uint16)
 
-    for i in nb.prange(len(data)//3):
+    for i in nb.prange(l//3):
         fst_uint8=np.uint16(data[i*3])
         mid_uint8=np.uint16(data[i*3+1])
         lst_uint8=np.uint16(data[i*3+2])
@@ -23,6 +26,49 @@ def read_evt_uint12_nb(data):
         out[i*2]   = (fst_uint8 << 4) + (mid_uint8 >> 4)
         out[i*2+1] = ((mid_uint8 % 16) << 8) + lst_uint8
 
+    return out
+
+def decode_8_to_5_3(x):
+    read5 =  x & 0x1f
+    read3 = (x & 0xe0) >> 5
+    return read5, read3
+
+def get_unix_time(t):
+    return t*20/1e9
+
+
+@nb.jit
+def read_8evt_uint12_nb(data):
+    """ reads the bottom electronics event """
+
+    l = len(data)
+    assert np.mod(l,12)==0
+            
+
+    out = np.empty(l//3*2,dtype=np.uint16)
+    
+    for i in nb.prange(l//12):
+        b0  = np.uint16(data[i*12])&0xff
+        b1  = np.uint16(data[i*12+1])&0xff
+        b2  = np.uint16(data[i*12+2])&0xff
+        b3  = np.uint16(data[i*12+3])&0xff
+        b4  = np.uint16(data[i*12+4])&0xff
+        b5  = np.uint16(data[i*12+5])&0xff
+        b6  = np.uint16(data[i*12+6])&0xff
+        b7  = np.uint16(data[i*12+7])&0xff
+        b8  = np.uint16(data[i*12+8])&0xff
+        b9  = np.uint16(data[i*12+9])&0xff
+        b10 = np.uint16(data[i*12+10])&0xff
+        b11 = np.uint16(data[i*12+11])&0xff
+
+        out[i*8+0] = b0 | ((b2&0xf) << 8)
+        out[i*8+1] = ((b2&0xf0)>>4) | (b4 << 4)
+        out[i*8+2] = b6 | ((b8&0xf) << 8)
+        out[i*8+3] = ((b8&0xf0)>>4) | (b10 << 4)
+        out[i*8+4] = b1 | ((b3&0xf) << 8)
+        out[i*8+5] = ((b3&0xf0)>>4) | (b5 << 4)
+        out[i*8+6] = b7 | ((b9&0xf) << 8)
+        out[i*8+7] = ((b9&0xf0)>>4) | (b11 << 4)
     return out
 
 
@@ -146,11 +192,11 @@ class top_decoder(decoder):
         out = read_evt_uint12_nb( self.f_in.read(self.cro) )
 
 
-        if(len(out)/cf.n_sample != self.n_tot_channels):
+        if(len(out)/cf.n_sample != cf.n_tot_channels):
             print(' The event is incomplete ... ')
             sys.exit()
 
-        dc.data_daq = np.reshape(out, (self.n_tot_channels, self.n_sample))
+        dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
         
         self.lro = -1
         self.cro = -1
@@ -170,6 +216,10 @@ class bot_decoder(decoder):
         print(' -- reading a bottom drift electronics file')
 
         """ bde specific parameters """
+        self.n_chan_per_link = 256
+        self.n_chan_per_wib = 128
+        self.n_chan_per_block  = 64
+        self.n_block_per_wib = 4 #128/64
 
         self.trigger_header_type = np.dtype([
             ('header_marker','<u4'),    #4
@@ -229,7 +279,7 @@ class bot_decoder(decoder):
             ('res','<u1'),       #4
             ('mm_oos_res','<u2'),#6
             ('wib_err','<u2'),   #8
-            ('ts1','<u4'),       #12
+            ('ts1','<u4'),       #12 #the time written sounds weird (maybe different bit ordering)
             ('ts2','<u2'),       #14
             ('count_z','<u2')    #16
         ])
@@ -245,24 +295,120 @@ class bot_decoder(decoder):
         
         self.cb_header_size = self.cb_header_type.itemsize
 
+        self.wib_frame_size = self.wib_header_size + 4*(self.cb_header_size + int(64*3/2))
+        print('--> size of one wib frames ', self.wib_frame_size)
+
 
         
     def open_file(self):
-        print('hello')
+        r = int(self.run)
+        long_run = f'{r:08d}'
+        run_path = ""
+        for i in range(0,8,2):
+            run_path += long_run[i:i+2]+"/"
+        path = cf.data_path + "/" + run_path
+
+        fl = glob.glob(path+"*hdf5")
+
+        if(len(fl) != 1):
+            print('none or more than one file matches ... : ', fl)
+            sys.exit()
+
+        f = fl[int(self.sub)-1]
+        print('Reconstructing ', f)
+        self.f_in = tab.open_file(f,"r")
+        
 
     def read_run_header(self):
-        print('hello')
+
+        self.events_list = []
+
+        for group in self.f_in.walk_groups():
+            if(group._v_depth != 1):
+                continue
+            self.events_list.append(group._v_name)
+
+        self.events_list.sort()
+        nb_evt = len(self.events_list)
+
+        return nb_evt
 
 
     def read_evt_header(self, i):
-        print('hello ', i)
+        trig_rec = self.f_in.get_node("/"+self.events_list[i], name='TriggerRecordHeader',classname='Array').read()
+
+        header_magic = 0x33334444
+        header_version = 0x00000002
+
+
+        head = np.frombuffer(trig_rec[:self.trigger_header_size], dtype=self.trigger_header_type)
+        if(head['header_marker'][0] != header_magic or head['header_version'][0] != header_version):
+            print(' there is a problem with the header magic / version ')
+            
+        self.nlinks = head['n_component'][0]
+        self.links = []        
+        for i in range(self.nlinks):
+            s = self.trigger_header_size + i*self.component_header_size
+            t = s + self.component_header_size
+            comp = np.frombuffer(trig_rec[s:t], dtype=self.component_header_type)
+            self.links.append(comp['geo_ID'][0])
+
 
 
 
     def read_evt(self, i):
-        print('hello')
+        
+        for ilink in range(self.nlinks):
+            name = f'{ilink:02d}'
+
+            link_data = self.f_in.get_node("/"+self.events_list[i]+"/TPC/CRP004", name='Link'+name,classname='Array').read()
+            frag_head = np.frombuffer(link_data[:self.fragment_header_size], dtype = self.fragment_header_type)
+
+            print(' taken on  ', str(get_unix_time(frag_head['timestamp'][0])), ' link has ', (len(link_data)-self.fragment_header_size)/self.wib_frame_size, ' frames ')
+
+            wib_head = np.frombuffer(link_data[self.fragment_header_size:self.fragment_header_size+self.wib_header_size], dtype = self.wib_header_type)
+            
+            _, fiber = decode_8_to_5_3(wib_head['ver_fib'][0])
+            crate, slot = decode_8_to_5_3(wib_head['crate_slot'][0])
+            print(ilink, ' ', name, ' fiber ', fiber, ' crate ', crate, ' slot ', slot)
+
+
+            # remove the fragment header
+            link_data = link_data[self.fragment_header_size:]
+    
+            #remove the wib headers (size16, once per wib frame of size 464)
+            link_data = link_data.reshape(-1,self.wib_frame_size)[:,self.wib_header_size:].flatten()
+    
+            #remove the CB headers (size16, once per cold data block of size 112 (4 per wib frame))
+            link_data = link_data.reshape(-1,112)[:,self.cb_header_size:].flatten()    
+
+            """ decode data """
+            out = read_8evt_uint12_nb(link_data)
+
+
+            ''' array structure is all channel at time=0 then at time=1 etc '''
+            ''' change it to all times of channel 1, then channel 2 etc '''            
+            out = np.reshape(out, (-1,self.n_chan_per_link)).T
+
+            
+            ''' some groups of channels have to swapped to read them in the correct order '''
+            ''' should be changed to non-hardcoded values '''
+            
+            ''' I'm not sure I can explain how I did that '''
+            ''' LZ : I'll make it non-hardcoded '''
+            out = np.reshape(out, (16,4,32768)) #=8192*4
+            out[:,[1,2],:] = out[:,[2,1],:]
+            out = np.reshape(out, (self.n_chan_per_link,cf.n_sample))
+
+
+
+            dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
+            
+        self.nlinks = 0
+        self.links = []
+
 
 
     def close_file(self):
-
+        self.f_in.close()
         print('good bye!')

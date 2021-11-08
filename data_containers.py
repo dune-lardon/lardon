@@ -8,7 +8,7 @@ tracks2D_list = []
 tracks3D_list = []
 
 
-data_daq = np.zeros((cf.n_tot_chan, cf.n_sample), dtype=np.float32) #view, vchan
+data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
 
 data = np.zeros((cf.n_view, max(cf.n_chan_per_view), cf.n_sample), dtype=np.float32) #view, vchan
 """
@@ -31,6 +31,7 @@ ped_mean = np.zeros((cf.n_view, max(cf.n_chan_per_view)), dtype=np.float32)
 
 def reset_event():
     data[:,:,:] = 0.
+    data_daq[:,:] = 0.
     mask[:,:,:] = True
     ped_rms[:,:] = 0.
     ped_mean[:,:] = 0.
