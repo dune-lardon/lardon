@@ -37,7 +37,7 @@ import config as cf
 import data_containers as dc
 import read_raw_file as read
 
-reader = read.top_decoder(run, sub)
+reader = read.top_decoder(run, sub) if elec == "top" else read.bot_decoder(run, sub)
 reader.open_file()
 nb_evt = reader.read_run_header()
 
@@ -53,5 +53,7 @@ for ievent in range(nevent):
 
     reader.read_evt_header(ievent)
     reader.read_evt(ievent)
+
+
     
 reader.close_file()
