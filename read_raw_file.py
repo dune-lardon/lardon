@@ -265,3 +265,4 @@ class bot_decoder(decoder):
 
     def close_file(self):
 
+        print('good bye!')
