@@ -181,7 +181,6 @@ class top_decoder(decoder):
         self.cro = head['cro'][0]
 
     def read_evt(self, i):
-        print('hello', i, self.lro, self.cro)
         if(self.lro < 0 or self.cro < 0):
             print(' please read the event header first! ')
             sys.exit()
@@ -307,14 +306,18 @@ class bot_decoder(decoder):
         for i in range(0,8,2):
             run_path += long_run[i:i+2]+"/"
         path = cf.data_path + "/" + run_path
-
-        fl = glob.glob(path+"*hdf5")
+        
+        s = int(self.sub)
+        long_sub = f'{s:04d}'
+        sub_name = 'run'+str(f'{r:06d}')+'_'+long_sub
+        
+        fl = glob.glob(path+"*"+sub_name+"*hdf5")
 
         if(len(fl) != 1):
             print('none or more than one file matches ... : ', fl)
             sys.exit()
 
-        f = fl[int(self.sub)-1]
+        f = fl[0]
         print('Reconstructing ', f)
         self.f_in = tab.open_file(f,"r")
         
