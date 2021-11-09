@@ -29,6 +29,6 @@ def configure(detector, period, elec, run):
                 run_key_set = r
                 break
 
-        cf.channel_map = data[run_key_set]["chmap"]
+        cf.channel_map = "settings/chmap/"+data[run_key_set]["chmap"]
         
         

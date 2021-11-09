@@ -39,8 +39,11 @@ print("Welcome to LARDON !")
 import config as cf
 import data_containers as dc
 import read_raw_file as read
+import channel_mapping as cmap
 
 print(" will use ", cf.channel_map)
+
+cmap.get_mapping(elec)
 
 reader = read.top_decoder(run, sub) if elec == "top" else read.bot_decoder(run, sub)
 reader.open_file()
