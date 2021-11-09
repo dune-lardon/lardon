@@ -1,0 +1,15 @@
+{
+    "top":{
+	"304":{
+	    "chmap":"cb_tde_chmap_v1.txt"	    	    
+	}
+    },
+    "bot":{
+	"12064":{
+	    "chmap":"cb_bde_chmap_v19.txt"
+	},
+	"99999":{
+	    "chmap":"ch_bde_chmap_v24.txt"
+	}		    
+    }
+}

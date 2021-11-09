@@ -1,9 +1,10 @@
 import json as json
 import config as cf
 
-def configure(elec):
-    with open('cb_period1.json','r') as f:
-        data = json.load(f)
+def configure(detector, period, elec, run):
+    """ long term parameters """
+    with open('settings/geo_'+detector+'.json','r') as f:
+        data = json.load(f)['period_'+period]
 
         cf.n_view = int(data['n_view'])
         cf.view_name = data['view_name']
@@ -17,3 +18,17 @@ def configure(elec):
         cf.sampling = float(data[elec]['sampling'])
         cf.ADC_to_fC = float(data[elec]['ADC_to_fC'])
         cf.data_path += "/" + data[elec]['sub_path']
+
+
+    """ shorter term parameters """
+    with open('settings/run_'+detector+'.json','r') as f:
+        data = json.load(f)[elec]
+        run_keys = sorted(list(data.keys()))
+        for r in run_keys:
+            if(int(r) >= int(run)):
+                run_key_set = r
+                break
+
+        cf.channel_map = data[run_key_set]["chmap"]
+        
+        
