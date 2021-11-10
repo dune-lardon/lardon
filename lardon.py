@@ -6,9 +6,9 @@ import det_spec as det
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-elec', dest='elec', help='which electronics is used [tde, top, bde, bot]', default='')
-parser.add_argument('-run', dest='run', help='run number to be processed', default=-1)
-parser.add_argument('-sub', dest='sub', help='which subfile number [default is the first]', default=1)
+parser.add_argument('-elec', dest='elec', help='which electronics is used [tde, top, bde, bot]', default='', required=True)
+parser.add_argument('-run', dest='run', help='run number to be processed', default="", required=True)
+parser.add_argument('-sub', dest='sub', help='which subfile number [default is the first]', default="", required=True)
 parser.add_argument('-n', dest='nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
 parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='coldbox')
 parser.add_argument('-period', dest='period', help='which detector period is looked at [default is 1]', default='1')
