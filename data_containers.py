@@ -10,22 +10,22 @@ tracks3D_list = []
 
 data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
 
-data = np.zeros((cf.n_view, max(cf.n_chan_per_view), cf.n_sample), dtype=np.float32) #view, vchan
+data = np.zeros((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32) #view, vchan
 """
 the mask will be used to differentiate background (True for noise processing) from signal (False for noise processing)
 at first everything is considered background (all at True)
 """
-mask = np.ones((cf.n_view, max(cf.n_chan_per_view), cf.n_sample), dtype=bool)
+mask = np.ones((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=bool)
 
 """
 alive_chan mask intends to not take into account broken channels
 True : not broken
 False : broken
 """
-alive_chan = np.ones((cf.n_view, max(cf.n_chan_per_view)), dtype=bool)
+alive_chan = np.ones((cf.n_view, max(cf.view_nchan)), dtype=bool)
 
-ped_rms = np.zeros((cf.n_view, max(cf.n_chan_per_view)), dtype=np.float32) 
-ped_mean = np.zeros((cf.n_view, max(cf.n_chan_per_view)), dtype=np.float32) 
+ped_rms = np.zeros((cf.n_view, max(cf.view_nchan)), dtype=np.float32) 
+ped_mean = np.zeros((cf.n_view, max(cf.view_nchan)), dtype=np.float32) 
 
 
 
@@ -65,14 +65,14 @@ class run:
         self.period = period
         self.elec = elec
 
-    def set_elec(n_view, view_angle, view_name, view_type, n_tot_channels, n_chan_per_view, calib):
+    def set_elec(n_view, view_angle, view_name, view_type, n_tot_channels, view_nchan, calib):
         """ to add when we know : channel pitches """
         self.n_view = n_view
         self.view_angle = view_angle
         self.view_name = view_name
         self.view_type = view_type
         self.n_tot_channels = n_tot_channels #nb of channels written in the files
-        self.n_chan_per_view = n_chan_per_view
+        self.view_nchan = view_nchan
         self.ADC_to_fC = calib
 
     def set_run_infos(self, run_nb, n_events, t_start, delta_t, sampling, n_sample):
@@ -93,7 +93,7 @@ class run:
         print('Number of channels written in the raw file ', self.n_tot_channels)
         print('Detector has ', self.n_view, ' views : ')
         for i in range(self.n_view):
-            print('\t View ', i, ' is ', self.view_name[i], '(',self.view_type[i],') at an angle of ', self.view_angle[i], ' with ', self.n_chan_per_view, ' channels per view')
+            print('\t View ', i, ' is ', self.view_name[i], '(',self.view_type[i],') at an angle of ', self.view_angle[i], ' with ', self.view_nchan, ' channels per view')
         print('Reading run ', self.run_nb, ' with ', self.n_events, ' events')
         print('Taken on ', self.t_start, ' for ', self.delta_t, ' seconds')
         print('At a sampling of ', self.sampling, ' MHz with ', self.n_sample, ' time samples')
