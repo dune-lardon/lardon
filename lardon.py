@@ -43,7 +43,6 @@ import channel_mapping as cmap
 import plotting as plot
 import pedestals as ped
 
-
 plot.set_style()
 
 print(" will use ", cf.channel_map)
@@ -77,5 +76,6 @@ for ievent in range(nevent):
     #plot.event_display_per_daqch()
     #plot.plot_raw_noise_daqch()
     plot.plot_raw_noise_view()
+
 
 reader.close_file()

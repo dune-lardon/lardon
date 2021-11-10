@@ -72,6 +72,7 @@ def read_8evt_uint12_nb(data):
     return out
 
 
+
 class decoder(ABC):
      
     @abstractmethod
@@ -197,7 +198,7 @@ class top_decoder(decoder):
 
         out = out.astype(np.float32)
         dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
-        
+
         self.lro = -1
         self.cro = -1
 
@@ -414,7 +415,6 @@ class bot_decoder(decoder):
 
 
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
-        
         self.nlinks = 0
         self.links = []
 
