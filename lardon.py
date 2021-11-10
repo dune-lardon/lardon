@@ -40,13 +40,15 @@ import config as cf
 import data_containers as dc
 import read_raw_file as read
 import channel_mapping as cmap
+import plotting as plot
+
+plot.set_style()
 
 print(" will use ", cf.channel_map)
 
 cmap.get_mapping(elec)
 
-print(" will use ", cf.channel_map)
-
+print('channel map has ', len(dc.chmap), ' elements')
 reader = read.top_decoder(run, sub) if elec == "top" else read.bot_decoder(run, sub)
 reader.open_file()
 nb_evt = reader.read_run_header()
@@ -64,6 +66,13 @@ for ievent in range(nevent):
     reader.read_evt_header(ievent)
     reader.read_evt(ievent)
 
+    mean = np.mean(dc.data_daq, axis=-1)
+    dc.data_daq -= mean[:,None]    
 
+    mean = np.mean(dc.data, axis=-1)
+    dc.data -= mean[:,:,None]    
+
+    plot.event_display_per_view()#-300,300)
+    plot.event_display_per_daqch()#-300,300)
     
 reader.close_file()
