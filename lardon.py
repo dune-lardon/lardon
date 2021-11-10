@@ -39,6 +39,11 @@ print("Welcome to LARDON !")
 import config as cf
 import data_containers as dc
 import read_raw_file as read
+import channel_mapping as cmap
+
+print(" will use ", cf.channel_map)
+
+cmap.get_mapping(elec)
 
 print(" will use ", cf.channel_map)
 

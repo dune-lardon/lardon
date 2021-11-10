@@ -1,7 +1,7 @@
 import numpy as np
 import config as cf
 
-
+chmap = []
 evt_list = []
 hits_list = []
 tracks2D_list = []
@@ -40,6 +40,22 @@ def reset_event():
     tracks2D_list.clear()
     tracks3D_list.clear()
     evt_list.clear()
+
+class channel:
+    def __init__(self, daqch, globch, view, vchan):
+        self.daqch = daqch
+        self.globch = globch
+        self.view = view
+        self.vchan = vchan
+        
+    def get_ana_chan(self):
+        return self.view, self.vchan
+        
+    def get_daqch(self):
+        return self.daqch
+        
+    def get_globch(self):
+        return self.globch
 
 
 

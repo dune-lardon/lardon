@@ -2,11 +2,11 @@
     "period_1":
     {
 	"n_view":"3",
-	"view_name":["Z","Y","U"],
-	"view_type":["Coll.","Ind.","Ind."],
-	"view_angle":["0", "90", "138"],
-	"view_pitch":["0.5125", "0.517", "0.8695"],
-	"n_chan_per_view":["576", "640", "384"],
+	"view_name":["U","Y","Z"],
+	"view_type":["Induction","Induction", "Collection"],
+	"view_angle":["138", "90", "0"],
+	"view_pitch":["0.517", "0.8695", "0.5125"],
+	"n_chan_per_view":["384", "640", "576"],
 
 	"top":{
 	    "sub_path":"np02/rawdata_cb",
