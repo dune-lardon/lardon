@@ -73,6 +73,13 @@ def read_8evt_uint12_nb(data):
 
 
 
+def arange_in_view_channels():
+    for i in range(cf.n_tot_channels):
+        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
+        if(view >= cf.n_view or view < 0):
+            continue
+        dc.data[view, chan] = dc.data_daq[i]
+
 
 class decoder(ABC):
      
@@ -195,8 +202,9 @@ class top_decoder(decoder):
             print(' The event is incomplete ... ')
             sys.exit()
 
+        out = out.astype(np.float32)
         dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
-        
+        arange_in_view_channels()        
         self.lro = -1
         self.cro = -1
 
@@ -403,10 +411,11 @@ class bot_decoder(decoder):
             out[:,[1,2],:] = out[:,[2,1],:]
             out = np.reshape(out, (self.n_chan_per_link,cf.n_sample))
 
+            out = out.astype(np.float32)
 
 
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
-            
+        arange_in_view_channels()
         self.nlinks = 0
         self.links = []
 
