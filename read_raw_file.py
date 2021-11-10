@@ -72,15 +72,6 @@ def read_8evt_uint12_nb(data):
     return out
 
 
-
-def arange_in_view_channels():
-    for i in range(cf.n_tot_channels):
-        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
-        if(view >= cf.n_view or view < 0):
-            continue
-        dc.data[view, chan] = dc.data_daq[i]
-
-
 class decoder(ABC):
      
     @abstractmethod
@@ -92,11 +83,11 @@ class decoder(ABC):
         pass
 
     @abstractmethod
-    def read_evt_header(self, i):
+    def read_evt_header(self, ievt):
         pass
 
     @abstractmethod
-    def read_evt(self, i):
+    def read_evt(self, ievt):
         pass
 
     @abstractmethod
@@ -171,11 +162,11 @@ class top_decoder(decoder):
         return nb_evt
 
 
-    def read_evt_header(self, i):
-        self.f_in.seek(self.event_pos[i],0)
+    def read_evt_header(self, ievt):
+        self.f_in.seek(self.event_pos[ievt],0)
 
         head = np.frombuffer(self.f_in.read(self.header_size), dtype=self.header_type)
-        print(head)
+
 
         if( not((head['k0'][0] & 0xFF)==self.evskey and (head['k1'][0] & 0xFF)==self.evskey)):
             print(" problem in the event header ")
@@ -186,14 +177,16 @@ class top_decoder(decoder):
 
         self.lro = head['lro'][0]
         self.cro = head['cro'][0]
+        
+        dc.evt_list.append( dc.event("top", head['run_num'][0], self.sub, ievt, head['trig_num'][0], head['time_s'][0], head['time_ns'][0]) )
 
-    def read_evt(self, i):
+    def read_evt(self, ievt):
         if(self.lro < 0 or self.cro < 0):
             print(' please read the event header first! ')
             sys.exit()
 
 
-        idx = self.event_pos[i] + self.header_size
+        idx = self.event_pos[ievt] + self.header_size
         self.f_in.seek(idx,0)
         out = read_evt_uint12_nb( self.f_in.read(self.cro) )
 
@@ -204,7 +197,7 @@ class top_decoder(decoder):
 
         out = out.astype(np.float32)
         dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
-        arange_in_view_channels()        
+        
         self.lro = -1
         self.cro = -1
 
@@ -303,7 +296,7 @@ class bot_decoder(decoder):
         self.cb_header_size = self.cb_header_type.itemsize
 
         self.wib_frame_size = self.wib_header_size + 4*(self.cb_header_size + int(64*3/2))
-        print('--> size of one wib frames ', self.wib_frame_size)
+
 
 
         
@@ -345,8 +338,8 @@ class bot_decoder(decoder):
         return nb_evt
 
 
-    def read_evt_header(self, i):
-        trig_rec = self.f_in.get_node("/"+self.events_list[i], name='TriggerRecordHeader',classname='Array').read()
+    def read_evt_header(self, ievt):
+        trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='TriggerRecordHeader',classname='Array').read()
 
         header_magic = 0x33334444
         header_version = 0x00000002
@@ -364,24 +357,30 @@ class bot_decoder(decoder):
             comp = np.frombuffer(trig_rec[s:t], dtype=self.component_header_type)
             self.links.append(comp['geo_ID'][0])
 
+        t_unix = get_unix_time(head['timestamp'][0])
+
+        t_s = int(t_unix)
+        t_ns = (t_unix - t_s) * 1e9
+        dc.evt_list.append( dc.event("bot", head['run_nb'][0], self.sub, ievt, head['trig_num'][0], t_s, t_ns) )
 
 
-
-    def read_evt(self, i):
+    def read_evt(self, ievt):
         
         for ilink in range(self.nlinks):
             name = f'{ilink:02d}'
 
-            link_data = self.f_in.get_node("/"+self.events_list[i]+"/TPC/CRP004", name='Link'+name,classname='Array').read()
+            link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/TPC/CRP004", name='Link'+name,classname='Array').read()
             frag_head = np.frombuffer(link_data[:self.fragment_header_size], dtype = self.fragment_header_type)
 
-            print(' taken on  ', str(get_unix_time(frag_head['timestamp'][0])), ' link has ', (len(link_data)-self.fragment_header_size)/self.wib_frame_size, ' frames ')
-
+            n_frames = int((len(link_data)-self.fragment_header_size)/self.wib_frame_size)
+            if(n_frames != cf.n_sample):
+                print(" the link has ", n_frames, " frames ... but ", cf.n_sample, ' are expected !')
+     
             wib_head = np.frombuffer(link_data[self.fragment_header_size:self.fragment_header_size+self.wib_header_size], dtype = self.wib_header_type)
             
             _, fiber = decode_8_to_5_3(wib_head['ver_fib'][0])
             crate, slot = decode_8_to_5_3(wib_head['crate_slot'][0])
-            print(ilink, ' ', name, ' fiber ', fiber, ' crate ', crate, ' slot ', slot)
+            #print(ilink, ' ', name, ' fiber ', fiber, ' crate ', crate, ' slot ', slot)
 
 
             # remove the fragment header
@@ -415,7 +414,7 @@ class bot_decoder(decoder):
 
 
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
-        arange_in_view_channels()
+        
         self.nlinks = 0
         self.links = []
 
