@@ -41,6 +41,7 @@ import data_containers as dc
 import read_raw_file as read
 import channel_mapping as cmap
 import plotting as plot
+import pedestals as ped
 
 plot.set_style()
 
@@ -64,15 +65,17 @@ for ievent in range(nevent):
     print("-*-*-*-*-*-*-*-*-*-*-")
 
     reader.read_evt_header(ievent)
+    dc.evt_list[-1].dump()
     reader.read_evt(ievent)
-
-    mean = np.mean(dc.data_daq, axis=-1)
-    dc.data_daq -= mean[:,None]    
-
-    mean = np.mean(dc.data, axis=-1)
-    dc.data -= mean[:,:,None]    
-
-    plot.event_display_per_view()#-300,300)
-    plot.event_display_per_daqch()#-300,300)
     
+    ped.compute_pedestal_raw()
+
+    cmap.arange_in_view_channels()
+
+    #plot.event_display_per_view()
+    #plot.event_display_per_daqch()
+    #plot.plot_raw_noise_daqch()
+    plot.plot_raw_noise_view()
+
+
 reader.close_file()

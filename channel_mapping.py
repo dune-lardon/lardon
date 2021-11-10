@@ -3,6 +3,14 @@ import config as cf
 import data_containers as dc
 import numpy as np
 from abc import ABC, abstractmethod
+    
+def arange_in_view_channels():
+    for i in range(cf.n_tot_channels):
+        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
+        if(view >= cf.n_view or view < 0):
+            continue
+        dc.data[view, chan] = dc.data_daq[i]
+
 
 
 def get_mapping(elec):

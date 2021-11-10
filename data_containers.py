@@ -1,5 +1,6 @@
 import numpy as np
 import config as cf
+import time
 
 chmap = []
 evt_list = []
@@ -56,6 +57,36 @@ class channel:
         
     def get_globch(self):
         return self.globch
+
+class noise:
+    def __init__(self, ped, rms):
+        self.ped_mean = ped
+        self.ped_rms  = rms
+
+class event:
+    def __init__(self, elec, run, sub, evt, trigger, t_s, t_ns):
+        self.elec = elec
+        self.run_nb  = run
+        self.sub  = sub
+        self.evt_nb  = evt
+        self.trigger_nb = trigger
+        self.time_s = t_s
+        self.time_ns = t_ns
+        self.n_hits = np.zeros((cf.n_view), dtype=int)
+        self.n_tracks2D = np.zeros((cf.n_view), dtype=int)
+        self.n_tracks3D = 0
+
+    
+    def set_noise_raw(self, noise):
+        self.noise_raw = noise
+
+    def set_noise_filtered(self, noise):
+        self.noise_filt = noise
+
+    def dump(self):
+        print("RUN ",self.run_nb, " of ", self.elec, " EVENT ", self.evt_nb, " / ", self.trigger_nb,)
+        print("Taken at ", time.ctime(self.time_s), " + ", self.time_ns, " ns ")
+
 
 
 
