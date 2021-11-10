@@ -11,7 +11,7 @@ def configure(detector, period, elec, run):
         cf.view_type = data['view_type']
         cf.view_angle = [int(x) for x in data['view_angle']]
         cf.view_pitch = [float(x) for x in data['view_pitch']]
-        cf.n_chan_per_view = [int(x) for x in data['n_chan_per_view']]
+        cf.view_nchan = [int(x) for x in data['view_nchan']]
         
         cf.n_tot_channels = int(data[elec]['n_tot_channels'])
         cf.n_sample = int(data[elec]['n_sample'])
