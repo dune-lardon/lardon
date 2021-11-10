@@ -45,6 +45,8 @@ print(" will use ", cf.channel_map)
 
 cmap.get_mapping(elec)
 
+print(" will use ", cf.channel_map)
+
 reader = read.top_decoder(run, sub) if elec == "top" else read.bot_decoder(run, sub)
 reader.open_file()
 nb_evt = reader.read_run_header()
