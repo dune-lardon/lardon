@@ -42,6 +42,7 @@ import read_raw_file as read
 import channel_mapping as cmap
 import plotting as plot
 import pedestals as ped
+import noise_filter as noise
 
 plot.set_style()
 
@@ -58,6 +59,8 @@ print(" --->> Will process ", nevent, " events [ out of ", nb_evt, "] of run ", 
 
 
 for ievent in range(nevent):
+    #if(ievent < 25):
+        #continue
     dc.reset_event()
     
     print("-*-*-*-*-*-*-*-*-*-*-")
@@ -67,15 +70,48 @@ for ievent in range(nevent):
     reader.read_evt_header(ievent)
     dc.evt_list[-1].dump()
     reader.read_evt(ievent)
+    if(elec == 'top'):
+        dc.data_daq *= -1
     
     ped.compute_pedestal_raw()
+    plot.plot_raw_noise_daqch()
+    plot.plot_raw_noise_vch()
 
     cmap.arange_in_view_channels()
+    plot.event_display_per_view(-20,20,-20,50,option='raw')
 
-    #plot.event_display_per_view()
+    ps = noise.FFT_low_pass(0.1)
+
+    plot.plot_FFT(ps)    
+    
+    plot.event_display_per_daqch(-50,50,option='fft')
+    cmap.arange_in_view_channels()
+    plot.event_display_per_view(-20,20,-20,50,option='fft')
+
+    ped.compute_pedestal()
+    plot.plot_filt_noise_daqch(option='fft')
+    plot.plot_filt_noise_vch(option='fft')
+
+    plot.plot_correlation()
+    noise.coherent_noise([64])
+
+    plot.event_display_per_daqch(-50,50,option='coherent')
+    cmap.arange_in_view_channels()
+    plot.event_display_per_view(-20,20,-20,50,option='coherent')
+
+    ped.compute_pedestal()
+    plot.plot_filt_noise_daqch(option='coherent')
+    plot.plot_filt_noise_vch(option='coherent')
+
+
+    #cmap.arange_in_view_channels()
+
+    #plot.plot_FFT(ps)
+    #plot.plot_correlation()
+    #plot.event_display_per_view(-20,20,-20,50)#-1500,1500,-1500,3000)
     #plot.event_display_per_daqch()
     #plot.plot_raw_noise_daqch()
-    plot.plot_raw_noise_view()
+    #plot.plot_raw_noise_view()
 
 
 reader.close_file()
