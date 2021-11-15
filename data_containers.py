@@ -10,6 +10,8 @@ tracks3D_list = []
 
 
 data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
+mask_daq = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+
 
 data = np.zeros((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32) #view, vchan
 """
@@ -80,7 +82,7 @@ class event:
     def set_noise_raw(self, noise):
         self.noise_raw = noise
 
-    def set_noise_filtered(self, noise):
+    def set_noise_filt(self, noise):
         self.noise_filt = noise
 
     def dump(self):
