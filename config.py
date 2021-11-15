@@ -2,7 +2,7 @@ data_path = "/eos/experiment/neutplatform/protodune/rawdata/"
 
 """ User's specific """
 store_path = "./reco"
-plot_path  = "./ED"
+plot_path  = "./results"
 
 """ to add in the json file ?? """
 
