@@ -27,7 +27,7 @@ def draw(view, ax, adc_min, adc_max):
 
     return ax
 
-def event_display_per_view(adc_min_ind=-10, adc_max_ind=10, adc_min_coll=-5, adc_max_coll=30):
+def event_display_per_view(adc_min_ind=-10, adc_max_ind=10, adc_min_coll=-5, adc_max_coll=30, option=None, to_be_shown=False):
     fig = plt.figure(figsize=(10,5))
 
     gs = gridspec.GridSpec(nrows=2, 
@@ -78,11 +78,27 @@ def event_display_per_view(adc_min_ind=-10, adc_max_ind=10, adc_min_coll=-5, adc
     cb.ax.xaxis.set_label_position('top')
 
     plt.tight_layout()
-    plt.show()
+
+    run_nb = str(dc.evt_list[-1].run_nb)
+    evt_nb = str(dc.evt_list[-1].trigger_nb)
+    elec   = dc.evt_list[-1].elec
+
+    if(option):
+        option = "_"+option
+    else:
+        option = ""
+
+
+    plt.savefig(cf.plot_path+'/ED_vch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
 
 
 
-def event_display_per_daqch(adc_min=-10, adc_max=10):
+def event_display_per_daqch(adc_min=-10, adc_max=10, option=None, to_be_shown=False):
     fig = plt.figure(figsize=(9,4))
 
     gs = gridspec.GridSpec(nrows=2, 
@@ -110,4 +126,20 @@ def event_display_per_daqch(adc_min=-10, adc_max=10):
     cb.ax.xaxis.set_label_position('top')
 
     plt.tight_layout()
-    plt.show()
+
+    run_nb = str(dc.evt_list[-1].run_nb)
+    evt_nb = str(dc.evt_list[-1].trigger_nb)
+    elec   = dc.evt_list[-1].elec
+
+    if(option):
+        option = "_"+option
+    else:
+        option = ""
+
+
+    plt.savefig(cf.plot_path+'/ED_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()

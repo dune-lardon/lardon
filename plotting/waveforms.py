@@ -21,7 +21,7 @@ def draw_current_waveform(view, ch, ax=None, **kwargs):
 
 
 
-def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1):
+def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1, option=None, to_be_shown=False):
     """ daqch_list should be a list of daqchs """
     n_wvf = len(daqch_list)
 
@@ -49,3 +49,20 @@ def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1):
     
 
     plt.tight_layout()
+
+    run_nb = str(dc.evt_list[-1].run_nb)
+    evt_nb = str(dc.evt_list[-1].trigger_nb)
+    elec   = dc.evt_list[-1].elec
+
+    if(option):
+        option = "_"+option
+    else:
+        option = ""
+
+
+    plt.savefig(cf.plot_path+'/waveforms'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
