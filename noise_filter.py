@@ -13,6 +13,7 @@ def gaussian(x, mu, sig):
 def FFT_low_pass(lowpass_cut):
     n    = int(cf.n_sample/2) + 1
     rate = cf.sampling #in MHz
+
     freq = np.linspace(0, rate/2., n)
 
     """define gaussian low pass filter"""
@@ -78,5 +79,4 @@ def coherent_noise(groupings):
         dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
 
         print('just checking ', dc.data_daq.shape)
-
 

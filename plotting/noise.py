@@ -74,6 +74,7 @@ def plot_noise_globch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=Fals
         print("plot_noise_vch needs to know which noise to show (raw or filt) : ", noise_type, ' is not recognized')
         
 
+
     fig = plt.figure(figsize=(12,4))
     gs = gridspec.GridSpec(nrows=2, 
                            ncols=1, wspace=0.08)
@@ -114,6 +115,7 @@ def plot_noise_globch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=Fals
 
 
     plt.savefig(cf.plot_path+'/ped_'+noise_type+'_rms_globch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
 
     if(to_be_shown):
         plt.show()
@@ -299,6 +301,7 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
 
 
     plt.savefig(cf.plot_path+'/correlation_'+corr_type+'ch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
 
     if(to_be_shown):
         plt.show()

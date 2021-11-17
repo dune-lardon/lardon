@@ -59,6 +59,8 @@ print(" --->> Will process ", nevent, " events [ out of ", nb_evt, "] of run ", 
 
 
 for ievent in range(nevent):
+    #if(ievent < 25):
+        #continue
     dc.reset_event()
     
     print("-*-*-*-*-*-*-*-*-*-*-")
@@ -96,6 +98,7 @@ for ievent in range(nevent):
 
     plot.event_display_per_daqch(-50,50,option='coherent')
     cmap.arange_in_view_channels()
+
     plot.event_display_per_view(-20,20,-20,50,option='coherent')#, to_be_shown=True)
 
     ped.compute_pedestal()
