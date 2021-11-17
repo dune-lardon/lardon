@@ -59,6 +59,8 @@ print(" --->> Will process ", nevent, " events [ out of ", nb_evt, "] of run ", 
 
 
 for ievent in range(nevent):
+    #if(ievent < 25):
+        #continue
     dc.reset_event()
     
     print("-*-*-*-*-*-*-*-*-*-*-")
@@ -105,6 +107,7 @@ for ievent in range(nevent):
 
 
     #cmap.arange_in_view_channels()
+
 
     #plot.plot_FFT(ps)
     #plot.plot_correlation()

@@ -66,6 +66,7 @@ def plot_filt_noise_daqch(option=None, to_be_shown=False):
     #ax_mean.plot(dc.evt_list[-1].noise_filt.ped_mean)
     #ax_mean.set_ylabel('Mean Ped [ADC]')
     ax_std.scatter(ch, dc.evt_list[-1].noise_filt.ped_rms,s=2)
+
     ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('DAQ Channel Number')
     ax_std.set_title('Filtered Noise')
@@ -140,6 +141,7 @@ def plot_noise_vch(noise_type, vmin=0,vmax=10, option=None, to_be_shown=False):
     if(noise_type is not 'raw' and noise_type is not 'filt'):
         print("plot_noise_vch needs to know which noise to show (raw or filt) : ", noise_type, ' is not recognized')
         
+
     fig = plt.figure(figsize=(12,4))
     gs = gridspec.GridSpec(nrows=1, 
                            ncols=3)
@@ -160,6 +162,7 @@ def plot_noise_vch(noise_type, vmin=0,vmax=10, option=None, to_be_shown=False):
     for iv in range(cf.n_view):
 
         axs[iv].scatter(np.linspace(0, cf.view_nchan[iv], cf.view_nchan[iv], endpoint=False),rms[iv,:cf.view_nchan[iv]],s=2)
+
         axs[iv].set_ylabel('RMS Ped [ADC]')
         axs[iv].set_xlabel('Channel Number')
         axs[iv].set_title('View '+str(iv)+'/'+cf.view_name[iv])
