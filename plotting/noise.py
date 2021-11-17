@@ -28,7 +28,7 @@ def plot_raw_noise_daqch(option=None, to_be_shown=False):
     ch = np.linspace(0, cf.n_tot_channels, cf.n_tot_channels, endpoint=False)
     #ax_mean.plot(dc.evt_list[-1].noise_raw.ped_mean)
     #ax_mean.set_ylabel('Mean Ped [ADC]')
-    ax_std.scatter(ch, dc.evt_list[-1].noise_raw.ped_rms)
+    ax_std.scatter(ch, dc.evt_list[-1].noise_raw.ped_rms,s=2)
     ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('DAQ Channel Number')
     ax_std.set_title('Raw Noise')
@@ -65,7 +65,7 @@ def plot_filt_noise_daqch(option=None, to_be_shown=False):
     ch = np.linspace(0, cf.n_tot_channels, cf.n_tot_channels, endpoint=False)
     #ax_mean.plot(dc.evt_list[-1].noise_filt.ped_mean)
     #ax_mean.set_ylabel('Mean Ped [ADC]')
-    ax_std.scatter(ch, dc.evt_list[-1].noise_filt.ped_rms)
+    ax_std.scatter(ch, dc.evt_list[-1].noise_filt.ped_rms,s=2)
     ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('DAQ Channel Number')
     ax_std.set_title('Filtered Noise')
@@ -104,7 +104,7 @@ def plot_raw_noise_vch(option=None, to_be_shown=False):
         rms = [dc.evt_list[-1].noise_raw.ped_rms[i] for i in vchan]
         ch = np.linspace(0, cf.view_nchan[iv], cf.view_nchan[iv], endpoint=False)
 
-        axs[iv].scatter(ch, rms)
+        axs[iv].scatter(ch, rms,s=2)
         axs[iv].set_ylabel('RMS Ped [ADC]')
         axs[iv].set_xlabel('Channel Number')
         axs[iv].set_title('View '+str(iv)+'/'+cf.view_name[iv])
@@ -132,23 +132,39 @@ def plot_raw_noise_vch(option=None, to_be_shown=False):
 
 
 
-def plot_filt_noise_vch(option=None, to_be_shown=False):
+def plot_noise_vch(noise_type, vmin=0,vmax=10, option=None, to_be_shown=False):
+    if(noise_type==""):
+        print("plot_noise_vch needs to know which noise to show (raw or filt)")
+        return
+
+    if(noise_type is not 'raw' and noise_type is not 'filt'):
+        print("plot_noise_vch needs to know which noise to show (raw or filt) : ", noise_type, ' is not recognized')
+        
     fig = plt.figure(figsize=(12,4))
     gs = gridspec.GridSpec(nrows=1, 
                            ncols=3)
 
     axs  = [fig.add_subplot(gs[0,x]) for x in range(3)]
 
+    rms = np.zeros((cf.n_view, max(cf.view_nchan)))
+
+    for i in range(cf.n_tot_channels):
+        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
+        if(view >= cf.n_view or view < 0):
+            continue
+        if(noise_type=='filt'):
+            rms[view, chan] = dc.evt_list[-1].noise_filt.ped_rms[i]
+        else:
+            rms[view, chan] = dc.evt_list[-1].noise_raw.ped_rms[i]
+
     for iv in range(cf.n_view):
-        vchan = [i for i in range(cf.n_tot_channels) if dc.chmap[i].view == iv  and dc.chmap[i].vchan >=0 ]
-        rms = [dc.evt_list[-1].noise_filt.ped_rms[i] for i in vchan]
-        ch = np.linspace(0, cf.view_nchan[iv], cf.view_nchan[iv], endpoint=False)
-        axs[iv].scatter(ch, rms)
+
+        axs[iv].scatter(np.linspace(0, cf.view_nchan[iv], cf.view_nchan[iv], endpoint=False),rms[iv,:cf.view_nchan[iv]],s=2)
         axs[iv].set_ylabel('RMS Ped [ADC]')
         axs[iv].set_xlabel('Channel Number')
         axs[iv].set_title('View '+str(iv)+'/'+cf.view_name[iv])
-
-
+        axs[iv].set_xlim(0,cf.view_nchan[iv])
+        axs[iv].set_ylim(vmin,vmax)
     plt.tight_layout()
 
 
@@ -162,7 +178,7 @@ def plot_filt_noise_vch(option=None, to_be_shown=False):
         option = ""
 
 
-    plt.savefig(cf.plot_path+'/ped_filt_rms_vch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    plt.savefig(cf.plot_path+'/ped_'+noise_type+'_rms_vch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
     if(to_be_shown):
         plt.show()
