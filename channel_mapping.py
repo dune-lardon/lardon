@@ -42,8 +42,6 @@ def get_top_mapping():
             
             c = dc.channel(daqch, globch, view, channel)
             dc.chmap.append(c)
-            
-        
 
 def get_bot_mapping():
     print("reading bottom channel mapping ")
