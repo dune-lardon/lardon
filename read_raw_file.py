@@ -127,7 +127,7 @@ class top_decoder(decoder):
 
     def open_file(self):
         path = cf.data_path + "/" + self.run + "/" + self.run + "_" + self.sub
-        fl = glob.glob(path+"*")
+        fl = glob.glob(path+"_*")
         if(len(fl) != 1):
             print('none or more than one file matches ... : ', fl)
             sys.exit()
