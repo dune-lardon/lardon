@@ -43,6 +43,7 @@ import channel_mapping as cmap
 import plotting as plot
 import pedestals as ped
 import noise_filter as noise
+import logging
 
 plot.set_style()
 
@@ -56,7 +57,78 @@ reader.open_file()
 nb_evt = reader.read_run_header()
 
 print(" --->> Will process ", nevent, " events [ out of ", nb_evt, "] of run ", run)
-saved_array=[]
+
+class Output:
+    """
+    Attributes
+    ----------
+    data : dtype object (np.float32)
+    meta : dict
+
+    Methods
+    -------
+    __getitem__ : attribute
+        Allows to access a column of data with the item operator [].
+    save_on_disc : None
+        Saves an hdf5 file of the class to the disc.
+    load_from_disc : instance
+        Class method. Reads a previously saved hdf5 file from the disc.
+    """
+
+    #Constants for Class
+    DATATYPE = np.dtype([('value', np.float32)])
+    META_KEY_REQUIRED = ['value_unit', 'ADC']
+    META_DEFAULT      = {'value_unit':  'ADC'}
+
+    def __init__(self, wave, meta=None):
+        """
+        Constructs a new Output instance.
+
+        Parameters
+        ----------
+        rms : 1darray
+            Contains the samples of the Output.
+        meta : dict
+        """
+        new_meta = {'value_unit':  'ADC'}
+        new_meta.update(meta)
+
+        self.data = np.empty(wave.shape[0], dtype=self.DATATYPE)
+        self.data['wave'] = wave
+
+        #Creating and checking required meta data
+        for field in self.META_KEY_REQUIRED:
+            message = f"During construct ListMode Object {field} missing in meta, assuming default {self.META_DEFAULT[field]}."
+            try:
+                if field not in meta.keys():
+                    logging.warning(message)
+                    meta[field] = self.META_DEFAULT[field]
+            except AttributeError:
+                logging.warning(message)
+
+        self.meta = copy.copy(new_meta)
+
+    def __getitem__(self, key):
+        """
+        Allows the access a data column with the item operator [].
+        E.g. waveform['wave'] is the same as waveform.data['wave'].
+
+        """
+        if not isinstance(key, str):
+                raise TypeError(f"{key} is not supported for accessing Waveform data")
+
+        return self.data[key]
+
+    def save_on_disc(self, outfile_name):
+        """ Saves an hdf5 file of the class to the disc. """
+
+        logging.info("saving %s to disc...", outfile_name+'.hdf')
+        with h5py.File(outfile_name+'.hdf', 'w') as outfile:
+            dataset = outfile.create_dataset('data', data = self.data)
+            for key, value in self.meta.items():
+                if value is not None:
+                    dataset.attrs[key] = value
+        logging.info("-> Done.")
 
 for ievent in range(nevent):
     #if(ievent < 25):
@@ -102,8 +174,22 @@ for ievent in range(nevent):
     ped.compute_pedestal()
     # plot.plot_filt_noise_daqch(option='coherent')
     # plot.plot_filt_noise_vch(option='coherent')
+    file1 = open(run+'_raw_rms.log',"a")
+    file1.write(dc.evt_list[ievent].noise_raw.ped_rms)
+    file1.close()
 
-    saved_array.append([dc.evt_list[ievent].noise_raw.ped_rms, dc.evt_list[ievent].noise_filt.ped_rms, dc.evt_list[ievent].noise_raw.ped_mean, dc.evt_list[ievent].noise_filt.ped_mean])
+    file2 = open(run+'_filt_rms.log',"a")
+    file2.write(dc.evt_list[ievent].noise_filt.ped_rms)
+    file2.close()
+
+    file3 = open(run+'_raw_mean.log',"a")
+    file3.write(dc.evt_list[ievent].noise_raw.ped_mean)
+    file3.close()
+
+    file4 = open(run+'_filt_mean.log',"a")
+    file4.write(dc.evt_list[ievent].noise_filt.ped_mean)
+    file4.close()
+
     #cmap.arange_in_view_channels()
 
     #plot.plot_FFT(ps)
@@ -112,7 +198,6 @@ for ievent in range(nevent):
     #plot.event_display_per_daqch()
     #plot.plot_raw_noise_daqch()
     #plot.plot_raw_noise_view()
-import numpy as np
-np.savetxt(run+'.log', saved_array, fmt='%4.6f', delimiter=' ')
+
 
 reader.close_file()
