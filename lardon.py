@@ -102,11 +102,12 @@ for ievent in range(nevent):
     ped.compute_pedestal()
     # plot.plot_filt_noise_daqch(option='coherent')
     # plot.plot_filt_noise_vch(option='coherent')
-    print("Pedestal RMS Raw : ", dc.evt_list[0].noise_raw.ped_rms)
-    print("Pedestal RMS Filt : ", dc.evt_list[0].noise_filt.ped_rms)
-    print("Pedestal Mean Raw : ", dc.evt_list[0].noise_raw.ped_mean)
-    print("Pedestal Mean Filt : ", dc.evt_list[0].noise_filt.ped_mean)
-
+    with open(str(run+'.log'), 'w') as file:
+        file.write("Pedestal RMS Raw : ", dc.evt_list[ievent].noise_raw.ped_rms)
+        file.write("Pedestal RMS Filt : ", dc.evt_list[ievent].noise_filt.ped_rms)
+        file.write("Pedestal Mean Raw : ", dc.evt_list[ievent].noise_raw.ped_mean)
+        file.write("Pedestal Mean Filt : ", dc.evt_list[ievent].noise_filt.ped_mean)
+        file.close()
     #cmap.arange_in_view_channels()
 
     #plot.plot_FFT(ps)
