@@ -53,14 +53,14 @@ def coherent_noise(groupings):
             return
 
         nslices = int(cf.n_tot_channels / group)
-        print(' slice in ', nslices, ' shape is ', dc.data_daq.shape)
+        #print(' slice in ', nslices, ' shape is ', dc.data_daq.shape)
+        #print(dc.data_daq[5,400:440])
+        #print(dc.data_daq[10,400:440])
+        #print(dc.data_daq[120,400:440])
         
         dc.data_daq = np.reshape(dc.data_daq, (nslices, group, cf.n_sample))
         dc.mask_daq = np.reshape(dc.mask_daq, (nslices, group, cf.n_sample))
-        
-        print(' shape is ', dc.data_daq.shape)
 
-    
         """sum data if mask is true"""
         with np.errstate(divide='ignore', invalid='ignore'):
             """sum the data along the N channels (subscript l) if mask is true,
@@ -70,13 +70,23 @@ def coherent_noise(groupings):
             """require at least 3 points to take into account the mean"""
             mean[dc.mask_daq.sum(axis=1) < 3] = 0.
         
+        #for ig in range(nslices):
+            #print(ig, ' has ', dc.mask_daq.sum(axis=1)[ig,10])
+        #print(dc.data_daq[0,:,400])
 
         """Apply the correction to all data points"""
         dc.data_daq -= mean[:,None,:]
-        
+        #print("sub")
+        #print(mean[0,400:440])
+
         """ restore original data shape """
         dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, cf.n_sample))
         dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
 
-        print('just checking ', dc.data_daq.shape)
+        #print("now")
+        #print(dc.data_daq[5,400:440])
+        #print(dc.data_daq[10,400:440])
+        #print(dc.data_daq[120,400:440])
+
+
 
