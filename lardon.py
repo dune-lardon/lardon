@@ -50,7 +50,7 @@ print(" will use ", cf.channel_map)
 
 cmap.get_mapping(elec)
 
-
+print('channel map has ', len(dc.chmap), ' elements')
 reader = read.top_decoder(run, sub) if elec == "top" else read.bot_decoder(run, sub)
 reader.open_file()
 nb_evt = reader.read_run_header()
@@ -62,7 +62,7 @@ for ievent in range(nevent):
     #if(ievent < 25):
         #continue
     dc.reset_event()
-    
+
     print("-*-*-*-*-*-*-*-*-*-*-")
     print(" READING EVENT ", ievent)
     print("-*-*-*-*-*-*-*-*-*-*-")
@@ -72,39 +72,37 @@ for ievent in range(nevent):
     reader.read_evt(ievent)
     if(elec == 'top'):
         dc.data_daq *= -1
-    
+
     ped.compute_pedestal_raw()
-    plot.plot_raw_noise_daqch()
-    plot.plot_noise_vch(noise_type='raw', vmin=0, vmax=30.,to_be_shown=False)
+    # plot.plot_raw_noise_daqch()
+    # plot.plot_raw_noise_vch()
 
     cmap.arange_in_view_channels()
-    plot.event_display_per_view(-20,20,-20,50,option='raw', to_be_shown=False)
+    # plot.event_display_per_view(-20,20,-20,50,option='raw')
 
     ps = noise.FFT_low_pass(0.1)
 
-    plot.plot_FFT(ps)    
-    
-    plot.event_display_per_daqch(-50,50,option='fft')
+    plot.plot_FFT(ps)
+
+    # plot.event_display_per_daqch(-50,50,option='fft')
     cmap.arange_in_view_channels()
-    plot.event_display_per_view(-20,20,-20,50,option='fft')
+    # plot.event_display_per_view(-20,20,-20,50,option='fft')
 
     ped.compute_pedestal()
-    plot.plot_filt_noise_daqch(option='fft')
-    plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=30.,option='fft')#,to_be_shown=True)
-    #plot.plot_filt_noise_vch(option='fft',to_be_shown=True)
+    # plot.plot_filt_noise_daqch(option='fft')
+    # plot.plot_filt_noise_vch(option='fft')
 
-    plot.plot_correlation()
+    # plot.plot_correlation()
     noise.coherent_noise([64])
 
-    plot.event_display_per_daqch(-50,50,option='coherent')
+    # plot.event_display_per_daqch(-50,50,option='coherent')
     cmap.arange_in_view_channels()
-
-    plot.event_display_per_view(-20,20,-20,50,option='coherent')#, to_be_shown=True)
+    # plot.event_display_per_view(-20,20,-20,50,option='coherent')
 
     ped.compute_pedestal()
-    plot.plot_filt_noise_daqch(option='coherent')
-    plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=30.,option='coherent')#,to_be_shown=True)
-    #plot.plot_filt_noise_vch(option='coherent')
+    # plot.plot_filt_noise_daqch(option='coherent')
+    # plot.plot_filt_noise_vch(option='coherent')
+
 
 
     #cmap.arange_in_view_channels()
