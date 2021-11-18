@@ -77,7 +77,7 @@ for ievent in range(nevent):
     # plot.plot_raw_noise_daqch()
     # plot.plot_raw_noise_vch()
 
-    cmap.arange_in_view_channels()
+    # cmap.arange_in_view_channels()
     # plot.event_display_per_view(-20,20,-20,50,option='raw')
 
     ps = noise.FFT_low_pass(0.1)
@@ -85,7 +85,7 @@ for ievent in range(nevent):
     plot.plot_FFT(ps)
 
     # plot.event_display_per_daqch(-50,50,option='fft')
-    cmap.arange_in_view_channels()
+    # cmap.arange_in_view_channels()
     # plot.event_display_per_view(-20,20,-20,50,option='fft')
 
     ped.compute_pedestal()
@@ -96,15 +96,17 @@ for ievent in range(nevent):
     noise.coherent_noise([64])
 
     # plot.event_display_per_daqch(-50,50,option='coherent')
-    cmap.arange_in_view_channels()
+    # cmap.arange_in_view_channels()
     # plot.event_display_per_view(-20,20,-20,50,option='coherent')
 
     ped.compute_pedestal()
     # plot.plot_filt_noise_daqch(option='coherent')
     # plot.plot_filt_noise_vch(option='coherent')
-
-
-
+    print("Pedestal RMS Raw:", dc.evt_list[0].noise_raw.ped_rms)
+    print("Pedestal RMS Filt:", dc.evt_list[0].noise_filt.ped_rms)
+    print("Pedestal Mean Raw":", dc.evt_list[0].noise_raw.ped_mean)
+    print("Pedestal Mean Filt :", dc.evt_list[0].noise_filt.ped_mean)
+    
     #cmap.arange_in_view_channels()
 
     #plot.plot_FFT(ps)
