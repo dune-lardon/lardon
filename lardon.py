@@ -103,7 +103,7 @@ for ievent in range(nevent):
     # plot.plot_filt_noise_daqch(option='coherent')
     # plot.plot_filt_noise_vch(option='coherent')
     file1 = open(run+'_raw_rms.log',"a")
-    np.savetxt(file1,np.array(dc.evt_list[ievent].noise_raw.ped_rms))
+    np.savetxt(file1,np.array(dc.evt_list[ievent].noise_raw.ped_rms), delimiter=' ', fmt='%1.6e')
     # file1.write(dc.evt_list[ievent].noise_raw.ped_rms)
     file1.close()
 
