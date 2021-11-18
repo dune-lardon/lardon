@@ -112,7 +112,7 @@ for ievent in range(nevent):
     #plot.event_display_per_daqch()
     #plot.plot_raw_noise_daqch()
     #plot.plot_raw_noise_view()
-
+import numpy as np
 np.savetxt('%i.log'%run), saved_array, fmt='%4.6f', delimiter=' ')
 
 reader.close_file()
