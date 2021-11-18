@@ -103,21 +103,21 @@ for ievent in range(nevent):
     # plot.plot_filt_noise_daqch(option='coherent')
     # plot.plot_filt_noise_vch(option='coherent')
     file1 = open(run+'_raw_rms.log',"a")
-    np.savetxt(file1,np.array(dc.evt_list[ievent].noise_raw.ped_rms), delimiter=' ', fmt='%1.6e')
+    np.savetxt(file1, np.array(dc.evt_list[ievent].noise_raw.ped_rms), delimiter=' ', fmt='%1.6e')
     # file1.write(dc.evt_list[ievent].noise_raw.ped_rms)
     file1.close()
 
-    # file2 = open(run+'_filt_rms.log',"a")
-    # file2.write(dc.evt_list[ievent].noise_filt.ped_rms)
-    # file2.close()
+    file2 = open(run+'_filt_rms.log',"a")
+    np.savetxt(file2, np.array(dc.evt_list[ievent].noise_filt.ped_rms), delimiter=' ', fmt='%1.6e')
+    file2.close()
     #
-    # file3 = open(run+'_raw_mean.log',"a")
-    # file3.write(dc.evt_list[ievent].noise_raw.ped_mean)
-    # file3.close()
+    file3 = open(run+'_raw_mean.log',"a")
+    np.savetxt(file3, np.array(dc.evt_list[ievent].noise_raw.ped_mean), delimiter=' ', fmt='%1.6e')
+    file3.close()
     #
-    # file4 = open(run+'_filt_mean.log',"a")
-    # file4.write(dc.evt_list[ievent].noise_filt.ped_mean)
-    # file4.close()
+    file4 = open(run+'_filt_mean.log',"a")
+    np.savetxt(file4, np.array(dc.evt_list[ievent].noise_filt.ped_mean), delimiter=' ', fmt='%1.6e')
+    file4.close()
 
     #cmap.arange_in_view_channels()
 
