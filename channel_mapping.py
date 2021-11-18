@@ -3,7 +3,14 @@ import config as cf
 import data_containers as dc
 import numpy as np
 from abc import ABC, abstractmethod
-    
+
+
+def set_unused_channels():
+    for i in range(cf.n_tot_channels):
+        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
+        if(view >= cf.n_view or view < 0):
+            dc.alive_chan[i,:] = False
+            
 def arange_in_view_channels():
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
