@@ -103,7 +103,7 @@ for ievent in range(nevent):
     # plot.plot_filt_noise_daqch(option='coherent')
     # plot.plot_filt_noise_vch(option='coherent')
 
-    saved_array.append([dc.evt_list[ievent].noise_raw.ped_rms, dc.evt_list[ievent].noise_filt.ped_rms, dc.evt_list[ievent].noise_raw.ped_mean, dc.evt_list[ievent].noise_filt.ped_mean]
+    saved_array.append([dc.evt_list[ievent].noise_raw.ped_rms, dc.evt_list[ievent].noise_filt.ped_rms, dc.evt_list[ievent].noise_raw.ped_mean, dc.evt_list[ievent].noise_filt.ped_mean])
     #cmap.arange_in_view_channels()
 
     #plot.plot_FFT(ps)
