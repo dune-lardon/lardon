@@ -56,7 +56,7 @@ reader.open_file()
 nb_evt = reader.read_run_header()
 
 print(" --->> Will process ", nevent, " events [ out of ", nb_evt, "] of run ", run)
-
+saved_array=[]
 
 for ievent in range(nevent):
     #if(ievent < 25):
@@ -102,13 +102,8 @@ for ievent in range(nevent):
     ped.compute_pedestal()
     # plot.plot_filt_noise_daqch(option='coherent')
     # plot.plot_filt_noise_vch(option='coherent')
-    with open(str(run+'.log'), 'w') as file:
-        file.write("Pedestal RMS Raw, Pedestal RMS Filt, Pedestal Mean Raw, Pedestal Mean Filt")
-        file.write(dc.evt_list[ievent].noise_raw.ped_rms)
-        file.write(dc.evt_list[ievent].noise_filt.ped_rms)
-        file.write(dc.evt_list[ievent].noise_raw.ped_mean)
-        file.write(dc.evt_list[ievent].noise_filt.ped_mean)
-        file.close()
+
+    saved_array.append([dc.evt_list[ievent].noise_raw.ped_rms),dc.evt_list[ievent].noise_filt.ped_rms),dc.evt_list[ievent].noise_raw.ped_mean),dc.evt_list[ievent].noise_filt.ped_mean)]
     #cmap.arange_in_view_channels()
 
     #plot.plot_FFT(ps)
@@ -118,5 +113,6 @@ for ievent in range(nevent):
     #plot.plot_raw_noise_daqch()
     #plot.plot_raw_noise_view()
 
+np.savetxt(str(run+'.log'), saved_array, fmt='%4.6f', delimiter=' ')
 
 reader.close_file()
