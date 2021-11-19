@@ -6,15 +6,19 @@ from abc import ABC, abstractmethod
 
 
 def set_unused_channels():
+    print("set unused channels")
+    if(len(cf.broken_channels) > 0):
+       print("remove broken channels: ",cf.broken_channels)
+
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
-        if(view >= cf.n_view or view < 0):
+        if(view >= cf.n_view or view < 0 or chan in cf.broken_channels):
             dc.alive_chan[i,:] = False
             
 def arange_in_view_channels():
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
-        if(view >= cf.n_view or view < 0):
+        if(view >= cf.n_view or view < 0 or chan in cf.broken_channels):
             continue
         dc.data[view, chan] = dc.data_daq[i]
 

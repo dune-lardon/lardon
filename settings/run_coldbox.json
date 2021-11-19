@@ -1,7 +1,8 @@
 {
     "top":{
 	"99999":{
-	    "chmap":"cb_tde_chmap_v1.txt"	    	    
+	    "chmap":"cb_tde_chmap_v1.txt",	    	    
+            "broken_channels":[761,764]
 	}
     },
     "bot":{
