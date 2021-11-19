@@ -12,13 +12,13 @@ def set_unused_channels():
 
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
-        if(view >= cf.n_view or view < 0 or chan in cf.broken_channels):
+        if(view >= cf.n_view or view < 0 or i in cf.broken_channels):
             dc.alive_chan[i,:] = False
             
 def arange_in_view_channels():
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
-        if(view >= cf.n_view or view < 0 or chan in cf.broken_channels):
+        if(view >= cf.n_view or view < 0 or i in cf.broken_channels):
             continue
         dc.data[view, chan] = dc.data_daq[i]
 
