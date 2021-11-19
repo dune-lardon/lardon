@@ -31,6 +31,6 @@ n_sample = 0
 ADC_to_fC = 0
 elec = "none"
 channel_map = ""
-
+broken_channels = []
 
 
