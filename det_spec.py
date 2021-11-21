@@ -31,4 +31,7 @@ def configure(detector, period, elec, run):
 
 
         cf.channel_map = "settings/chmap/"+data[run_key_set]["chmap"]
-        cf.broken_channels = data[run_key_set]["broken_channels"]
+        try:
+            cf.broken_channels = data[run_key_set]["broken_channels"]
+        except KeyError:
+            print("WARNING: No information available on broken channels.")
