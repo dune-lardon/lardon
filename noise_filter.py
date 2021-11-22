@@ -10,14 +10,20 @@ def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
 
-def FFT_low_pass(lowpass_cut):
+def FFT_low_pass(lowpass_cut, freq_cut=-1):
     n    = int(cf.n_sample/2) + 1
     rate = cf.sampling #in MHz
 
     freq = np.linspace(0, rate/2., n)
-
+    print('frequency binning ', freq[1]-freq[0])
     """define gaussian low pass filter"""
     gauss_cut = np.where(freq < lowpass_cut, 1., gaussian(freq, lowpass_cut, 0.02))
+
+    if(freq_cut > 0):
+        print('frequency at ', freq_cut, ' removed')
+        f_cut = 1.-gaussian(freq,freq_cut,0.001)
+        gauss_cut = gauss_cut*f_cut
+
 
     """go to frequency domain"""
     fdata = np.fft.rfft(dc.data_daq)
@@ -53,10 +59,6 @@ def coherent_noise(wf_noise,groupings):
             return
 
         nslices = int(cf.n_tot_channels / group)
-        #print(' slice in ', nslices, ' shape is ', dc.data_daq.shape)
-        #print(dc.data_daq[5,400:440])
-        #print(dc.data_daq[10,400:440])
-        #print(dc.data_daq[120,400:440])
         
         wf_noise = np.reshape(wf_noise, (nslices, group, cf.n_sample))
         dc.data_daq = np.reshape(dc.data_daq, (nslices, group, cf.n_sample))
@@ -71,23 +73,13 @@ def coherent_noise(wf_noise,groupings):
             """require at least 3 points to take into account the mean"""
             mean[dc.mask_daq.sum(axis=1) < 3] = 0.
         
-        #for ig in range(nslices):
-            #print(ig, ' has ', dc.mask_daq.sum(axis=1)[ig,10])
-        #print(dc.data_daq[0,:,400])
 
         """Apply the correction to all data points"""
         dc.data_daq -= mean[:,None,:]
-        #print("sub")
-        #print(mean[0,400:440])
 
         """ restore original data shape """
         dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, cf.n_sample))
         dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
-
-        #print("now")
-        #print(dc.data_daq[5,400:440])
-        #print(dc.data_daq[10,400:440])
-        #print(dc.data_daq[120,400:440])
 
 
 def set_mask_wf_rms_all():
