@@ -17,6 +17,7 @@ parser.add_argument('-det', dest='detector', help='which detector is looked at [
 parser.add_argument('-period', dest='period', help='which detector period is looked at [default is 1]', default='1')
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=-1)
+parser.add_argument('-f', '--file', help="Override derived filename")
 args = parser.parse_args()
 
 
@@ -72,7 +73,7 @@ cmap.set_unused_channels()
 dc.mask_daq = dc.alive_chan
 
 """ setup the decoder """
-reader = read.top_decoder(run, sub) if elec == "top" else read.bot_decoder(run, sub)
+reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, sub, args.file)
 reader.open_file()
 nb_evt = reader.read_run_header()
 
