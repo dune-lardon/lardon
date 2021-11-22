@@ -6,8 +6,8 @@ plot_path  = "./results"
 
 """ to add in the json file ?? """
 
-LAr_Temperature = 87. #K - to check in the slow control 
-E_drift = 0.500 #kV/cm - could be run specific ?
+LAr_temperature = 87. #K - to check in the slow control 
+e_drift = 0.500 #kV/cm - could be run specific ?
 
 drift_length = 23. #cm # ????
 
@@ -32,5 +32,8 @@ ADC_to_fC = 0
 elec = "none"
 channel_map = ""
 broken_channels = []
+x_offset = 0.
+y_offset = 0.
+
 
 
