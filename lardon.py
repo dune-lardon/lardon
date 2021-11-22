@@ -105,8 +105,8 @@ for ievent in range(nevent):
     if(elec == 'top'):
         dc.data_daq *= -1
 
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='raw')
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='raw')
     vmax = 900 if elec == 'bot' else 30
 
     plot.plot_noise_daqch(noise_type='raw',vmin=0,vmax=vmax,to_be_shown=False)
@@ -127,8 +127,8 @@ for ievent in range(nevent):
     cmap.arange_in_view_channels()
     plot.event_display_per_view(-1000,1000,-500,500,option='fft')
 
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='filt')
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='filt')
     plot.plot_noise_daqch(noise_type='filt',option='fft', vmin=0, vmax=vmax)
     plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='fft')#,to_be_shown=True)
 
@@ -136,15 +136,15 @@ for ievent in range(nevent):
     plot.plot_correlation_globch(to_be_shown=False)
 
     
-    noise.coherent_noise(wf_noise,[64])
+    noise.coherent_noise([64])
 
     plot.event_display_per_daqch(-1000,1000,option='coherent',to_be_shown=False)
     cmap.arange_in_view_channels()
 
     plot.event_display_per_view(-500,500,-250,500,option='coherent', to_be_shown=False)
 
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='filt')
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='filt')
     plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
     plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
 
