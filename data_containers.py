@@ -26,10 +26,6 @@ alive_chan mask intends to not take into account broken channels
 True : not broken
 False : broken
 """
-#alive_chan = np.ones((cf.n_view, max(cf.view_nchan)), dtype=bool)
-
-ped_rms = np.zeros((cf.n_view, max(cf.view_nchan)), dtype=np.float32) 
-ped_mean = np.zeros((cf.n_view, max(cf.view_nchan)), dtype=np.float32) 
 
 
 
