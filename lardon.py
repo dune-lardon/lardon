@@ -9,9 +9,9 @@ import time as time
 tstart = time.time()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-elec', dest='elec', help='which electronics is used [tde, top, bde, bot]', default='', required=True)
-parser.add_argument('-run', dest='run', help='run number to be processed', default="", required=True)
-parser.add_argument('-sub', dest='sub', help='which subfile number [default is the first]', default="", required=True)
+parser.add_argument('-elec', dest='elec', help='which electronics is used [tde, top, bde, bot]', required=True, choices=["bot", "bde", "top", "tde"])
+parser.add_argument('-run', dest='run', help='run number to be processed', required=True)
+parser.add_argument('-sub', dest='sub', help='which subfile number [default is the first]', required=True)
 parser.add_argument('-n', dest='nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
 parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='coldbox')
 parser.add_argument('-period', dest='period', help='which detector period is looked at [default is 1]', default='1')
@@ -26,10 +26,6 @@ if(args.elec == 'top' or args.elec == 'tde'):
     elec = 'top'
 elif(args.elec == 'bot' or args.elec == 'bde'):
     elec = 'bot'
-else:
-    print('electronic ', args.elec, ' is not recognized !')
-    print('please mention the electronics with -elec argument : tde, top, bde or bot')
-    sys.exit()
 
 
 run = args.run
