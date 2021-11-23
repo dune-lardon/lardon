@@ -32,8 +32,8 @@ ADC_to_fC = 0
 elec = "none"
 channel_map = ""
 broken_channels = []
-x_offset = 0.
-y_offset = 0.
+view_offset = []
+
 
 
 
