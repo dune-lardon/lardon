@@ -21,7 +21,6 @@ def configure(detector, period, elec, run):
         cf.data_path += "/" + data[elec]['sub_path']
         cf.view_offset = [float(x) for x in data[elec]['view_offset']]
 
-
     """ shorter term parameters """
     with open('settings/run_'+detector+'.json','r') as f:
         data = json.load(f)[elec]

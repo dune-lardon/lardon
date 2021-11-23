@@ -35,5 +35,3 @@ broken_channels = []
 view_offset = []
 
 
-
-
