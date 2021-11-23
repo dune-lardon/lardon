@@ -279,8 +279,22 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
 
     jump = 64 if dc.evt_list[-1].elec == "top" else 128
     for i in range(0,cf.n_tot_channels,jump):
-        ax_corr.axvline(i, ls='--',lw=1,c='k')
-        ax_corr.axhline(i, ls='--',lw=1,c='k')
+        ax_corr.axvline(i, ls=':',lw=.2,c='k')
+        ax_corr.axhline(i, ls=':',lw=.2,c='k')
+
+    if(corr_type=='glob'):
+        nprev = 0
+        for i in range(cf.n_view-1):
+            ax_corr.axvline(nprev + cf.view_nchan[i], lw=.4,c='k')
+            ax_corr.axhline(nprev + cf.view_nchan[i], lw=.4,c='k')
+            nprev += cf.view_nchan[i]
+    elif(corr_type=='daq'):
+        jump = 640 if dc.evt_list[-1].elec == "top" else 256
+        for i in range(0,cf.n_tot_channels,jump):
+            ax_corr.axvline(i, ls='--',lw=.4,c='k')
+            ax_corr.axhline(i, ls='--',lw=.4,c='k')
+            
+
 
     ax_col.set_title('Correlation Coefficient')
 

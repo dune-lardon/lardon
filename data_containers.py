@@ -10,7 +10,8 @@ tracks3D_list = []
 
 
 data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
-mask_daq = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
 
 
 data = np.zeros((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32) #view, vchan
@@ -25,7 +26,7 @@ alive_chan mask intends to not take into account broken channels
 True : not broken
 False : broken
 """
-alive_chan = np.ones((cf.n_view, max(cf.view_nchan)), dtype=bool)
+#alive_chan = np.ones((cf.n_view, max(cf.view_nchan)), dtype=bool)
 
 ped_rms = np.zeros((cf.n_view, max(cf.view_nchan)), dtype=np.float32) 
 ped_mean = np.zeros((cf.n_view, max(cf.view_nchan)), dtype=np.float32) 

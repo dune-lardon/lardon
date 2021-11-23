@@ -3,7 +3,10 @@ import argparse
 import numpy as np
 from datetime import datetime
 import det_spec as det
+import tables as tab
+import time as time
 
+tstart = time.time()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-elec', dest='elec', help='which electronics is used [tde, top, bde, bot]', default='', required=True)
@@ -12,6 +15,8 @@ parser.add_argument('-sub', dest='sub', help='which subfile number [default is t
 parser.add_argument('-n', dest='nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
 parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='coldbox')
 parser.add_argument('-period', dest='period', help='which detector period is looked at [default is 1]', default='1')
+parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
+parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=-1)
 args = parser.parse_args()
 
 
@@ -31,7 +36,8 @@ sub = args.sub
 nevent = args.nevent
 detector = args.detector
 period = args.period
-
+outname_option = args.outname
+evt_skip = args.evt_skip
 det.configure(detector, period, elec, run)
 
 print("Welcome to LARDON !")
@@ -43,24 +49,48 @@ import channel_mapping as cmap
 import plotting as plot
 import pedestals as ped
 import noise_filter as noise
-import logging
+import store as store
 
 plot.set_style()
 
+
+""" output file """
+if(outname_option):
+    outname_option = "_"+outname_option
+else:
+    outname_option = ""
+name_out = cf.store_path +"/" + elec+"_" + run + "_" + sub + outname_option + ".h5"
+output = tab.open_file(name_out, mode="w", title="Reconstruction Output")
+store.create_tables(output)
+
+""" set the channel mapping """
 print(" will use ", cf.channel_map)
-
 cmap.get_mapping(elec)
+cmap.set_unused_channels()
 
-print('channel map has ', len(dc.chmap), ' elements')
+""" mask the unused channels """
+dc.mask_daq = dc.alive_chan
+
+""" setup the decoder """
+
 reader = read.top_decoder(run, sub) if elec == "top" else read.bot_decoder(run, sub)
 reader.open_file()
 nb_evt = reader.read_run_header()
 
+if(nevent > nb_evt or nevent < 0):
+    nevent = nb_evt
+
 print(" --->> Will process ", nevent, " events [ out of ", nb_evt, "] of run ", run)
 
+""" store basic informations """
+store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
+store.store_chan_map(output)
+
+
 for ievent in range(nevent):
-    #if(ievent < 25):
-        #continue
+    t0 = time.time()
+    if(evt_skip > 0 and ievent < evt_skip):
+        continue
     dc.reset_event()
 
     print("-*-*-*-*-*-*-*-*-*-*-")
@@ -69,64 +99,58 @@ for ievent in range(nevent):
 
     reader.read_evt_header(ievent)
     dc.evt_list[-1].dump()
+    store.store_event(output)
+
     reader.read_evt(ievent)
     if(elec == 'top'):
         dc.data_daq *= -1
 
-    ped.compute_pedestal_raw()
-    # plot.plot_raw_noise_daqch()
-    # plot.plot_raw_noise_vch()
+    wf_noise = noise.set_mask_wf_rms_all()
+    ped.compute_pedestal(wf_noise,noise_type='raw')
+    vmax = 900 if elec == 'bot' else 30
 
-    # cmap.arange_in_view_channels()
-    # plot.event_display_per_view(-20,20,-20,50,option='raw')
+    plot.plot_noise_daqch(noise_type='raw',vmin=0,vmax=vmax,to_be_shown=False)
+    plot.plot_noise_vch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
+    plot.plot_noise_globch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
+    plot.event_display_per_daqch(-1000,1000,option='raw',to_be_shown=False)
+    cmap.arange_in_view_channels()
+    plot.event_display_per_view(-20,20,-20,50,option='raw', to_be_shown=False)
 
-    ps = noise.FFT_low_pass(0.1)
+    fft_cut = 0.6 if elec=='top' else 0.4
 
-    plot.plot_FFT(ps)
+    ps = noise.FFT_low_pass(fft_cut)
+    store.store_fft(output, ps)
 
-    # plot.event_display_per_daqch(-50,50,option='fft')
-    # cmap.arange_in_view_channels()
-    # plot.event_display_per_view(-20,20,-20,50,option='fft')
+    plot.plot_FFT(ps,to_be_shown=False)
 
-    ped.compute_pedestal()
-    # plot.plot_filt_noise_daqch(option='fft')
-    # plot.plot_filt_noise_vch(option='fft')
+    plot.event_display_per_daqch(-1000,1000,option='fft',to_be_shown=False)
+    cmap.arange_in_view_channels()
+    plot.event_display_per_view(-1000,1000,-500,500,option='fft')
 
-    # plot.plot_correlation()
-    noise.coherent_noise([64])
+    wf_noise = noise.set_mask_wf_rms_all()
+    ped.compute_pedestal(wf_noise,noise_type='filt')
+    plot.plot_noise_daqch(noise_type='filt',option='fft', vmin=0, vmax=vmax)
+    plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='fft')#,to_be_shown=True)
 
-    # plot.event_display_per_daqch(-50,50,option='coherent')
-    # cmap.arange_in_view_channels()
-    # plot.event_display_per_view(-20,20,-20,50,option='coherent')
+    plot.plot_correlation_daqch(to_be_shown=False)
+    plot.plot_correlation_globch(to_be_shown=False)
 
-    ped.compute_pedestal()
-    # plot.plot_filt_noise_daqch(option='coherent')
-    # plot.plot_filt_noise_vch(option='coherent')
-    file1 = open('outfiles/'+run+'_raw_rms.log',"a")
-    np.savetxt(file1, np.array(dc.evt_list[ievent].noise_raw.ped_rms), delimiter=' ', fmt='%1.6e')
-    # file1.write(dc.evt_list[ievent].noise_raw.ped_rms)
-    file1.close()
 
-    file2 = open('outfiles/'+run+'_filt_rms.log',"a")
-    np.savetxt(file2, np.array(dc.evt_list[ievent].noise_filt.ped_rms), delimiter=' ', fmt='%1.6e')
-    file2.close()
-    #
-    file3 = open('outfiles/'+run+'_raw_mean.log',"a")
-    np.savetxt(file3, np.array(dc.evt_list[ievent].noise_raw.ped_mean), delimiter=' ', fmt='%1.6e')
-    file3.close()
-    #
-    file4 = open('outfiles/'+run+'_filt_mean.log',"a")
-    np.savetxt(file4, np.array(dc.evt_list[ievent].noise_filt.ped_mean), delimiter=' ', fmt='%1.6e')
-    file4.close()
+    noise.coherent_noise(wf_noise,[64])
 
-    #cmap.arange_in_view_channels()
+    plot.event_display_per_daqch(-1000,1000,option='coherent',to_be_shown=False)
+    cmap.arange_in_view_channels()
 
-    #plot.plot_FFT(ps)
-    #plot.plot_correlation()
-    #plot.event_display_per_view(-20,20,-20,50)#-1500,1500,-1500,3000)
-    #plot.event_display_per_daqch()
-    #plot.plot_raw_noise_daqch()
-    #plot.plot_raw_noise_view()
+    plot.event_display_per_view(-500,500,-250,500,option='coherent', to_be_shown=False)
 
+    wf_noise = noise.set_mask_wf_rms_all()
+    ped.compute_pedestal(wf_noise,noise_type='filt')
+    plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
+    plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
+
+    store.store_pedestals(output)
+    print('  %.2f s to process '%(time.time()-t0))
 
 reader.close_file()
+output.close()
+print('it took %.2f s to run'%(time.time()-tstart))
