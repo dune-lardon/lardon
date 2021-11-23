@@ -25,6 +25,7 @@ view_type = []
 view_angle = []
 view_pitch = []
 view_nchan = []
+view_capa = []
 n_tot_channels = -1
 sampling = 0
 n_sample = 0
