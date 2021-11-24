@@ -9,24 +9,21 @@ import time as time
 tstart = time.time()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-elec', dest='elec', help='which electronics is used [tde, top, bde, bot]', required=True, choices=["bot", "bde", "top", "tde"])
-parser.add_argument('-run', dest='run', help='run number to be processed', required=True)
-parser.add_argument('-sub', dest='sub', help='which subfile number [default is the first]', required=True)
-parser.add_argument('-n', dest='nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
+parser.add_argument('-elec', help='Which electronics are used [tde, top, bde, bot]', required=True, choices=["bot", "bde", "top", "tde"])
+parser.add_argument('-run', help='Run number to be processed', required=True)
+parser.add_argument('-sub', help='Subfile to read', type=int, required=True)
+parser.add_argument('-n', '--nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
 parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='coldbox')
-parser.add_argument('-period', dest='period', help='which detector period is looked at [default is 1]', default='1')
+parser.add_argument('-period', help='which detector period is looked at [default is 1]', default='1')
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=-1)
 parser.add_argument('-f', '--file', help="Override derived filename")
 args = parser.parse_args()
 
-
-
 if(args.elec == 'top' or args.elec == 'tde'):
     elec = 'top'
 elif(args.elec == 'bot' or args.elec == 'bde'):
     elec = 'bot'
-
 
 run = args.run
 sub = args.sub
@@ -56,7 +53,7 @@ if(outname_option):
     outname_option = "_"+outname_option
 else:
     outname_option = ""
-name_out = cf.store_path +"/" + elec+"_" + run + "_" + sub + outname_option + ".h5"
+name_out = f"{cf.store_path}/{elec}_{run}_{sub}{outname_option}.h5"
 output = tab.open_file(name_out, mode="w", title="Reconstruction Output")
 store.create_tables(output)
 
