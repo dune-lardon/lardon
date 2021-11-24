@@ -20,6 +20,13 @@ def configure(detector, period, elec, run):
         cf.ADC_to_fC = float(data[elec]['ADC_to_fC'])
         cf.data_path += "/" + data[elec]['sub_path']
         cf.view_offset = [float(x) for x in data[elec]['view_offset']]
+        cf.view_chan_repet  = [int(x) for x in data['view_chan_repet']]
+
+        cf.drift_length = float(data['drift_length'])
+
+        cf.anode_z = cf.drift_length/2.
+        cf.view_length = [float(x) for x in data["view_length"]]
+
 
     """ shorter term parameters """
     with open('settings/run_'+detector+'.json','r') as f:
