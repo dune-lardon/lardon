@@ -8,15 +8,17 @@
 	"view_pitch":["0.8695", "0.525", "0.517"],
 	"view_capa":["109","80","100"],
 	"view_nchan":["384", "640", "576"],
+	"view_chan_repet":["384","320","576"],
+	"drift_length":"23.",
+	"view_length":["333.388","168.","297.792"],
 
-	
 	"top":{
 	    "sub_path":"np02/rawdata_cb",
 	    "n_tot_channels":"1920",
 	    "sampling":"2.5",
 	    "n_sample":"10000",
 	    "ADC_to_fC":"1",
-	    "view_offset":["0","-150.","-167.5"]
+	    "view_offset":["-222.675","-168.0","-148.896"]
 	},
 
 	"bot":{
@@ -25,7 +27,7 @@
 	    "sampling":"2",
 	    "n_sample":"8192",
 	    "ADC_to_fC":"1",
-	    "view_offset":["0","0.","-167.5"]
+	    "view_offset":["0","0.","-148.9"]
 	}
     }
 }
