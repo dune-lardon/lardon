@@ -106,9 +106,8 @@ for ievent in range(nevent):
     if(elec == 'top'):
         dc.data_daq *= -1
 
-
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='raw')
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='raw')
     vmax = 900 if elec == 'bot' else 30
 
     
@@ -131,9 +130,8 @@ for ievent in range(nevent):
     #store.store_fft(output, ps)
 
 
-
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='filt')
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='filt')
     plot.plot_noise_daqch(noise_type='filt',option='fft', vmin=0, vmax=vmax)
     plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='fft')#,to_be_shown=True)
 
@@ -155,12 +153,8 @@ for ievent in range(nevent):
 
     noise_group = [32] if elec == 'top' else [32]
     noise.coherent_noise(noise_group)
-    ped.compute_pedestal()
-
-
-
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='filt')
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='filt')
     plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
     plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
 
