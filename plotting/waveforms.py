@@ -82,7 +82,7 @@ def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1, option=None, to_b
     for i in range(n_wvf):
         daqch = daqch_list[i]
         legend = "DAQ ch"+str(daqch)
-        view, ch = cf.chmap[daqch].view, cf.chmap[daqch].vchan
+        view, ch = dc.chmap[daqch].view, dc.chmap[daqch].vchan
         ax[i] = draw_current_waveform(daqch, -1, -1, ax=ax[i], label=legend, c='k')
         ax[i].set_ylabel('ADC')
         ax[i].legend(loc='upper right')
