@@ -67,10 +67,10 @@ cmap.get_mapping(elec)
 cmap.set_unused_channels()
 
 
-ntot = cf.n_tot_channels*cf.n_sample
+
 """ mask the unused channels """
 dc.mask_daq = ~dc.alive_chan
-print("currently ", ntot-sum(dc.mask_daq), " signal hits")
+
 
 """ setup the decoder """
 reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file)
@@ -190,7 +190,7 @@ for ievent in range(nevent):
     trk2d.find_tracks_rtree(5, 6., 8., 0.5, 1., 3.)
 
     [t.mini_dump() for t in dc.tracks2D_list]
-
+    plot.plot_2dview_2dtracks(to_be_shown=True)
 
 
 reader.close_file()
