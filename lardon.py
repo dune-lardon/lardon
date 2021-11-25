@@ -18,6 +18,7 @@ parser.add_argument('-period', help='which detector period is looked at [default
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
 parser.add_argument('-f', '--file', help="Override derived filename")
+parser.add_argument('-conf','--config',dest='conf', help='Ananlysis configuration ID', default='1')
 args = parser.parse_args()
 
 if(args.elec == 'top' or args.elec == 'tde'):
@@ -46,7 +47,7 @@ import noise_filter as noise
 import store as store
 import hit_finder as hf
 import track_2d as trk2d
-
+import analysis_parameters as params
 
 
 plot.set_style()
