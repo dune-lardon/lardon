@@ -80,6 +80,10 @@ class decoder(ABC):
         pass
 
     @abstractmethod
+    def get_filename(self):
+        pass
+
+    @abstractmethod
     def read_run_header(self):
         pass
 
@@ -97,9 +101,10 @@ class decoder(ABC):
 
 
 class top_decoder(decoder):
-    def __init__(self, run, sub):
+    def __init__(self, run, sub, filename=None):
         self.run = run
         self.sub = sub
+        self.filename = filename
         print(' -- reading a top drift electronics file')
         
         """ some TDE specific parameters """
@@ -125,13 +130,19 @@ class top_decoder(decoder):
 
         self.header_size = self.header_type.itemsize
 
-    def open_file(self):
-        path = cf.data_path + "/" + self.run + "/" + self.run + "_" + self.sub
+
+    def get_filename(self):
+        path = f"{cf.data_path}/{self.run}/{self.run}_{self.sub}"
         fl = glob.glob(path+"_*")
         if(len(fl) != 1):
             print('none or more than one file matches ... : ', fl)
             sys.exit()
         f = fl[0]
+        return f
+
+
+    def open_file(self):
+        f = self.filename if self.filename else self.get_filename()
         print('Reconstructing ', f)
 
         f_type = f[f.rfind('.')+1:]
@@ -211,9 +222,10 @@ class top_decoder(decoder):
 
 
 class bot_decoder(decoder):
-    def __init__(self, run, sub):
+    def __init__(self, run, sub, filename=None):
         self.run = run
         self.sub = sub
+        self.filename = filename
         print(' -- reading a bottom drift electronics file')
 
         """ bde specific parameters """
@@ -299,9 +311,7 @@ class bot_decoder(decoder):
         self.wib_frame_size = self.wib_header_size + 4*(self.cb_header_size + int(64*3/2))
 
 
-
-        
-    def open_file(self):
+    def get_filename(self):
         r = int(self.run)
         long_run = f'{r:08d}'
         run_path = ""
@@ -319,7 +329,12 @@ class bot_decoder(decoder):
             print('none or more than one file matches ... : ', fl)
             sys.exit()
 
-        f = fl[0]
+        return fl[0]
+
+
+
+    def open_file(self):
+        f = self.filename if self.filename else self.get_filename()
         print('Reconstructing ', f)
         self.f_in = tab.open_file(f,"r")
         

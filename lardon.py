@@ -9,27 +9,21 @@ import time as time
 tstart = time.time()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-elec', dest='elec', help='which electronics is used [tde, top, bde, bot]', default='', required=True)
-parser.add_argument('-run', dest='run', help='run number to be processed', default="", required=True)
-parser.add_argument('-sub', dest='sub', help='which subfile number [default is the first]', default="", required=True)
-parser.add_argument('-n', dest='nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
+parser.add_argument('-elec', help='Which electronics are used [tde, top, bde, bot]', required=True, choices=["bot", "bde", "top", "tde"])
+parser.add_argument('-run', help='Run number to be processed', required=True)
+parser.add_argument('-sub', help='Subfile to read', type=int, required=True)
+parser.add_argument('-n', '--nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
 parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='coldbox')
-parser.add_argument('-period', dest='period', help='which detector period is looked at [default is 1]', default='1')
+parser.add_argument('-period', help='which detector period is looked at [default is 1]', default='1')
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=-1)
+parser.add_argument('-f', '--file', help="Override derived filename")
 args = parser.parse_args()
-
-
 
 if(args.elec == 'top' or args.elec == 'tde'):
     elec = 'top'
 elif(args.elec == 'bot' or args.elec == 'bde'):
     elec = 'bot'
-else:
-    print('electronic ', args.elec, ' is not recognized !')
-    print('please mention the electronics with -elec argument : tde, top, bde or bot')
-    sys.exit()
-
 
 run = args.run
 sub = args.sub
@@ -59,7 +53,7 @@ if(outname_option):
     outname_option = "_"+outname_option
 else:
     outname_option = ""
-name_out = cf.store_path +"/" + elec+"_" + run + "_" + sub + outname_option + ".h5"
+name_out = f"{cf.store_path}/{elec}_{run}_{sub}{outname_option}.h5"
 output = tab.open_file(name_out, mode="w", title="Reconstruction Output")
 store.create_tables(output)
 
@@ -72,8 +66,7 @@ cmap.set_unused_channels()
 dc.mask_daq = dc.alive_chan
 
 """ setup the decoder """
-
-reader = read.top_decoder(run, sub) if elec == "top" else read.bot_decoder(run, sub)
+reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, sub, args.file)
 reader.open_file()
 nb_evt = reader.read_run_header()
 
@@ -87,12 +80,13 @@ store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
 store.store_chan_map(output)
 
 
+
 for ievent in range(nevent):
     t0 = time.time()
     if(evt_skip > 0 and ievent < evt_skip):
         continue
     dc.reset_event()
-
+    
     print("-*-*-*-*-*-*-*-*-*-*-")
     print(" READING EVENT ", ievent)
     print("-*-*-*-*-*-*-*-*-*-*-")
@@ -105,49 +99,66 @@ for ievent in range(nevent):
     if(elec == 'top'):
         dc.data_daq *= -1
 
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='raw')
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='raw')
     vmax = 900 if elec == 'bot' else 30
 
-    plot.plot_noise_daqch(noise_type='raw',vmin=0,vmax=vmax,to_be_shown=False)
-    plot.plot_noise_vch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
-    plot.plot_noise_globch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
-    plot.event_display_per_daqch(-1000,1000,option='raw',to_be_shown=False)
-    cmap.arange_in_view_channels()
-    plot.event_display_per_view(-20,20,-20,50,option='raw', to_be_shown=False)
+    
+    vmax = 900 if elec == 'bot' else 15
+    #plot.plot_wvf_current_vch([(0,355),(1,546),(2,514)], option='raw', to_be_shown=False, tmin=400,tmax=1500)
 
-    fft_cut = 0.6 if elec=='top' else 0.4
+    #plot.plot_noise_daqch(noise_type='raw',vmin=0,vmax=vmax,to_be_shown=False)
+    #plot.plot_noise_vch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
+    #plot.plot_noise_globch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
+    #plot.event_display_per_daqch(-1000,1000,option='raw',to_be_shown=False)
+    #cmap.arange_in_view_channels()
+    #plot.event_display_per_view(-1000,1000,-500,500,option='raw', to_be_shown=False)
 
-    ps = noise.FFT_low_pass(fft_cut)
-    store.store_fft(output, ps)
 
-    plot.plot_FFT(ps,to_be_shown=False)
+    fft_low_cut = 0.6 if elec=='top' else 0.4
+    fft_freq = -1 if elec=='top' else 0.0225
+    ps = noise.FFT_low_pass(fft_low_cut, fft_freq)
 
-    plot.event_display_per_daqch(-1000,1000,option='fft',to_be_shown=False)
-    cmap.arange_in_view_channels()
-    plot.event_display_per_view(-1000,1000,-500,500,option='fft')
+    """ DO NOT STORE ALL FFT PS !! """
+    #store.store_fft(output, ps)
 
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='filt')
+
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='filt')
     plot.plot_noise_daqch(noise_type='filt',option='fft', vmin=0, vmax=vmax)
     plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='fft')#,to_be_shown=True)
 
-    plot.plot_correlation_daqch(to_be_shown=False)
-    plot.plot_correlation_globch(to_be_shown=False)
+    
+
+    #plot.plot_FFT_daqch(ps,option='raw',to_be_shown=False)    
+    #plot.plot_FFT_vch(ps,option='raw',to_be_shown=False)    
 
 
-    noise.coherent_noise(wf_noise,[64])
+    #plot.plot_wvf_current_vch([(0,355),(1,546),(2,492)], option='fft', to_be_shown=False, tmin=400,tmax=1500)
+    #plot.event_display_per_daqch(-100,100,option='fft',to_be_shown=False)
+    #cmap.arange_in_view_channels()
+    #plot.event_display_per_view(-100,100,-50,50,option='fft', to_be_shown=False)
 
-    plot.event_display_per_daqch(-1000,1000,option='coherent',to_be_shown=False)
-    cmap.arange_in_view_channels()
 
-    plot.event_display_per_view(-500,500,-250,500,option='coherent', to_be_shown=False)
+    #plot.plot_correlation_daqch(option='fft',to_be_shown=True)
+    #plot.plot_correlation_globch(option='fft', to_be_shown=False)
 
-    wf_noise = noise.set_mask_wf_rms_all()
-    ped.compute_pedestal(wf_noise,noise_type='filt')
+
+    noise_group = [32] if elec == 'top' else [32]
+    noise.coherent_noise(noise_group)
+    ped.set_mask_wf_rms_all()
+    ped.compute_pedestal(noise_type='filt')
     plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
     plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
 
+
+    #plot.event_display_per_daqch(-1000,1000,option='coherent',to_be_shown=False)
+    #cmap.arange_in_view_channels()
+    #plot.event_display_per_view(-100, 100,-50,50,option='coherent', to_be_shown=False)
+    #plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
+    #plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
+
+    #plot.plot_wvf_current_vch([(0,355),(1,546),(2,492)], option='filt', to_be_shown=False, tmin=400,tmax=1500)
     store.store_pedestals(output)
     print('  %.2f s to process '%(time.time()-t0))
 

@@ -179,7 +179,7 @@ def plot_noise_vch(noise_type, vmin=0,vmax=10, option=None, to_be_shown=False):
 
 
 
-def plot_FFT(ps, option=None, to_be_shown=False):
+def plot_FFT_daqch(ps, option=None, to_be_shown=False):
     fig = plt.figure(figsize=(9,6))
     gs = gridspec.GridSpec(nrows=2, 
                            ncols=2,
@@ -226,6 +226,103 @@ def plot_FFT(ps, option=None, to_be_shown=False):
 
 
     plt.savefig(cf.plot_path+'/fft_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
+
+
+
+
+
+def plot_FFT_vch(ps, option=None, to_be_shown=False):
+    fig = plt.figure(figsize=(12,6))
+    gs = gridspec.GridSpec(nrows=2, 
+                           ncols=cf.n_view,
+                           height_ratios=[1, 15])
+    
+    ax_col = fig.add_subplot(gs[0, :])#[fig.add_subplot(gs[0, i]) for i in range(3)]
+    #axs_v = [fig.add_subplot(gs[1, i]) for i in range(3)]
+
+
+    gsgs = [gridspec.GridSpecFromSubplotSpec(nrows=1, ncols=2, width_ratios=[3,1],subplot_spec=gs[1,i],wspace=0.05) for i in range(3)]
+
+    axs_2D = [fig.add_subplot(gsgs[i][0, 0]) for i in range(3)]
+    axs_proj = [fig.add_subplot(gsgs[i][0, 1],sharey=axs_2D[i]) for i in range(3)]
+
+
+    freq = np.linspace(0., cf.sampling/2, int(cf.n_sample/2) + 1)
+
+
+    ps_v = np.zeros((cf.n_view, max(cf.view_nchan), int(cf.n_sample/2)+1))
+
+    for i in range(cf.n_tot_channels):
+        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
+        if(view >= cf.n_view or view < 0):
+            continue
+        
+        ps_v[view, chan] = ps[i]
+            
+
+    
+    for i in range(3):
+
+        axs_2D[i].imshow(ps_v[i,:cf.view_nchan[i]].transpose(), 
+                         origin = 'lower', 
+                         aspect = 'auto', 
+                         interpolation='none',
+                         cmap   = cmap_fft,
+                         extent=[0, cf.view_nchan[i], 0., cf.sampling/2.], 
+                         norm=LogNorm(vmin=1e-1, vmax=5))
+    
+        
+
+        axs_2D[i].set_xlabel('Channels')
+        axs_2D[i].set_title('View '+str(i)+'/'+cf.view_name[i])
+
+        if(i==0):
+            ax_col.set_title('FFT Amplitude')
+
+            cb = fig.colorbar(axs_2D[i].images[-1], cax=ax_col, orientation='horizontal')
+            cb.ax.xaxis.set_ticks_position('top')
+            cb.ax.xaxis.set_label_position('top')
+
+
+        axs_proj[i].plot(np.mean(ps_v[i,:cf.view_nchan[i]], axis=0), freq,c='k')
+        #axs_proj[i].yaxis.tick_right()
+        #axs_proj[i].yaxis.set_label_position("right")
+        
+        if(i==0):
+            axs_2D[i].set_ylabel('Frequencies [MHz]')
+            axs_proj[i].tick_params(labelleft=False)
+        if(i==1):
+            axs_2D[i].tick_params(labelleft=False)
+            axs_proj[i].tick_params(labelleft=False)
+        if(i==2):
+            axs_proj[i].yaxis.tick_right()
+            axs_proj[i].yaxis.set_label_position("right")
+            axs_proj[i].set_ylabel('Frequencies [MHz]')
+            axs_2D[i].tick_params(labelleft=False)
+
+
+
+
+
+    #plt.tight_layout()
+
+
+    run_nb = str(dc.evt_list[-1].run_nb)
+    evt_nb = str(dc.evt_list[-1].trigger_nb)
+    elec   = dc.evt_list[-1].elec
+
+    if(option):
+        option = "_"+option
+    else:
+        option = ""
+
+
+    plt.savefig(cf.plot_path+'/fft_vch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
     if(to_be_shown):
         plt.show()
