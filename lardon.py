@@ -61,6 +61,10 @@ name_out = f"{cf.store_path}/{elec}_{run}_{sub}{outname_option}.h5"
 output = tab.open_file(name_out, mode="w", title="Reconstruction Output")
 store.create_tables(output)
 
+""" set analysis parameters """
+pars = params.params()
+pars.read(config=args.conf)
+
 """ set the channel mapping """
 print(" will use ", cf.channel_map)
 cmap.get_mapping(elec)
@@ -134,7 +138,7 @@ for ievent in range(nevent):
     tp = time.time()
     for i in range(2):
         ped.compute_pedestal(noise_type='filt')
-        ped.update_mask(4.)
+        ped.update_mask(pars.ped_amp_sig_fst)
     #plot.plot_noise_daqch(noise_type='filt',option='fft', vmin=0, vmax=vmax)
     #plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='fft')#,to_be_shown=True)
 
@@ -160,7 +164,7 @@ for ievent in range(nevent):
     tpm = time.time()
     for i in range(2):
         ped.compute_pedestal(noise_type='filt')
-        ped.update_mask(4.)
+        ped.update_mask(pars.ped_amp_sig_oth)
 
 
     #plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
@@ -180,7 +184,7 @@ for ievent in range(nevent):
 
     
     th = time.time()
-    hf.find_hits(6, 10, 10, 3., 6., 2.)
+    hf.find_hits(pars.hit_pad_left,pars.hit_pad_right, pars.hit_dt_min[0], pars.hit_amp_sig[0],pars.hit_amp_sig[1],pars.hit_amp_sig[2])
     print("hit %.2f s"%(time.time()-th))
     print(dc.evt_list[-1].n_hits)
     plot.plot_2dview_hits(to_be_shown=False)
