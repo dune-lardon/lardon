@@ -33,8 +33,6 @@ def reset_event():
     data[:,:,:] = 0.
     data_daq[:,:] = 0.
     mask[:,:,:] = True
-    ped_rms[:,:] = 0.
-    ped_mean[:,:] = 0.
 
     hits_list.clear()
     tracks2D_list.clear()
