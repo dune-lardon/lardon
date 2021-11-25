@@ -12,22 +12,24 @@ class params:
 
     def read(self,config="1"):
        try:
-          with open('settings/analysis_parameters.json','r') as f:
-             data = json.load(f)
-             if(config not in data):
-                print("WARNING: Thresholds configuration ",config," not found.")
-                print("         Default thresholds will be applied.")
-             else:
-                self.ped_amp_sig_fst = data[config]['pedestal']['first_pass_thrs']
-                self.ped_amp_sig_oth = data[config]['pedestal']['other_pass_thrs']
+         with open('settings/analysis_parameters.json','r') as f:
+           data = json.load(f)
+           if(config not in data):
+              print("WARNING: Thresholds configuration ",config," not found.")
+              print("         Default thresholds will be applied.")
+           else:
+              self.ped_amp_sig_fst = data[config]['pedestal']['first_pass_thrs']
+              self.ped_amp_sig_oth = data[config]['pedestal']['other_pass_thrs']
 
-                self.hit_amp_sig     = data[config]['hit_finder']['amp_sig_thrs']
-                self.hit_dt_min      = data[config]['hit_finder']['dt_min']
-                self.hit_pad_left    = data[config]['hit_finder']['pad']['left']
-                self.hit_pad_right   = data[config]['hit_finder']['pad']['right']
+              self.hit_amp_sig     = data[config]['hit_finder']['amp_sig_thrs']
+              self.hit_dt_min      = data[config]['hit_finder']['dt_min']
+              self.hit_pad_left    = data[config]['hit_finder']['pad']['left']
+              self.hit_pad_right   = data[config]['hit_finder']['pad']['right']
+
        except:
             print("WARNING: Thresholds setting file (./settings/analysis_parameters.json) not found.")
             print("         Default thresholds will be applied.")
+
 
     # setters and getters (potentially not useful now)
     def set_ped_amp_sig_fst(self,value):
