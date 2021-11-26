@@ -3,28 +3,46 @@ import data_containers as dc
 import lar_param as lar
 
 import numpy as np
+import numba as nb
 
 
 def hit_search(data, view, daq_chan, start, dt_min, thr1, thr2, thr3):
-    if(cf.view_type[view] == "Collection"):
-        return hit_search_collection(data, view, daq_chan, start, dt_min, thr1, thr2)
-
-    elif(cf.view_type[view] == "Induction"):
-        return hit_search_induction(data, view, daq_chan, start, dt_min, thr3)
-    else : 
-        print(cf.view_type[view], " is not recognized")
-        sys.exit()
-
-
-
-
-def hit_search_induction(data, view, daq_chan, start, dt_min, thr):
-    """ very basic induction-like hit finder """
-    """ WARNING : CANNOT FIND OVERLAPPING HITS """
 
     ll = []
+    if(cf.view_type[view] != "Collection" and cf.view_type[view] != "Induction"): 
+        print(cf.view_type[view], " is not recognized")
+        sys.exit()
+    elif(cf.view_type[view] == "Collection"):
+        h_num, h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc = hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2)
+    elif(cf.view_type[view] == "Induction"):
+        h_num, h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc = hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr3)
 
+    if(h_num == 0): return ll
+
+    for start, stop, charge_int, max_t, max_adc, min_t, min_adc in zip(h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc):
+       h = dc.hits(view, daq_chan, start, stop, charge_int, max_t, max_adc, min_t, min_adc)
+       ll.append(h)
+       if(len(ll) == h_num): break
+
+    return ll 
+
+@nb.njit('Tuple((int64,int16[:],int16[:],float64[:],int16[:],float64[:],int16[:],float64[:]))(float64[:],int64,int64,int64,int64,float64)')
+def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
+    """ very basic induction-like hit finder """
+    """ WARNING : CANNOT FIND OVERLAPPING HITS """
+    
     npts = len(data)
+
+    h_num = 0 # store number of found hits
+    # list of hits parameters to be returned by this numba function (see dc.hits)
+    h_start     = np.zeros(npts,dtype=np.int16)
+    h_stop      = np.zeros(npts,dtype=np.int16)
+    h_charge_int= np.zeros(npts)
+    h_max_t     = np.zeros(npts,dtype=np.int16)
+    h_max_adc   = np.zeros(npts)
+    h_min_t     = np.zeros(npts,dtype=np.int16)
+    h_min_adc   = np.zeros(npts)
+
     hitPosFlag = False
     hitNegFlag = False
 
@@ -33,8 +51,7 @@ def hit_search_induction(data, view, daq_chan, start, dt_min, thr):
     posSamp = 0
     negSamp = 0
 
-    h = dc.hits(view, daq_chan, start, 0, 0., 0., 0., 0., 0.)
-
+    h_start[h_num] = start
 
     while(i<npts):
 
@@ -42,7 +59,8 @@ def hit_search_induction(data, view, daq_chan, start, dt_min, thr):
             i += 1
 
         """ start with the positive blob of the hit """
-        while(i < npts and data[i] >= thr and hitNegFlag == False):
+        val = data[i]
+        while(i < npts and val >= thr and hitNegFlag == False):
             val = data[i]        
             it = i+start
             posSamp += 1
@@ -51,19 +69,19 @@ def hit_search_induction(data, view, daq_chan, start, dt_min, thr):
             if(hitPosFlag == False):
                 hitPosFlag = True
 
-                h.start = it
+                h_start[h_num] = it
 
-                h.max_t = it
-                h.max_adc = val
+                h_max_t[h_num] = it
+                h_max_adc[h_num] = val
                 
                 
             """ update the maximum case """
-            if(val > h.max_adc):
-                h.max_t = it
-                h.max_adc = val                
+            if(val > h_max_adc[h_num]):
+                h_max_t[h_num] = it
+                h_max_adc[h_num] = val                
                     
             if(hitPosFlag):
-                h.charge_int += val
+                h_charge_int[h_num] += val
                 
             i+=1
 
@@ -71,13 +89,15 @@ def hit_search_induction(data, view, daq_chan, start, dt_min, thr):
             hitPosFlag = False
             posSamp = 0
 
-        while(i < npts and hitPosFlag and hitNegFlag == False and np.fabs(data[i]) < thr):
-            h.charge_int += np.fabs(val)
+        val = data[i]
+        while(i < npts and hitPosFlag and hitNegFlag == False and np.fabs(val) < thr):
+            h_charge_int[h_num] += np.fabs(val)
             i += 1
-
+            val = data[i]
         """ now the negative part """
 
-        while(i < npts and hitPosFlag and data[i] < -1.*thr):            
+        val = data[i]
+        while(i < npts and hitPosFlag and val < -1.*thr):            
             val = data[i]        
             it = i+start
             negSamp += 1
@@ -86,19 +106,19 @@ def hit_search_induction(data, view, daq_chan, start, dt_min, thr):
             if(hitNegFlag == False):
                 hitNegFlag = True
 
-                h.min_t = it
-                h.min_adc = val
+                h_min_t[h_num] = it
+                h_min_adc[h_num] = val
                 
                 
             """ update the minimum case """
-            if(val < h.min_adc):
-                h.min_t = it
-                h.min_adc = val                
+            if(val < h_min_adc[h_num]):
+                h_min_t[h_num] = it
+                h_min_adc[h_num] = val                
                     
             if(hitNegFlag):
-                h.charge_int += -1.*val
+                h_charge_int[h_num] += -1.*val
 
-            h.stop = it
+            h_stop[h_num] = it
             i+=1
 
         if(negSamp < dt_min):
@@ -106,28 +126,34 @@ def hit_search_induction(data, view, daq_chan, start, dt_min, thr):
             negSamp = 0
 
         if(hitPosFlag and hitNegFlag):
-            ll.append(h)
+            h_num += 1 
             break
-    
-
-    return ll
 
 
+    return h_num, h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc
 
-def hit_search_collection(data, view, daq_chan, start, dt_min, thr1, thr2):
+@nb.njit('Tuple((int64,int16[:],int16[:],float64[:],int16[:],float64[:],int16[:],float64[:]))(float64[:],int64,int64,int64,int64,float64,float64)')
+def hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2):
     """search hit-shape in a list of points"""
     """algorithm from qscan"""
-    
-    ll = []
     npts = len(data)
+    
+    h_num = 0 # store number of found hits
+    # list of hits parameters to be returned by this numba function (see dc.hits)
+    h_start     = np.zeros(npts,dtype=np.int16)
+    h_stop      = np.zeros(npts,dtype=np.int16)
+    h_charge_int= np.zeros(npts)
+    h_max_t     = np.zeros(npts,dtype=np.int16)
+    h_max_adc   = np.zeros(npts)
+    h_min_t     = np.zeros(npts,dtype=np.int16)
+    h_min_adc   = np.zeros(npts)
+ 
     hitFlag = False
 
     i=0
     minimum = cf.n_sample
     minSamp = -1
     singleHit = True
-
-
 
     while(i<npts):
         while(i < npts and data[i] >= thr1):
@@ -138,42 +164,59 @@ def hit_search_collection(data, view, daq_chan, start, dt_min, thr1, thr2):
                 hitFlag = True
                 singleHit = True
                 
-                h = dc.hits(view,daq_chan,it,0,0.,it,val, 0., 0.)
+                h_start[h_num]     = it
+                h_stop[h_num]      = 0
+                h_charge_int[h_num]= 0.
+                h_max_t[h_num]     = it
+                h_max_adc[h_num]   = val
+                h_min_t[h_num]     = 0.
+                h_min_adc[h_num]   = 0.
+
+                #h = dc.hits(view,daq_chan,it,0,0.,it,val, 0., 0.)
                 minSamp = -1
                 
-            if(it > h.max_t and val < h.max_adc - thr2 and (minSamp==-1 or minimum >= val)):
+            if(it > h_max_t[h_num] and val < h_max_adc[h_num] - thr2 and (minSamp==-1 or minimum >= val)):
                 minSamp = it
                 minimum = val
 
                 
-            if(minSamp >= 0 and it > minSamp and val > minimum + thr2 and (it-h.start) >= dt_min):
-                h.stop = minSamp-1
-                ll.append(h)
+            if(minSamp >= 0 and it > minSamp and val > minimum + thr2 and (it-h_start[h_num]) >= dt_min):
+                h_stop[h_num]      = minSamp-1
+                h_num += 1
                 hitFlag = True
                 singleHit = False
-                h = dc.hits(view,daq_chan,minSamp,0,0,it,val, 0., 0.)
+
+                h_start[h_num]     = minSamp
+                h_stop[h_num]      = 0
+                h_charge_int[h_num]= 0.
+                h_max_t[h_num]     = it
+                h_max_adc[h_num]   = val
+                h_min_t[h_num]     = 0.
+                h_min_adc[h_num]   = 0.
+
                 minSamp = -1
 
                 
-            if(h.stop == 0 and val > h.max_adc):
-                h.max_t = it
-                h.max_adc = val
+            if(h_stop[h_num] == 0 and val > h_max_adc[h_num]):
+                h_max_t[h_num] = it
+                h_max_adc[h_num] = val
                 if(minSamp >= 0):
                     minSamp = -1
                     minimum = val
                     
-            h.charge_int += val
+            h_charge_int[h_num] += val
             i+=1
         if(hitFlag == True):
             hitFlag = False
-            h.stop = it-1
+            h_stop[h_num] = it-1
 
-            #if((singleHit and (h.stop-h.start >= dt_min)) or not singleHit):
-            if(h.stop-h.start >= dt_min):
-                ll.append(h)
+            #if((singleHit and (h_stop[h_num]-h_start[h_num] >= dt_min)) or not singleHit):
+            if(h_stop[h_num]-h_start[h_num] >= dt_min):
+                h_num += 1 
 
         i+=1
-    return ll
+    return h_num, h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc
+
 
 def recompute_hit_charge(hit):
     daq_ch, start, stop = hit.daq_channel, hit.start, hit.stop
@@ -184,7 +227,6 @@ def recompute_hit_charge(hit):
         val += np.fabs(dc.data_daq[daq_ch, t] - mean)
 
     hit.charge_int = val
-
 
 
 def find_hits(pad_left, pad_right, dt_min, n_sig_coll_1, n_sig_coll_2, n_sig_ind): 
