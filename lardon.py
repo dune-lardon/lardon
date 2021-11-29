@@ -18,6 +18,7 @@ parser.add_argument('-period', help='which detector period is looked at [default
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
 parser.add_argument('-f', '--file', help="Override derived filename")
+parser.add_argument('-conf','--config',dest='conf', help='Analysis configuration ID', default='1')
 args = parser.parse_args()
 
 if(args.elec == 'top' or args.elec == 'tde'):
@@ -46,7 +47,7 @@ import noise_filter as noise
 import store as store
 import hit_finder as hf
 import track_2d as trk2d
-
+import analysis_parameters as params
 
 
 plot.set_style()
@@ -63,7 +64,7 @@ store.create_tables(output)
 
 """ set analysis parameters """
 pars = params.params()
-pars.read(config=args.conf)
+pars.read(config=args.conf,elec=elec)
 
 """ set the channel mapping """
 print(" will use ", cf.channel_map)
@@ -115,20 +116,16 @@ for ievent in range(nevent):
     ped.compute_pedestal(noise_type='raw')
 
     
-    vmax = 900 if elec == 'bot' else 15
-
-    #plot.plot_noise_daqch(noise_type='raw',vmin=0,vmax=vmax,to_be_shown=False)
-    #plot.plot_noise_vch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
-    #plot.plot_noise_globch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
-    #plot.event_display_per_daqch(-1000,1000,option='raw',to_be_shown=False)
+    #plot.plot_noise_daqch(noise_type='raw',vrange=pars.plt_noise_zrange,to_be_shown=False)
+    #plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=False)
+    #plot.plot_noise_globch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=False)
+    #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=False)
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(-1000,1000,-500,500,option='raw', to_be_shown=False)
+    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='raw', to_be_shown=False)
 
 
-    fft_low_cut = 0.6 if elec=='top' else 0.4
-    fft_freq = -1 if elec=='top' else 0.0225
     tf = time.time()
-    ps = noise.FFT_low_pass(fft_low_cut, fft_freq)
+    ps = noise.FFT_low_pass(pars.noise_fft_lcut,pars.noise_fft_freq)
 
     """ DO NOT STORE ALL FFT PS !! """
     #store.store_fft(output, ps)
@@ -140,24 +137,22 @@ for ievent in range(nevent):
     for i in range(2):
         ped.compute_pedestal(noise_type='filt')
         ped.update_mask(pars.ped_amp_sig_fst)
-    #plot.plot_noise_daqch(noise_type='filt',option='fft', vmin=0, vmax=vmax)
-    #plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='fft')#,to_be_shown=True)
+    #plot.plot_noise_daqch(noise_type='filt',option='fft', vrange=pars.plt_noise_zrange)
+    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='fft')#,to_be_shown=True)
 
-    
+
     #plot.plot_FFT_daqch(ps,option='raw',to_be_shown=False)    
     #plot.plot_FFT_vch(ps,option='raw',to_be_shown=False)    
 
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(-100,100,-50,50,option='fft', to_be_shown=False)
+    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='fft', to_be_shown=False)
 
     #plot.plot_correlation_daqch(option='fft',to_be_shown=True)
     #plot.plot_correlation_globch(option='fft', to_be_shown=False)
 
 
-    noise_group = [32] if elec == 'top' else [32]
-
     tcoh = time.time()
-    noise.coherent_noise(noise_group)
+    noise.coherent_noise(pars.noise_coh_group)
     print("coherent noise : ", time.time()-tcoh)
 
 
@@ -167,16 +162,16 @@ for ievent in range(nevent):
         ped.compute_pedestal(noise_type='filt')
         ped.update_mask(pars.ped_amp_sig_oth)
 
+    #plot.plot_noise_daqch(noise_type='filt',option='coherent', vrange=pars.plt_noise_zrange)
+    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
 
-    #plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
-    #plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
 
-
-    #plot.event_display_per_daqch(-1000,1000,option='coherent',to_be_shown=False)
+    #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='coherent',to_be_shown=False)
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(-100, 100,-50,50,option='coherent', to_be_shown=False)
-    #plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
-    #plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
+    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coherent', to_be_shown=False)
+    #plot.plot_noise_daqch(noise_type='filt',option='coherent', vrange=pars.plt_noise_zrange)
+    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
+
 
 
     store.store_pedestals(output)

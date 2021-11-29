@@ -17,7 +17,7 @@ cmap_corr = cc.cm.CET_D9
 
 
 
-def plot_noise_daqch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=False):
+def plot_noise_daqch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
     if(noise_type==""):
         print("plot_noise_vch needs to know which noise to show (raw or filt)")
         return
@@ -41,7 +41,7 @@ def plot_noise_daqch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=False
 
     ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('DAQ Channel Number')
-    ax_std.set_ylim(vmin,vmax)
+    ax_std.set_ylim(vrange[0],vrange[1])
 
     plt.tight_layout()
 
@@ -65,7 +65,7 @@ def plot_noise_daqch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=False
 
 
 
-def plot_noise_globch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=False):
+def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
     if(noise_type==""):
         print("plot_noise_vch needs to know which noise to show (raw or filt)")
         return
@@ -99,7 +99,7 @@ def plot_noise_globch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=Fals
 
     ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('DAQ Channel Number')
-    ax_std.set_ylim(vmin,vmax)
+    ax_std.set_ylim(vrange[0],vrange[1])
 
     plt.tight_layout()
 
@@ -124,10 +124,11 @@ def plot_noise_globch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=Fals
 
 
 
-def plot_noise_vch(noise_type, vmin=0,vmax=10, option=None, to_be_shown=False):
+def plot_noise_vch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
     if(noise_type==""):
         print("plot_noise_vch needs to know which noise to show (raw or filt)")
         return
+
 
     if(noise_type != 'raw' and noise_type != 'filt'):
         print("plot_noise_vch needs to know which noise to show (raw or filt) : ", noise_type, ' is not recognized')
@@ -156,7 +157,7 @@ def plot_noise_vch(noise_type, vmin=0,vmax=10, option=None, to_be_shown=False):
         axs[iv].set_xlabel('Channel Number')
         axs[iv].set_title('View '+str(iv)+'/'+cf.view_name[iv])
         axs[iv].set_xlim(0,cf.view_nchan[iv])
-        axs[iv].set_ylim(vmin,vmax)
+        axs[iv].set_ylim(vrange[0],vrange[1])
     plt.tight_layout()
 
 
