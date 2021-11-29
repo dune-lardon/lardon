@@ -1,15 +1,81 @@
 {
   "1":{
-     "pedestal":{
-        "first_pass_thrs": 4,
-        "other_pass_thrs": 3
+     "top":{
+        "pedestal":{ 
+           "first_pass_thrs": 4,
+           "other_pass_thrs": 3
+        },
+        "noise":{
+           "coherent":{
+              "groupings":[32]
+           },
+           "fft":{
+              "freq":-1,
+              "low_cut":0.6
+           }
+        },
+        "hit_finder":{
+           "amp_sig_thrs": [3,6,2],
+           "dt_min": [10,10,10],
+           "pad":{
+              "left": 6,
+              "right": 10
+           }
+        },
+        "plot":{
+           "noise":{
+              "vmin": 0,
+              "vmax": 900
+           },
+           "evt_display":{
+              "daqch":{
+                "zrange":[-1000,1000]
+              },
+              "viewch":{
+                "ind_zrange":[-100,100],
+                "col_zrange":[-50,50]
+              }
+           }
+        }
      },
-     "hit_finder":{
-        "amp_sig_thrs": [3,6,2],
-        "dt_min": [10,10,10],
-        "pad":{
-           "left": 6,
-           "right": 10,
+     "bot":{
+        "pedestal":{ 
+           "first_pass_thrs": 4,
+           "other_pass_thrs": 3
+        },
+        "noise":{
+           "coherent":{
+              "groupings":[32]
+           },
+           "fft":{
+              "freq":0.0225,
+              "low_cut":0.4
+           }
+        },
+        "hit_finder":{
+           "amp_sig_thrs": [3,6,2],
+           "dt_min": [10,10,10],
+           "pad":{
+              "left": 6,
+              "right": 10
+           }
+        },
+        "plot":{
+           "noise":{
+              "show": 0,
+              "zrange": [0,900]
+           },
+           "evt_display":{
+              "daqch":{
+                "show": 0,
+                "zrange":[-1000,1000]
+              },
+              "viewch":{
+                "show": 0,
+                "ind_zrange":[-100,100],
+                "col_zrange":[-50,50]
+              }
+           }
         }
      }
    }
