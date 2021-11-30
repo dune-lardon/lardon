@@ -5,7 +5,7 @@ import numba as nb
 import os
 import glob as glob
 import sys
-import tables as tab
+import h5py
 from abc import ABC, abstractmethod
 
 
@@ -336,17 +336,14 @@ class bot_decoder(decoder):
     def open_file(self):
         f = self.filename if self.filename else self.get_filename()
         print('Reconstructing ', f)
-        self.f_in = tab.open_file(f,"r")
+        self.f_in = h5py.File(f,"r")
         
 
     def read_run_header(self):
 
-        self.events_list = []
+        self.events_list = list(self.f_in.keys())
 
-        for group in self.f_in.walk_groups():
-            if(group._v_depth != 1):
-                continue
-            self.events_list.append(group._v_name)
+        # TODO Deal with non-flat groups?
 
         self.events_list.sort()
         nb_evt = len(self.events_list)
@@ -355,7 +352,7 @@ class bot_decoder(decoder):
 
 
     def read_evt_header(self, ievt):
-        trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='TriggerRecordHeader',classname='Array').read()
+        trig_rec = self.f_in[f"/{self.events_list[ievt]}/TriggerRecordHeader"]
 
         header_magic = 0x33334444
         header_version = 0x00000002
@@ -385,7 +382,7 @@ class bot_decoder(decoder):
         for ilink in range(self.nlinks):
             name = f'{ilink:02d}'
 
-            link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/TPC/CRP004", name='Link'+name,classname='Array').read()
+            link_data = self.f_in[f"/{self.events_list[ievt]}/TPC/CRP004/Link{name}"]
             frag_head = np.frombuffer(link_data[:self.fragment_header_size], dtype = self.fragment_header_type)
 
             n_frames = int((len(link_data)-self.fragment_header_size)/self.wib_frame_size)
