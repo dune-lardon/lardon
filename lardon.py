@@ -44,6 +44,10 @@ import plotting as plot
 import pedestals as ped
 import noise_filter as noise
 import store as store
+import hit_finder as hf
+import track_2d as trk2d
+
+
 
 plot.set_style()
 
@@ -62,11 +66,14 @@ print(" will use ", cf.channel_map)
 cmap.get_mapping(elec)
 cmap.set_unused_channels()
 
+
+
 """ mask the unused channels """
-dc.mask_daq = dc.alive_chan
+dc.mask_daq = ~dc.alive_chan
+
 
 """ setup the decoder """
-reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, sub, args.file)
+reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file)
 reader.open_file()
 nb_evt = reader.read_run_header()
 
@@ -99,13 +106,11 @@ for ievent in range(nevent):
     if(elec == 'top'):
         dc.data_daq *= -1
 
-    ped.set_mask_wf_rms_all()
+    #ped.set_mask_wf_rms_all()
     ped.compute_pedestal(noise_type='raw')
-    vmax = 900 if elec == 'bot' else 30
 
     
     vmax = 900 if elec == 'bot' else 15
-    #plot.plot_wvf_current_vch([(0,355),(1,546),(2,514)], option='raw', to_be_shown=False, tmin=400,tmax=1500)
 
     #plot.plot_noise_daqch(noise_type='raw',vmin=0,vmax=vmax,to_be_shown=False)
     #plot.plot_noise_vch(noise_type='raw', vmin=0, vmax=vmax,to_be_shown=False)
@@ -117,39 +122,49 @@ for ievent in range(nevent):
 
     fft_low_cut = 0.6 if elec=='top' else 0.4
     fft_freq = -1 if elec=='top' else 0.0225
+    tf = time.time()
     ps = noise.FFT_low_pass(fft_low_cut, fft_freq)
 
     """ DO NOT STORE ALL FFT PS !! """
     #store.store_fft(output, ps)
 
 
-    ped.set_mask_wf_rms_all()
-    ped.compute_pedestal(noise_type='filt')
-    plot.plot_noise_daqch(noise_type='filt',option='fft', vmin=0, vmax=vmax)
-    plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='fft')#,to_be_shown=True)
+
+    #ped.set_mask_wf_rms_all()
+    tp = time.time()
+    for i in range(2):
+        ped.compute_pedestal(noise_type='filt')
+        ped.update_mask(4.)
+    #plot.plot_noise_daqch(noise_type='filt',option='fft', vmin=0, vmax=vmax)
+    #plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='fft')#,to_be_shown=True)
 
     
-
     #plot.plot_FFT_daqch(ps,option='raw',to_be_shown=False)    
     #plot.plot_FFT_vch(ps,option='raw',to_be_shown=False)    
 
-
-    #plot.plot_wvf_current_vch([(0,355),(1,546),(2,492)], option='fft', to_be_shown=False, tmin=400,tmax=1500)
-    #plot.event_display_per_daqch(-100,100,option='fft',to_be_shown=False)
     #cmap.arange_in_view_channels()
     #plot.event_display_per_view(-100,100,-50,50,option='fft', to_be_shown=False)
-
 
     #plot.plot_correlation_daqch(option='fft',to_be_shown=True)
     #plot.plot_correlation_globch(option='fft', to_be_shown=False)
 
 
     noise_group = [32] if elec == 'top' else [32]
+
+    tcoh = time.time()
     noise.coherent_noise(noise_group)
-    ped.set_mask_wf_rms_all()
-    ped.compute_pedestal(noise_type='filt')
-    plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
-    plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
+    print("coherent noise : ", time.time()-tcoh)
+
+
+    #ped.set_mask_wf_rms_all()
+    tpm = time.time()
+    for i in range(2):
+        ped.compute_pedestal(noise_type='filt')
+        ped.update_mask(4.)
+
+
+    #plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
+    #plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
 
 
     #plot.event_display_per_daqch(-1000,1000,option='coherent',to_be_shown=False)
@@ -158,9 +173,25 @@ for ievent in range(nevent):
     #plot.plot_noise_daqch(noise_type='filt',option='coherent', vmin=0, vmax=vmax)
     #plot.plot_noise_vch(noise_type='filt', vmin=0, vmax=vmax,option='coherent',to_be_shown=False)
 
-    #plot.plot_wvf_current_vch([(0,355),(1,546),(2,492)], option='filt', to_be_shown=False, tmin=400,tmax=1500)
+
     store.store_pedestals(output)
     print('  %.2f s to process '%(time.time()-t0))
+
+
+    
+    th = time.time()
+    hf.find_hits(6, 10, 10, 3., 6., 2.)
+    print("hit %.2f s"%(time.time()-th))
+    print(dc.evt_list[-1].n_hits)
+    plot.plot_2dview_hits(to_be_shown=False)
+
+    """parameters : min nb hits, rcut, chi2cut, y error, slope error, pbeta"""
+
+    trk2d.find_tracks_rtree(5, 6., 8., 0.5, 1., 3.)
+
+    [t.mini_dump() for t in dc.tracks2D_list]
+    plot.plot_2dview_2dtracks(to_be_shown=True)
+
 
 reader.close_file()
 output.close()

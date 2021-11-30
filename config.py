@@ -9,13 +9,8 @@ plot_path  = "./results"
 LAr_temperature = 87. #K - to check in the slow control 
 e_drift = 0.500 #kV/cm - could be run specific ?
 
-drift_length = 23. #cm # ????
+""" should go in the json file """
 
-
-#to be discussed & checked!
-anode_z = 11.5 #cm
-len_det_x = 300. #cm
-len_det_y = 300. #cm
 
 
 """ default values overwritten by the json file """
@@ -34,5 +29,9 @@ elec = "none"
 channel_map = ""
 broken_channels = []
 view_offset = []
+view_chan_repet = []
 
+drift_length = 0.
+anode_z = 0.
+view_length = []
 

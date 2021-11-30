@@ -3,6 +3,8 @@ import data_containers as dc
 
 import numpy as np
 import numba as nb
+import numexpr as ne
+
 
 @nb.jit(nopython = True)
 def compute_pedestal_nb(data, mask):
@@ -42,13 +44,20 @@ def compute_pedestal(noise_type='None'):
     mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq)
     ped = dc.noise( mean, std )
 
+    dc.data_daq -= mean[:,None]
+
     if(noise_type=='raw'):
       dc.evt_list[-1].set_noise_raw(ped)
-      dc.data_daq -= mean[:,None]
-    elif(noise_type=='filt'): dc.evt_list[-1].set_noise_filt(ped)
+
+    elif(noise_type=='filt'): 
+        dc.evt_list[-1].set_noise_filt(ped)
     else:
       print('ERROR: You must set a noise type for pedestal setting')
       sys.exit()
+
+def update_mask(thresh):
+    dc.mask_daq = ne.evaluate( "where((abs(data) > thresh*rms) | ~alive_chan, 0, 1)", global_dict={'data':dc.data_daq, 'alive_chan':dc.alive_chan, 'rms':dc.evt_list[-1].noise_filt.ped_rms[:,None]}).astype(bool)
+
 
 def set_mask_wf_rms_all():
     # set signal mask bins from threshold - simplest method

@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 
 
 def set_unused_channels():
-    print("set unused channels")
     if(len(cf.broken_channels) > 0):
        print("remove broken channels: ",cf.broken_channels)
 
@@ -37,7 +36,6 @@ def get_mapping(elec):
         print("the electronic setting is not recognized")
         
 def get_top_mapping():
-    print("reading top channel mapping ")
     with open(cf.channel_map, 'r') as f:
         for line in f.readlines():
             li = line.split()
@@ -55,7 +53,6 @@ def get_top_mapping():
             dc.chmap.append(c)
 
 def get_bot_mapping():
-    print("reading bottom channel mapping ")
     with open(cf.channel_map, 'r') as f:
         for line in f.readlines():
             li = line.split()
