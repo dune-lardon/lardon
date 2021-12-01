@@ -87,7 +87,7 @@ class event:
         self.noise_filt = noise
 
     def dump(self):
-        print("RUN ",self.run_nb, " of ", self.elec, " EVENT ", self.evt_nb, " / ", self.trigger_nb,)
+        print("RUN ",self.run_nb, " of ", self.elec, " EVENT ", self.evt_nb, " TRIGGER ", self.trigger_nb,)
         print("Taken at ", time.ctime(self.time_s), " + ", self.time_ns, " ns ")
 
 
