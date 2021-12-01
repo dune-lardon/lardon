@@ -78,6 +78,7 @@ reader.open_file()
 nb_evt = reader.read_run_header()
 
 if(nevent > nb_evt or nevent < 0):
+    print(f"WARNING: Requested {nevent} events from a file containing only {nb_evt} events.")
     nevent = nb_evt
 
 print(f" --->> Will process {nevent - evt_skip} events [out of {nb_evt}] of run {run}")
