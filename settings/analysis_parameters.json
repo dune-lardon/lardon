@@ -3,7 +3,12 @@
      "top":{
         "pedestal":{ 
            "first_pass_thrs": 4,
-           "other_pass_thrs": 3
+           "other_pass_thrs": 3,
+           "rise_thr": [5,5,30],
+           "ramp_thr": [1,1,2],
+           "amp_thr": [2,2,3],
+           "dt_thr": 100,
+           "zero_cross_thr": 15
         },
         "noise":{
            "coherent":{
@@ -24,15 +29,17 @@
         },
         "plot":{
            "noise":{
-              "vmin": 0,
-              "vmax": 900
+              "show": 0,
+              "zrange": [0,900]
            },
            "evt_display":{
               "daqch":{
-                "zrange":[-1000,1000]
+                "show":0,
+                "zrange":[-50,50]
               },
               "viewch":{
-                "ind_zrange":[-100,100],
+                "show":0,
+                "ind_zrange":[-50,50],
                 "col_zrange":[-50,50]
               }
            }
@@ -41,7 +48,12 @@
      "bot":{
         "pedestal":{ 
            "first_pass_thrs": 4,
-           "other_pass_thrs": 3
+           "other_pass_thrs": 3,
+           "rise_thr": [5,5,30],
+           "ramp_thr": [1,1,2],
+           "amp_thr": [2,2,3],
+           "dt_thr": 100,
+           "zero_cross_thr": 15
         },
         "noise":{
            "coherent":{
@@ -78,5 +90,52 @@
            }
         }
      }
-   }
+   },
+  "2":{
+     "top":{
+        "pedestal":{ 
+           "first_pass_thrs": 4,
+           "other_pass_thrs": 3,
+           "rise_thr": [5,5,30],
+           "ramp_thr": [1,1,2],
+           "amp_thr": [2,2,3],
+           "dt_thr": 100,
+           "zero_cross_thr": 15
+        },
+        "noise":{
+           "coherent":{
+              "groupings":[32]
+           },
+           "fft":{
+              "freq":-1,
+              "low_cut":0.6
+           }
+        },
+        "hit_finder":{
+           "amp_sig_thrs": [3,3,3],
+           "dt_min": [50,50,50],
+           "pad":{
+              "left": 6,
+              "right": 10
+           }
+        },
+        "plot":{
+           "noise":{
+              "show": 0,
+              "zrange": [0,900]
+           },
+           "evt_display":{
+              "daqch":{
+                "show": 0,
+                "zrange":[-1000,1000]
+              },
+              "viewch":{
+                "show": 0,
+                "ind_zrange":[-100,100],
+                "col_zrange":[-50,50]
+              }
+           }
+        }
+     }
+  }
 }
