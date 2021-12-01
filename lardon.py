@@ -16,7 +16,7 @@ parser.add_argument('-n', '--nevent', type=int, help='number of events to proces
 parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='coldbox')
 parser.add_argument('-period', help='which detector period is looked at [default is 1]', default='1')
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
-parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=-1)
+parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
 parser.add_argument('-f', '--file', help="Override derived filename")
 args = parser.parse_args()
 
