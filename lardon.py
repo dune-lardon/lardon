@@ -18,6 +18,7 @@ parser.add_argument('-period', help='which detector period is looked at [default
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=-1)
 parser.add_argument('-f', '--file', help="Override derived filename")
+parser.add_argument('-i', '--only', type=int, help="Only read a single event with index i (overrides -skip and -n)")
 args = parser.parse_args()
 
 if(args.elec == 'top' or args.elec == 'tde'):
@@ -33,6 +34,10 @@ period = args.period
 outname_option = args.outname
 evt_skip = args.evt_skip
 det.configure(detector, period, elec, run)
+
+if args.only:
+    evt_skip = args.only
+    nevent = args.only + 1
 
 print("Welcome to LARDON !")
 
