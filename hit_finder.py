@@ -227,8 +227,6 @@ def recompute_hit_charge(hit):
         val += np.fabs(dc.data_daq[daq_ch, t] - mean)
 
     hit.charge_int = val
-
-
 def find_hits(pad_left, pad_right, dt_min, n_sig_coll_1, n_sig_coll_2, n_sig_ind): 
 
     """ get boolean roi based on mask and alive channels """
