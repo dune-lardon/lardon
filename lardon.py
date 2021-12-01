@@ -80,7 +80,7 @@ nb_evt = reader.read_run_header()
 if(nevent > nb_evt or nevent < 0):
     nevent = nb_evt
 
-print(" --->> Will process ", nevent, " events [ out of ", nb_evt, "] of run ", run)
+print(f" --->> Will process {nevent - evt_skip} events [out of {nb_evt}] of run {run}")
 
 """ store basic informations """
 store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
