@@ -158,9 +158,13 @@ for ievent in range(nevent):
 
     #ped.set_mask_wf_rms_all()
     tpm = time.time()
-    for i in range(2):
-        ped.compute_pedestal(noise_type='filt')
-        ped.update_mask(pars.ped_amp_sig_oth)
+
+    ped.compute_pedestal(noise_type='filt')
+    print('  %.2f s to process pedestal '%(time.time()-t0))
+    ped.refine_mask(pars,debug=True)
+    print('  %.2f s to refine mask '%(time.time()-t0))
+    ped.compute_pedestal(noise_type='filt')
+    print('  %.2f s to process pedestal '%(time.time()-t0))
 
     #plot.plot_noise_daqch(noise_type='filt',option='coherent', vrange=pars.plt_noise_zrange)
     #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
@@ -168,19 +172,15 @@ for ievent in range(nevent):
 
     #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='coherent',to_be_shown=False)
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coherent', to_be_shown=False)
+    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coherent', to_be_shown=True)
     #plot.plot_noise_daqch(noise_type='filt',option='coherent', vrange=pars.plt_noise_zrange)
     #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
 
-
-
     store.store_pedestals(output)
-    print('  %.2f s to process '%(time.time()-t0))
 
-
-    
     th = time.time()
     hf.find_hits(pars.hit_pad_left,pars.hit_pad_right, pars.hit_dt_min[0], pars.hit_amp_sig[0],pars.hit_amp_sig[1],pars.hit_amp_sig[2])
+    print('  %.2f s to process hits '%(time.time()-t0))
     print("hit %.2f s"%(time.time()-th))
     print(dc.evt_list[-1].n_hits)
     plot.plot_2dview_hits(to_be_shown=False)
@@ -188,9 +188,14 @@ for ievent in range(nevent):
     """parameters : min nb hits, rcut, chi2cut, y error, slope error, pbeta"""
 
     trk2d.find_tracks_rtree(5, 6., 8., 0.5, 1., 3.)
+    print('  %.2f s to process tracks '%(time.time()-t0))
 
     [t.mini_dump() for t in dc.tracks2D_list]
     plot.plot_2dview_2dtracks(to_be_shown=True)
+    
+    plot.event_display_per_daqch(pars.plt_evt_disp_daq_zrange,option='coherent',to_be_shown=True)
+    cmap.arange_in_view_channels()
+    plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coherent', to_be_shown=True)
 
 
 reader.close_file()
