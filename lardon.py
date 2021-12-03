@@ -134,9 +134,11 @@ for ievent in range(nevent):
 
     #ped.set_mask_wf_rms_all()
     tp = time.time()
+
     for i in range(2):
         ped.compute_pedestal(noise_type='filt')
         ped.update_mask(pars.ped_amp_sig_fst)
+
     #plot.plot_noise_daqch(noise_type='filt',option='fft', vrange=pars.plt_noise_zrange)
     #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='fft')#,to_be_shown=True)
 
@@ -158,6 +160,7 @@ for ievent in range(nevent):
 
     #ped.set_mask_wf_rms_all()
     tpm = time.time()
+
     for i in range(2):
         ped.compute_pedestal(noise_type='filt')
         ped.update_mask(pars.ped_amp_sig_oth)
