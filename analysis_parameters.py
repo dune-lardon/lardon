@@ -13,9 +13,10 @@ class params:
        self.ped_dt_thr   = 100           # trigger window duration in which a signal is looked for
        self.ped_zero_cross_thr = 15      # minimal number of samples after downward zero-crossing to look for upward zero-crossing
 
+
        self.noise_coh_group = [32]       # coherent noise channel grouping
-       self.noise_fft_freq  = -1         # ??
-       self.noise_fft_lcut  = 0.0225     # low-pass filter frequency cut
+       self.noise_fft_freq  = -1         # specific frequency removal (-1 is none)
+       self.noise_fft_lcut  = 0.6        # low-pass filter frequency cut
 
        self.hit_amp_sig     = [3,6,2]    # default amplitude trigger threshold for hit search - in RMS
        self.hit_dt_min      = [10,10,10] # minimal delta t for hit search - in bins
@@ -102,4 +103,26 @@ class params:
     def get_hit_pad_right(self):
       return self.hit_pad_right
 
+
+    def dump(self):
+        print("\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ")
+        print(" \t ~Reconstruction Parameters used~ ")
+        print("~ Pedestal/Masking~ ")
+        print("    1st pass rms threshold : ", self.ped_amp_sig_fst, " 2nd pass : ", self.ped_amp_sig_oth)
+        print("    Nb of consecutive positive sample over threshold ", self.ped_rise_thr)
+        print("    Nb of consecutive increasing samples over threshold ", self.ped_ramp_thr)
+        print("    Amplitude threshold ", self.ped_amp_thr)
+        print("    Window duration ", self.ped_dt_thr)
+        print("    Nb of sample in between zero cross ", self.ped_zero_cross_thr)
+
+        print("\n~Noise Removal~ ")
+        print("    FFT low pass cut ", self.noise_fft_lcut)
+        print("    FFT frequency cut ", self.noise_fft_freq)
+        print("    Coherent groups : ", self.noise_coh_group)
+        
+        print("\n~Hit Finder~ ")
+        print("    Amplitude RMS threshold ", self.hit_amp_sig)
+        print("    Minimum Hit duration in sample ", self.hit_dt_min)
+        print("    Hit signal pad left ", self.hit_pad_left, " right ", self.hit_pad_right)
+        print("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n")
 
