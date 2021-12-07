@@ -23,12 +23,12 @@ Check and modify **config.py** and files in `settings/` :
 
 
 ## To run lardon on data
-To launch lardon, type `python lardon.py` with the following arguments:
-**Mandatory**: 
+To launch lardon, type `python lardon.py` with the following arguments:<br/>
+**Mandatory**:<br/>
 * `-elec <top/tde/bot/bde>` which electronics is used
 * `-run <run nb>` which run number
 * `-sub <subfile name>` which subfile (*e.g.* 1)
-*Optional*:
+*Optional*:<br/>
 * `-n <nb of events>` how many events to process, default is -1 = all file
 * `-out <output file option>` optional extra name for the output
 * `-skip <nb to skip>` number of events to skip
@@ -52,40 +52,40 @@ the output h5file will be **store_path/top_455_5_example.h5**
 
 
 ## Control Plots
-:warning: The data is structured in `daq_channel` ordering, which can have a mix of views\
+:warning: The data is structured in `daq_channel` ordering, which can have a mix of views<br/>
 
 By default, no control plots should be produced, but you can call the plotting functions in **lardon.py** anywhere in the reconstruction loop.
 
 
-All plot functions have the two options :\
-* option="extra_output_name_if_you_want" [default is none]\
+All plot functions have the two options :<br/>
+* option="extra_output_name_if_you_want" [default is none]<br/>
 * to_be_shown=True/False if you want to see the plot live [default is False]
 
 
-### To plot the current event display:
-Seen in `daq_channel` ordering:\
-`plot.plot_event_display_per_daqch()`\
-Seen in view channel ordering (more natural):\
+### To plot the current event display:<br/>
+Seen in `daq_channel` ordering:<br/>
+`plot.plot_event_display_per_daqch()`<br/>
+Seen in view channel ordering (more natural):<br/>
 `cmap.arange_in_view_channels()` <- to be called first, might change in near future\
-`plot.plot_event_display_per_view()`\
+`plot.plot_event_display_per_view()`<br/>
 
 
-### To plot the current waveform(s):
-`plot.plot_wvf_current_daqch([daq_ch_1, daq_ch_2, ...])`\
-`plot.plot_wvf_current_vch([(view,ch1),(view,ch2),(...)])`\
+### To plot the current waveform(s):<br/>
+`plot.plot_wvf_current_daqch([daq_ch_1, daq_ch_2, ...])`<br/>
+`plot.plot_wvf_current_vch([(view,ch1),(view,ch2),(...)])`<br/>
 
-### To plot the noise RMS
-`plot.plot_noise_daqch(noise_type='noise_type')`\
-`plot.plot_noise_vch(noise_type='noise_type')`\
-where `noise_type` is either `raw` or `filt`\
+### To plot the noise RMS<br/>
+`plot.plot_noise_daqch(noise_type='noise_type')`<br/>
+`plot.plot_noise_vch(noise_type='noise_type')`<br/>
+where `noise_type` is either `raw` or `filt`<br/>
 
-### To plot hits found :
-`plot.plot_2dview_hits()`\
+### To plot hits found :<br/>
+`plot.plot_2dview_hits()`<br/>
 
-### To plot 2D tracks (and hits):
-`plot.plot_2dview_2dtracks()`\ 
+### To plot 2D tracks (and hits):<br/>
+`plot.plot_2dview_2dtracks()`<br/>
 
-### To plot 3D tracks:
-`plot.plot_2dview_hits_and_3dtracks()` <- see the 3D tracks projected in 2D\
-`plot.plot_3d()` <- see the 3D tracks in 3D\
+### To plot 3D tracks:<br/>
+`plot.plot_2dview_hits_and_3dtracks()` <- see the 3D tracks projected in 2D<br/>
+`plot.plot_3d()` <- see the 3D tracks in 3D<br/>
 
