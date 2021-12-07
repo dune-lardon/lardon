@@ -48,6 +48,8 @@ import store as store
 import hit_finder as hf
 import track_2d as trk2d
 import analysis_parameters as params
+import track_3d as trk3d
+
 
 
 plot.set_style()
@@ -65,16 +67,13 @@ store.create_tables(output)
 """ set analysis parameters """
 pars = params.params()
 pars.read(config=args.conf,elec=elec)
+pars.dump()
 
 """ set the channel mapping """
 print(" will use ", cf.channel_map)
 cmap.get_mapping(elec)
 cmap.set_unused_channels()
 
-
-
-""" mask the unused channels """
-dc.mask_daq = ~dc.alive_chan
 
 
 """ setup the decoder """
@@ -106,94 +105,107 @@ for ievent in range(nevent):
 
     reader.read_evt_header(ievent)
     dc.evt_list[-1].dump()
-    store.store_event(output)
+    
 
     reader.read_evt(ievent)
-    if(elec == 'top'):
-        dc.data_daq *= -1
 
-    #ped.set_mask_wf_rms_all()
-    ped.compute_pedestal(noise_type='raw')
+    #plot.plot_sticky_finder_daqch(to_be_shown=True)
+
+    """ mask the unused channels """
+    dc.mask_daq = dc.alive_chan
+    
+    """ compute the raw pedestal """
+    ped.compute_pedestal(noise_type='raw', pars=pars)
 
     
-    #plot.plot_noise_daqch(noise_type='raw',vrange=pars.plt_noise_zrange,to_be_shown=False)
-    #plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=False)
-    #plot.plot_noise_globch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=False)
+    #plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=True)
     #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=False)
+
+
+
+    tcoh = time.time()
+    noise.coherent_noise_per_view(pars.noise_coh_group)
+    print("coherent noise : ", time.time()-tcoh)
+
+
+    ped.compute_pedestal(noise_type='filt')
+    #tp = time.time()
+    #ped.refine_mask(pars)
+    ped.update_mask(pars.ped_amp_sig_oth)
+
+    
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='raw', to_be_shown=False)
+    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coh', to_be_shown=True)
 
 
     tf = time.time()
     ps = noise.FFT_low_pass(pars.noise_fft_lcut,pars.noise_fft_freq)
+
 
     """ DO NOT STORE ALL FFT PS !! """
     #store.store_fft(output, ps)
 
 
 
-    #ped.set_mask_wf_rms_all()
-    tp = time.time()
     ped.compute_pedestal(noise_type='filt')
-    ped.refine_mask(pars,debug=True)
-    ped.compute_pedestal(noise_type='filt')
+    ped.refine_mask(pars)
+    #ped.update_mask(pars.ped_amp_sig_oth)
 
-    #plot.plot_noise_daqch(noise_type='filt',option='fft', vrange=pars.plt_noise_zrange)
-    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='fft')#,to_be_shown=True)
-
-
-    #plot.plot_FFT_daqch(ps,option='raw',to_be_shown=False)    
-    #plot.plot_FFT_vch(ps,option='raw',to_be_shown=False)    
 
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='fft', to_be_shown=False)
+    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='fft', option='fitlered', to_be_shown=False)
 
-    #plot.plot_correlation_daqch(option='fft',to_be_shown=True)
-    #plot.plot_correlation_globch(option='fft', to_be_shown=False)
+    #plot.plot_correlation_daqch(option='filtered',to_be_shown=True)
+    #plot.plot_correlation_globch(option='filtered', to_be_shown=False)
 
+    
 
-    tcoh = time.time()
-    noise.coherent_noise(pars.noise_coh_group)
-    print("coherent noise : ", time.time()-tcoh)
+    
+    #tcoh = time.time()
+    #noise.coherent_noise(pars.noise_coh_group)
+    #print("coherent time took ", time.time()-tcoh)
 
-
-    #ped.set_mask_wf_rms_all()
-    tpm = time.time()
-    ped.compute_pedestal(noise_type='filt')
-    ped.refine_mask(pars,debug=True)
-    ped.compute_pedestal(noise_type='filt')
-
-    #plot.plot_noise_daqch(noise_type='filt',option='coherent', vrange=pars.plt_noise_zrange)
     #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
 
-
-    #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='coherent',to_be_shown=False)
-    #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coherent', to_be_shown=False)
-    #plot.plot_noise_daqch(noise_type='filt',option='coherent', vrange=pars.plt_noise_zrange)
-    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
-
-
-
-    store.store_pedestals(output)
-    print('  %.2f s to process '%(time.time()-t0))
 
 
     
     th = time.time()
-    hf.find_hits(pars.hit_pad_left,pars.hit_pad_right, pars.hit_dt_min[0], pars.hit_amp_sig[0],pars.hit_amp_sig[1],pars.hit_amp_sig[2])
+    hf.find_hits(pars.hit_pad_left,
+                 pars.hit_pad_right, 
+                 pars.hit_dt_min[0], 
+                 pars.hit_amp_sig[0],
+                 pars.hit_amp_sig[1],
+                 pars.hit_amp_sig[2])
+    
     print("hit %.2f s"%(time.time()-th))
-    print(dc.evt_list[-1].n_hits)
-    plot.plot_2dview_hits(to_be_shown=False)
+    print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
+    #plot.plot_2dview_hits(to_be_shown=True)
+    
+    
 
     """parameters : min nb hits, rcut, chi2cut, y error, slope error, pbeta"""
-
+    
     trk2d.find_tracks_rtree(5, 6., 8., 0.5, 1., 3.)
 
     [t.mini_dump() for t in dc.tracks2D_list]
+
     plot.plot_2dview_2dtracks(to_be_shown=True)
 
 
+    """ parameters : ztol, qfrac, len_min, d_tol """
+    trk3d.find_tracks_rtree(3., 5., 2., 0.5)
+
+    plot.plot_3d(to_be_shown=True)
+    print("Number of 3D tracks found : ", len(dc.tracks3D_list))
+
+    print('  %.2f s to process '%(time.time()-t0))
+
+    store.store_event(output)
+    store.store_pedestals(output)
+    store.store_hits(output)    
+    store.store_tracks2D(output)
+    store.store_tracks3D(output)
 reader.close_file()
 output.close()
 print('it took %.2f s to run'%(time.time()-tstart))
