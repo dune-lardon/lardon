@@ -134,7 +134,7 @@ for ievent in range(nevent):
     ped.update_mask(pars.ped_amp_sig_oth)
 
     
-    #cmap.arange_in_view_channels()
+    cmap.arange_in_view_channels()
     #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coh', to_be_shown=True)
 
 
@@ -184,19 +184,27 @@ for ievent in range(nevent):
     
     
 
-    """parameters : min nb hits, rcut, chi2cut, y error, slope error, pbeta"""
+
+                
     
-    trk2d.find_tracks_rtree(5, 6., 8., 0.5, 1., 3.)
+    trk2d.find_tracks_rtree(pars.trk2D_nhits,
+                            pars.trk2D_rcut,
+                            pars.trk2D_chi2cut,
+                            pars.trk2D_yerr,
+                            pars.trk2D_slope_err,
+                            pars.trk2D_pbeta)
 
     [t.mini_dump() for t in dc.tracks2D_list]
 
-    plot.plot_2dview_2dtracks(to_be_shown=True)
+    #plot.plot_2dview_2dtracks(to_be_shown=True)
 
 
-    """ parameters : ztol, qfrac, len_min, d_tol """
-    trk3d.find_tracks_rtree(3., 5., 2., 0.5)
+    trk3d.find_tracks_rtree(pars.trk3D_ztol,
+                            pars.trk3D_qfrac,
+                            pars.trk3D_len_min,
+                            pars.trk3D_dtol)
 
-    plot.plot_3d(to_be_shown=True)
+    #plot.plot_3d(to_be_shown=True)
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
 
     print('  %.2f s to process '%(time.time()-t0))
