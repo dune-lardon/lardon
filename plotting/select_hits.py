@@ -28,3 +28,16 @@ def get_2dtracks_pos(view, selection="True"):
 def get_2dtracks_z(view, selection="True"):
     return [[p[1] for p in t.path] for t in dc.tracks2D_list if t.view==view and eval(selection)]
 
+
+def get_3dtracks(view, axis, selection="True"):
+    return [[p[axis] for p in t.path[view]] if t.match_ID[view]>0 else [] for t in dc.tracks3D_list if eval(selection)] 
+    
+
+def get_3dtracks_x(view, selection="True"):
+    return get_3dtracks(view, 0, selection)
+
+def get_3dtracks_y(view, selection="True"):
+    return get_3dtracks(view, 1, selection)
+
+def get_3dtracks_z(view, selection="True"):
+    return get_3dtracks(view, 2, selection)
