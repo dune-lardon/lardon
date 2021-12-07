@@ -4,13 +4,14 @@
 	"n_view":"3",
 	"view_name":["U","Y","Z"],
 	"view_type":["Induction","Induction", "Collection"],
-	"view_angle":["138.37", "90", "0"],
+	"view_angle":["41.67", "90", "0"],
 	"view_pitch":["0.8695", "0.525", "0.517"],
-	"view_capa":["109","80","100"],
+	"view_capa":["10.9","8.0","10.0"],
 	"view_nchan":["384", "640", "576"],
 	"view_chan_repet":["384","320","576"],
 	"drift_length":"23.",
 	"view_length":["333.388","168.","297.792"],
+	"strips_length":"cb_1_strips.txt",
 
 	"top":{
 	    "sub_path":"np02/rawdata_cb",
@@ -18,7 +19,9 @@
 	    "sampling":"2.5",
 	    "n_sample":"10000",
 	    "ADC_to_fC":"1",
-	    "view_offset":["-222.675","-168.0","-148.896"]
+	    "view_offset":["-222.675","-168.0","-148.896"],
+	    "x_boundaries":["-168.","0"],
+	    "y_boundaries":["-148.896","148.896"]
 	},
 
 	"bot":{
@@ -27,7 +30,9 @@
 	    "sampling":"2",
 	    "n_sample":"8192",
 	    "ADC_to_fC":"1",
-	    "view_offset":["0","0.","-148.9"]
+	    "view_offset":["0","0.","-148.9"],
+	    "x_boundaries":["0", "168."],
+	    "y_boundaries":["-148.896","148.896"]
 	}
     }
 }
