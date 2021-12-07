@@ -498,7 +498,7 @@ class trk3D:
         for i in range(cf.n_view):
             if(self.match_ID[i] == -1):
                 tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1, 0)
-                print("3D track is missing view ", i)
+                #print("3D track is missing view ", i)
                 self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.], isFake=True)
 
 
@@ -509,7 +509,7 @@ class trk3D:
         self.ini_y = self.path[v_higher][0][1]
         self.ini_z = self.path[v_higher][0][2]
 
-        self.ini_z_overlap = min([self.path[i][0][2] for i in range(cf.n_view)])
+        self.ini_z_overlap = min([self.path[i][0][2] if k >=0 else 99999. for i,k in zip(range(cf.n_view),self.match_ID)])
 
         ''' end '''
         v_lower = np.argmin([self.path[i][-1][2] for i in range(cf.n_view)])
@@ -517,7 +517,7 @@ class trk3D:
         self.end_y = self.path[v_lower][-1][1]
         self.end_z = self.path[v_lower][-1][2]
 
-        self.end_z_overlap = max([self.path[i][-1][2] for i in range(cf.n_view)])
+        self.end_z_overlap = max([self.path[i][-1][2] if k >= 0 else -9999. for i,k in zip(range(cf.n_view),self.match_ID)])
         
     def set_t0_z0(self, t0, z0):
         
