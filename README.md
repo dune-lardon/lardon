@@ -27,7 +27,7 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 **Mandatory**:<br/>
 * `-elec <top/tde/bot/bde>` which electronics is used
 * `-run <run nb>` which run number
-* `-sub <subfile name>` which subfile (*e.g.* 1)
+* `-sub <subfile name>` which subfile (*e.g.* 1)<br/>
 *Optional*:<br/>
 * `-n <nb of events>` how many events to process, default is -1 = all file
 * `-out <output file option>` optional extra name for the output
