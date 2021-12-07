@@ -20,7 +20,6 @@ marker_size = 5
 def draw_hits(pos, time, z=[], ax=None, **kwargs):
 
     ax = plt.gca() if ax is None else ax
-    print('there is ', len(pos), ' in this view ')
     if(len(pos) == 0):
         return ax
     
@@ -100,7 +99,7 @@ def template_data_view():
         axs[iv].set_title('View '+str(iv)+"/"+cf.view_name[iv])
         axs[iv].set_xlabel(cf.view_name[iv]+' [cm]')
 
-        print('view ', iv, ' from ', cf.view_offset[iv], ' to ', cf.view_offset[iv]+cf.view_length[iv])
+        #print('view ', iv, ' from ', cf.view_offset[iv], ' to ', cf.view_offset[iv]+cf.view_length[iv])
         axs[iv].set_xlim([cf.view_offset[iv], cf.view_offset[iv]+cf.view_length[iv]])
         axs[iv].set_ylim([cf.anode_z - v*cf.n_sample/cf.sampling, cf.anode_z])
 
@@ -134,9 +133,14 @@ def plot_2dview_hits(max_adc=100, option=None, to_be_shown=False):
     """ color bar """
     ax_col.set_title('Hit Max ADC')
 
-    cb = fig.colorbar(axs[0].collections[0], cax=ax_col, orientation='horizontal')
-    cb.ax.xaxis.set_ticks_position('top')
-    cb.ax.xaxis.set_label_position('top')
+    for i in range(cf.n_view):
+        try :
+            cb = fig.colorbar(axs[i].collections[0], cax=ax_col, orientation='horizontal')
+            cb.ax.xaxis.set_ticks_position('top')
+            cb.ax.xaxis.set_label_position('top')
+            break
+        except: 
+            print('no hits in view ', i)
 
     run_nb = str(dc.evt_list[-1].run_nb)
     evt_nb = str(dc.evt_list[-1].trigger_nb)
