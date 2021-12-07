@@ -19,6 +19,7 @@
               "low_cut":0.6
            }
         },
+
         "hit_finder":{
            "amp_sig_thrs": [3,6,2],
            "dt_min": [10,10,10],
@@ -27,6 +28,23 @@
               "right": 10
            }
         },
+
+	"track_2d":{
+	    "min_nb_hits": 5,
+	    "rcut": 6.0,
+	    "chi2cut": 8.0,
+	    "y_error": 0.5,
+	    "slope_error": 1.0,
+	    "pbeta":3.0
+	},
+
+	"track_3d":{
+	    "ztol":3.0,
+	    "qfrac":5.0, 
+	    "len_min":2.0, 
+	    "d_tol":0.5
+	},
+
         "plot":{
            "noise":{
               "show": 0,
@@ -56,15 +74,18 @@
            "dt_thr": 100,
            "zero_cross_thr": 15
         },
+
         "noise":{
            "coherent":{
               "groupings":[128]
            },
+
            "fft":{
               "freq":-1,
               "low_cut":0.4
            }
         },
+
         "hit_finder":{
            "amp_sig_thrs": [3,6,2],
            "dt_min": [10,10,10],
@@ -73,6 +94,23 @@
               "right": 10
            }
         },
+
+	"track_2d":{
+	    "min_nb_hits":5, 
+	    "rcut":6.0, 
+	    "chi2cut":8.0, 
+	    "y_error":0.5, 
+	    "slope_error":1.0, 
+	    "pbeta":3.0
+	},
+
+	"track_3d":{
+	    "ztol":3.0,
+	    "qfrac":5.0, 
+	    "len_min":2.0, 
+	    "d_tol":0.5
+	},
+
         "plot":{
            "noise":{
               "show": 0,

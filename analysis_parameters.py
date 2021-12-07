@@ -23,6 +23,20 @@ class params:
        self.hit_pad_left    = 6          # hit lower side band
        self.hit_pad_right   = 10         # hit upper side band
 
+
+
+       self.trk2D_nhits     = 5     #min nb of hits to make a 2D track
+       self.trk2D_rcut      = 6.    #search radius (cm) when looking for nearby hits
+       self.trk2D_chi2cut   = 8.    #chi2 cut to accept new hit in track
+       self.trk2D_yerr      = 0.5   #assumed error on 'y' i.e. position in cm
+       self.trk2D_slope_err = 1.    #assumed slope error for begining of track
+       self.trk2D_pbeta     = 3.    #assumed pbeta of the track
+
+       self.trk3D_ztol     = 3.    #min z diff of two tracks boundaries when matched
+       self.trk3D_qfrac    = 5.    #max charge balance between two trk when matched (unused now)
+       self.trk3D_len_min  = 2.    #min trk length to be considered in matching
+       self.trk3D_dtol     = 0.5   #distance tolerance to detector boundaries for timing computation
+
        self.plt_noise_show        = 0
        self.plt_evt_disp_daq_show = 0
        self.plt_evt_disp_vch_show = 0
@@ -57,6 +71,22 @@ class params:
                 self.hit_dt_min      = data[config][elec]['hit_finder']['dt_min']
                 self.hit_pad_left    = data[config][elec]['hit_finder']['pad']['left']
                 self.hit_pad_right   = data[config][elec]['hit_finder']['pad']['right']
+
+
+                self.trk2D_nhits     = data[config][elec]['track_2d']['min_nb_hits']
+                self.trk2D_rcut      = data[config][elec]['track_2d']['rcut']
+                self.trk2D_chi2cut   = data[config][elec]['track_2d']['chi2cut']
+                self.trk2D_yerr      = data[config][elec]['track_2d']['y_error']
+                self.trk2D_slope_err = data[config][elec]['track_2d']['slope_error']
+                self.trk2D_pbeta     = data[config][elec]['track_2d']['pbeta']
+
+
+                
+                self.trk3D_ztol     = data[config][elec]['track_3d']['ztol']
+                self.trk3D_qfrac    = data[config][elec]['track_3d']['qfrac']
+                self.trk3D_len_min  = data[config][elec]['track_3d']['len_min']
+                self.trk3D_dtol     = data[config][elec]['track_3d']['d_tol']
+
 
                 self.plt_noise_show              = data[config][elec]['plot']['noise']['show']
                 self.plt_noise_zrange            = data[config][elec]['plot']['noise']['zrange']
@@ -124,5 +154,18 @@ class params:
         print("    Amplitude RMS threshold ", self.hit_amp_sig)
         print("    Minimum Hit duration in sample ", self.hit_dt_min)
         print("    Hit signal pad left ", self.hit_pad_left, " right ", self.hit_pad_right)
+
+        print("\n~2D Track Finder~ ")
+        print("    Min Nb of Hits ", self.trk2D_nhits)
+        print("    Hit Search radius ", self.trk2D_rcut)
+        print("    Hit chi2 cut when added to the track ", self.trk2D_chi2cut)
+        print("    PFilter initial error estimate y: ", self.trk2D_yerr, " slope: ", self.trk2D_slope_err, " pbeta : ", self.trk2D_pbeta)
+
+        print("\n~3D Track Finder~ ")
+        print("    Max Z difference at 2D track boundaries : ", self.trk3D_ztol)
+        print("    Max track charge balance : ", self.trk3D_qfrac)
+        print("    Min track 2D length : ", self.trk3D_len_min)
+        print("    Distance to detector boundaries : ", self.trk3D_dtol)
+
         print("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n")
 
