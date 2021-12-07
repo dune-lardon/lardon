@@ -6,6 +6,7 @@ import numpy as np
 import numexpr as ne 
 
 
+
 def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
@@ -79,3 +80,62 @@ def coherent_noise(groupings):
         """ restore original data shape """
         dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, cf.n_sample))
         dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
+
+
+def coherent_noise_per_view(groupings):
+    """
+    1. Get which daq channels is which view 
+    2. Computes the mean along this group of channels and this view for non ROI points
+    3. Subtract mean to all points
+    """
+
+
+
+    v_daq = np.empty((cf.n_tot_channels,cf.n_sample))
+    capa = np.zeros((cf.n_tot_channels))
+    
+    for i in range(cf.n_tot_channels):
+        view = dc.chmap[i].view
+        if(view >= cf.n_view or view < 0):
+            view = -1
+
+        v_daq[i,:] = view
+        capa[i] = dc.chmap[i].capa
+
+
+    dc.data_daq /= capa[:,None]
+         
+    for group in groupings:
+        if( (cf.n_tot_channels % group) > 0):
+            print(" Coherent Noise Filter in groups of ", group, " is not a possible ! ")
+            return
+
+    nslices = int(cf.n_tot_channels / group)
+        
+    dc.data_daq = np.reshape(dc.data_daq, (nslices, group, cf.n_sample))
+    dc.mask_daq = np.reshape(dc.mask_daq, (nslices, group, cf.n_sample))
+
+
+    v_daq = np.reshape(v_daq, (nslices, group, cf.n_sample))
+
+    
+    for i in range(cf.n_view):
+        v_mask = np.where(v_daq==i, dc.mask_daq, 0)
+
+        
+        """sum data if mask is true"""
+        with np.errstate(divide='ignore', invalid='ignore'):
+            """sum the data along the N channels (subscript l) if mask is true,
+                divide by nb of trues"""
+            mean = np.einsum('klm,klm->km', dc.data_daq, v_mask)/v_mask.sum(axis=1)
+
+        """require at least 3 points to take into account the mean"""
+        mean[v_mask.sum(axis=1) < 3] = 0.
+
+        dc.data_daq -= mean[:,None,:]*np.where(v_daq==i,1,0)
+
+
+    """ restore original data shape """
+    dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, cf.n_sample))
+    dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
+    dc.data_daq *= capa[:,None]
