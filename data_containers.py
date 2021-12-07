@@ -46,12 +46,14 @@ def reset_event():
     evt_list.clear()
 
 class channel:
-    def __init__(self, daqch, globch, view, vchan):
+    def __init__(self, daqch, globch, view, vchan, length, capa):
         self.daqch = daqch
         self.globch = globch
         self.view = view
         self.vchan = vchan
-        
+        self.length = length
+        self.capa   = capa
+
     def get_ana_chan(self):
         return self.view, self.vchan
         
@@ -227,7 +229,7 @@ class trk2D:
         self.len_straight = 0.
         self.len_path = 0.
 
-        self.matched = -1
+        self.matched = [-1 for x in range(cf.n_view)]
         self.cluster = cluster
 
         self.ini_time = t0
@@ -391,12 +393,13 @@ class trk2D:
     def merge(self, other):
         self.n_hits += other.n_hits
         self.n_hits_dray += other.n_hits_dray
-        self.chi2 += other.chi2 #should be refiltered though
+        self.chi2_fwd += other.chi2_fwd #should be refiltered though
+        self.chi2_bkwd += other.chi2_bkwd #should be refiltered though
         self.tot_charge += other.tot_charge
         self.dray_charge += other.dray_charge
         self.len_path += other.len_path 
         self.len_path += self.dist(other)
-        self.matched = -1
+        self.matched = [-1 for x in range(cf.n_view)]
         self.drays.extend(other.drays)
 
         if(self.path[0][1] > other.path[0][1]):
@@ -428,3 +431,126 @@ class trk2D:
         print("view : ", self.view, " from (%.1f,%.1f)"%(self.path[0][0], self.path[0][1]), " to (%.1f, %.1f)"%(self.path[-1][0], self.path[-1][1]), " N = ", self.n_hits, " L = %.1f/%.1f"%(self.len_straight, self.len_path), " Q = ", self.tot_charge, " Dray N = ", self.n_hits_dray, " Qdray ", self.dray_charge)
                
 
+
+class trk3D:
+    def __init__(self):
+        
+        self.match_ID  =  [-1]*cf.n_view#[t.ID for t in trks]
+        self.chi2    = [-1]*cf.n_view
+        self.momentum = -1
+        
+        self.n_hits   = [-1]*cf.n_view #t.n_hits for t in trks]
+
+        self.len_straight = [-1]*cf.n_view
+        self.len_path = [-1]*cf.n_view
+
+
+        self.tot_charge = [-1]*cf.n_view
+        self.dray_charge = [-1]*cf.n_view
+
+
+        self.ini_theta = -1
+        self.end_theta = -1
+        self.ini_phi = -1
+        self.end_phi = -1
+
+        self.t0_corr = 0.
+        self.z0_corr = 0.
+
+        #self.ini_time = min([t.ini_time for t in trks])
+        #self.end_time = max([t.end_time for t in trks])
+
+        
+        ''' track boundaries '''                
+        self.path = [[] for x in range(cf.n_view)]
+        self.dQ = [[] for x in range(cf.n_view)]
+        self.ds = [[] for x in range(cf.n_view)]
+
+        
+    def set_view(self, trk, path, dq, ds, isFake=False):
+        view = trk.view
+
+        self.path[view]  = path
+        self.dQ[view]   = dq
+        self.ds[view]   = ds
+        self.tot_charge[view] = sum(q/s for q,s in zip(dq,ds))
+        
+        if(isFake == True):
+            self.len_straight[view] = 0.
+            self.len_path[view] = 0.
+            self.n_hits[view] = 0.
+            self.chi2[view] = 0.
+
+        else:
+            self.n_hits[view] = len(path)
+            self.chi2[view] = trk.chi2_fwd
+            self.match_ID[view] = trk.trackID
+            
+            self.len_straight[view] = math.sqrt( sum([pow(path[0][i]-path[-1][i], 2) for i in range(3)]))
+            self.len_path[view] = 0.
+
+            for i in range(len(path)-1):
+                self.len_path[view] +=  math.sqrt( pow(path[i][0]-path[i+1][0], 2) + pow(path[i][1]-path[i+1][1],2)+ pow(path[i][2]-path[i+1][2],2) )
+            
+                
+            
+    def check_views(self):
+        for i in range(cf.n_view):
+            if(self.match_ID[i] == -1):
+                tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1, 0)
+                print("3D track is missing view ", i)
+                self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.], isFake=True)
+
+
+    def boundaries(self):
+        ''' begining '''
+        v_higher = np.argmax([self.path[i][0][2] for i in range(cf.n_view)])
+        self.ini_x = self.path[v_higher][0][0]
+        self.ini_y = self.path[v_higher][0][1]
+        self.ini_z = self.path[v_higher][0][2]
+
+        self.ini_z_overlap = min([self.path[i][0][2] for i in range(cf.n_view)])
+
+        ''' end '''
+        v_lower = np.argmin([self.path[i][-1][2] for i in range(cf.n_view)])
+        self.end_x = self.path[v_lower][-1][0]
+        self.end_y = self.path[v_lower][-1][1]
+        self.end_z = self.path[v_lower][-1][2]
+
+        self.end_z_overlap = max([self.path[i][-1][2] for i in range(cf.n_view)])
+        
+    def set_t0_z0(self, t0, z0):
+        
+        self.t0_corr = t0
+        self.z0_corr = z0
+
+
+
+    
+    def angles(self):#, tv0, tv1):
+        #TO BE DONE !
+        """ initial angles """
+        """
+        slope_v0 = tv0.ini_slope #dx/dz
+        slope_v1 = tv1.ini_slope #dy/dz
+        self.ini_phi = math.degrees(math.atan2(slope_v1, slope_v0))
+        self.ini_theta = math.degrees(math.atan2(math.sqrt(pow(slope_v0,2)+pow(slope_v1,2)),-1.))
+        """
+        """ end angles """
+        """
+        slope_v0 = tv0.end_slope #dx/dz
+        slope_v1 = tv1.end_slope #dy/dz
+        self.end_phi = math.degrees(math.atan2(slope_v1, slope_v0))
+        self.end_theta = math.degrees(math.atan2(math.sqrt(pow(slope_v0,2)+pow(slope_v1,2)),-1.))
+        """
+
+    def dump(self):
+        print('----')
+        print(" From (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f)"%(self.ini_x, self.ini_y, self.ini_z, self.end_x, self.end_y, self.end_z))
+        print('z-overlap ', self.ini_z_overlap, ' to ', self.end_z_overlap)
+        print("N Hits ", self.n_hits)
+        print(" theta, phi: [ini] %.2f ; %.2f"%(self.ini_theta, self.ini_phi), " -> [end] %.2f ; %.2f "%( self.end_theta, self.end_phi))
+        print(" Straight Lengths :  ", self.len_straight)
+        print(" Path Lengths ", self.len_path)
+        print(" Total charges ", self.tot_charge)
+        print(" z0 ", self.z0_corr, " t0 ", self.t0_corr)

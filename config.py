@@ -1,6 +1,7 @@
 data_path = "/eos/experiment/neutplatform/protodune/rawdata/"
 
 """ User's specific """
+lardon_path = "."
 store_path = "./reco"
 plot_path  = "./results"
 
@@ -30,8 +31,11 @@ channel_map = ""
 broken_channels = []
 view_offset = []
 view_chan_repet = []
+signal_is_inverted = False
+strips_length = ''
 
 drift_length = 0.
 anode_z = 0.
 view_length = []
-
+x_boundaries = []
+y_boundaries = []

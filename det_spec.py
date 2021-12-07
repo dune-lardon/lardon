@@ -3,7 +3,7 @@ import config as cf
 
 def configure(detector, period, elec, run):
     """ long term parameters """
-    with open('settings/geo_'+detector+'.json','r') as f:
+    with open(cf.lardon_path+'/settings/geo_'+detector+'.json','r') as f:
         data = json.load(f)['period_'+period]
 
         cf.n_view = int(data['n_view'])
@@ -27,9 +27,13 @@ def configure(detector, period, elec, run):
         cf.anode_z = cf.drift_length/2.
         cf.view_length = [float(x) for x in data["view_length"]]
 
+        cf.x_boundaries = [float(x) for x in data[elec]['x_boundaries']]
+        cf.y_boundaries = [float(x) for x in data[elec]['y_boundaries']]
+
+        cf.strips_length = cf.lardon_path+"/settings/chmap/"+data['strips_length']
 
     """ shorter term parameters """
-    with open('settings/run_'+detector+'.json','r') as f:
+    with open(cf.lardon_path+'/settings/run_'+detector+'.json','r') as f:
         data = json.load(f)[elec]
         run_keys = sorted(list(data.keys()))
         for r in run_keys:
@@ -38,8 +42,12 @@ def configure(detector, period, elec, run):
                 break
 
 
-        cf.channel_map = "settings/chmap/"+data[run_key_set]["chmap"]
+        cf.channel_map = cf.lardon_path+"/settings/chmap/"+data[run_key_set]["chmap"]
+
+        cf.signal_is_inverted = bool(int(data[run_key_set]["signal_is_inverted"]))
+
         try:
             cf.broken_channels = data[run_key_set]["broken_channels"]
         except KeyError:
             print("WARNING: No information available on broken channels.")
+
