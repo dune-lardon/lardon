@@ -117,9 +117,9 @@ for ievent in range(nevent):
     """ compute the raw pedestal """
     ped.compute_pedestal(noise_type='raw', pars=pars)
 
-    
-    #plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=True)
-    #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=False)
+    if(pars.plt_noise_show == 1 or pars.plt_noise_show == 2):
+      plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=True)
+      plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=True)
 
 
 
@@ -135,15 +135,15 @@ for ievent in range(nevent):
 
     
     cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coh', to_be_shown=True)
+    if(pars.plt_evt_disp_vch_show == 1 or pars.plt_evt_disp_vch_show == 2):
+      plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coh', to_be_shown=True)
 
 
     tf = time.time()
     ps = noise.FFT_low_pass(pars.noise_fft_lcut,pars.noise_fft_freq)
 
 
-    """ DO NOT STORE ALL FFT PS !! """
-    #store.store_fft(output, ps)
+    if(pars.noise_fft_store == 1): store.store_fft(output, ps)
 
 
 
@@ -153,10 +153,11 @@ for ievent in range(nevent):
 
 
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='fft', option='fitlered', to_be_shown=False)
+    if(pars.plt_evt_disp_vch_show == 1 or pars.plt_evt_disp_vch_show == 3):
+      lot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='filtered', to_be_shown=True)
 
-    #plot.plot_correlation_daqch(option='filtered',to_be_shown=True)
-    #plot.plot_correlation_globch(option='filtered', to_be_shown=False)
+    if(pars.plt_corr_daq_show == 1): plot.plot_correlation_daqch(option='filtered',colorscale=pars.plt_corr_daq_zrange,to_be_shown=True)
+    if(pars.plt_corr_glb_show == 1): plot.plot_correlation_globch(option='filtered',colorscale=pars.plt_corr_daq_zrange, to_be_shown=True)
 
     
 
@@ -165,7 +166,8 @@ for ievent in range(nevent):
     #noise.coherent_noise(pars.noise_coh_group)
     #print("coherent time took ", time.time()-tcoh)
 
-    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
+    if(pars.plt_noise_show == 1 or pars.plt_noise_show == 3): 
+      plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=True)
 
 
 

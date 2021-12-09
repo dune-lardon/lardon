@@ -332,7 +332,7 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
 
 
 
-def plot_correlation_globch(option=None, to_be_shown=False):
+def plot_correlation_globch(option=None, colorscale=[-1,1],to_be_shown=False):
     data_globch = np.zeros(dc.data_daq.shape)
     for i in range(cf.n_tot_channels):
         gch = dc.chmap[i].globch
@@ -343,12 +343,12 @@ def plot_correlation_globch(option=None, to_be_shown=False):
     plot_correlation(np.corrcoef(data_globch),"glob",option,to_be_shown)
 
 
-def plot_correlation_daqch(option=None, to_be_shown=False):
+def plot_correlation_daqch(option=None, colorscale=[-1,1],to_be_shown=False):
     plot_correlation(np.corrcoef(dc.data_daq),"daq",option,to_be_shown)
 
 
 
-def plot_correlation(corr,corr_type,option,to_be_shown):
+def plot_correlation(corr,corr_type,colorscale,option,to_be_shown):
     fig = plt.figure(figsize=(8,8))
     gs = gridspec.GridSpec(nrows=2, 
                            ncols=1,
@@ -363,7 +363,7 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
                    interpolation='none',
                    cmap   = cmap_corr,
                    extent=[0, cf.n_tot_channels, 0., cf.n_tot_channels],
-                   vmin=-1, vmax=1)
+                   vmin=colorscale[0], vmax=colorscale[1])
 
     if(corr_type=='daq'):
         title = 'DAQ Channels'

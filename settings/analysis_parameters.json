@@ -1,5 +1,32 @@
 {
   "1":{
+    "plot":{
+      "noise":{
+        "show": 0,
+        "zrange": [0,15]
+       },
+       "corr":{
+         "daq":{
+           "show": 0,
+           "zrange": [-1,1]
+         },
+         "glb":{
+           "show": 0,
+           "zrange": [-1,1]
+         }
+       },
+       "evt_display":{
+         "daqch":{
+           "show":0,
+           "zrange":[-50,50]
+         },
+         "viewch":{
+	   "show":0,
+	   "ind_zrange":[-50,50],
+	   "col_zrange":[-50,50]
+         }
+       }
+     },
      "top":{
         "pedestal":{ 
            "first_pass_thrs": 3,
@@ -15,6 +42,7 @@
               "groupings":[32]
            },
            "fft":{
+              "store":0,
               "freq":-1,
               "low_cut":0.6
            }
@@ -43,25 +71,7 @@
 	    "qfrac":5.0, 
 	    "len_min":2.0, 
 	    "d_tol":0.5
-	},
-
-        "plot":{
-           "noise":{
-              "show": 0,
-              "zrange": [0,15]
-           },
-           "evt_display":{
-              "daqch":{
-                "show":0,
-                "zrange":[-50,50]
-              },
-              "viewch":{
-                "show":0,
-                "ind_zrange":[-50,50],
-                "col_zrange":[-50,50]
-              }
-           }
-        }
+	}
      },
 
      "bot":{
@@ -81,6 +91,7 @@
            },
 
            "fft":{
+              "store":0,
               "freq":-1,
               "low_cut":0.4
            }
@@ -109,29 +120,38 @@
 	    "qfrac":5.0, 
 	    "len_min":2.0, 
 	    "d_tol":0.5
-	},
-
-        "plot":{
-           "noise":{
-              "show": 0,
-              "zrange": [0,900]
-           },
-           "evt_display":{
-              "daqch":{
-                "show": 0,
-                "zrange":[-1000,1000]
-              },
-              "viewch":{
-                "show": 0,
-                "ind_zrange":[-500,500],
-                "col_zrange":[-100,100]
-              }
-           }
-        }
+	}
      }
    },
   "2":{
-     "top":{
+    "plot":{
+      "noise":{
+        "show": 0,
+        "zrange": [0,15]
+       },
+       "corr":{
+         "daq":{
+           "show": 0,
+           "zrange": [-1,1]
+         },
+         "glb":{
+           "show": 0,
+           "zrange": [-1,1]
+         }
+       },
+       "evt_display":{
+         "daqch":{
+           "show":0,
+           "zrange":[-50,50]
+         },
+         "viewch":{
+           "show":0,
+           "ind_zrange":[-50,50],
+           "col_zrange":[-50,50]
+         }
+       }
+     }, 
+    "top":{
         "pedestal":{ 
            "first_pass_thrs": 5,
            "other_pass_thrs": 3,
@@ -146,6 +166,7 @@
               "groupings":[32]
            },
            "fft":{
+              "store": 0,
               "freq":-1,
               "low_cut":0.6
            }
@@ -157,24 +178,7 @@
               "left": 6,
               "right": 10
            }
-        },
-        "plot":{
-           "noise":{
-              "show": 0,
-              "zrange": [0,900]
-           },
-           "evt_display":{
-              "daqch":{
-                "show": 0,
-                "zrange":[-1000,1000]
-              },
-              "viewch":{
-                "show": 0,
-                "ind_zrange":[-100,100],
-                "col_zrange":[-50,50]
-              }
-           }
-        }
+        } 
      }
   }
 }

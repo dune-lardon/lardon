@@ -15,6 +15,7 @@ class params:
 
 
        self.noise_coh_group = [32]       # coherent noise channel grouping
+       self.noise_fft_store = 0          # store FFT spectrum (large file!!)
        self.noise_fft_freq  = -1         # specific frequency removal (-1 is none)
        self.noise_fft_lcut  = 0.6        # low-pass filter frequency cut
 
@@ -37,14 +38,18 @@ class params:
        self.trk3D_len_min  = 2.    #min trk length to be considered in matching
        self.trk3D_dtol     = 0.5   #distance tolerance to detector boundaries for timing computation
 
-       self.plt_noise_show        = 0
+       self.plt_noise_show        = 0 # 0: do not plot - 1 plot before/after CNR - 2 before CNR - 3 after CNR
+       self.plt_corr_daq_show     = 0
+       self.plt_corr_glb_show     = 0
        self.plt_evt_disp_daq_show = 0
-       self.plt_evt_disp_vch_show = 0
+       self.plt_evt_disp_vch_show = 0 # 0: do not plot - 1 plot before/after CNR - 2 before CNR - 3 after CNR
 
-       self.plt_noise_zrange= [0,900]                # color scale for noise plots
-       self.plt_evt_disp_daq_zrange = [-1000,1000]   # color scale for DAQ channels    event display plots
-       self.plt_evt_disp_vch_ind_zrange = [-100,100] # color scale for induction  view event display plots
-       self.plt_evt_disp_vch_col_zrange = [-50,50]   # color scale for collection view event display plots
+       self.plt_noise_zrange            = [0,900]      # color scale for noise plots
+       self.plt_corr_daq_zrange         = [-1,1]       # color scale daq-wise correlation plot
+       self.plt_corr_glb_zrange         = [-1,1]       # color scale view-wise correlation plot
+       self.plt_evt_disp_daq_zrange     = [-1000,1000] # color scale for DAQ channels    event display plots
+       self.plt_evt_disp_vch_ind_zrange = [-100,100]   # color scale for induction  view event display plots
+       self.plt_evt_disp_vch_col_zrange = [-50,50]     # color scale for collection view event display plots
 
     def read(self,elec="top",config="1"):
        with open('settings/analysis_parameters.json','r') as f:
@@ -64,6 +69,7 @@ class params:
                 self.ped_zero_cross_thr = data[config][elec]['pedestal']['zero_cross_thr']
 
                 self.noise_coh_group = data[config][elec]['noise']['coherent']['groupings']
+                self.noise_fft_store = data[config][elec]['noise']['fft']['store']
                 self.noise_fft_freq  = data[config][elec]['noise']['fft']['freq']
                 self.noise_fft_lcut  = data[config][elec]['noise']['fft']['low_cut']
 
@@ -88,13 +94,17 @@ class params:
                 self.trk3D_dtol     = data[config][elec]['track_3d']['d_tol']
 
 
-                self.plt_noise_show              = data[config][elec]['plot']['noise']['show']
-                self.plt_noise_zrange            = data[config][elec]['plot']['noise']['zrange']
-                self.plt_evt_disp_daq_show       = data[config][elec]['plot']['evt_display']['daqch']['show']
-                self.plt_evt_disp_daq_zrange     = data[config][elec]['plot']['evt_display']['daqch']['zrange']
-                self.plt_evt_disp_vch_show       = data[config][elec]['plot']['evt_display']['viewch']['show']
-                self.plt_evt_disp_vch_ind_zrange = data[config][elec]['plot']['evt_display']['viewch']['ind_zrange']
-                self.plt_evt_disp_vch_col_zrange = data[config][elec]['plot']['evt_display']['viewch']['col_zrange']
+                self.plt_noise_show              = data[config]['plot']['noise']['show']
+                self.plt_noise_zrange            = data[config]['plot']['noise']['zrange']
+                self.plt_corr_daq_show           = data[config]['plot']['corr']['daq']['show']
+                self.plt_corr_daq_zrange         = data[config]['plot']['corr']['daq']['zrange']
+                self.plt_corr_glb_show           = data[config]['plot']['corr']['glb']['show']
+                self.plt_corr_glb_zrange         = data[config]['plot']['corr']['glb']['zrange']
+                self.plt_evt_disp_daq_show       = data[config]['plot']['evt_display']['daqch']['show']
+                self.plt_evt_disp_daq_zrange     = data[config]['plot']['evt_display']['daqch']['zrange']
+                self.plt_evt_disp_vch_show       = data[config]['plot']['evt_display']['viewch']['show']
+                self.plt_evt_disp_vch_ind_zrange = data[config]['plot']['evt_display']['viewch']['ind_zrange']
+                self.plt_evt_disp_vch_col_zrange = data[config]['plot']['evt_display']['viewch']['col_zrange']
 
     # setters and getters (potentially not useful now)
     def set_ped_amp_sig_fst(self,value):
