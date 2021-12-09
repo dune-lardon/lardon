@@ -12,6 +12,7 @@ class params:
        self.ped_amp_thr  = [2,2,3]       # RMS amplitude threshold
        self.ped_dt_thr   = 100           # trigger window duration in which a signal is looked for
        self.ped_zero_cross_thr = 15      # minimal number of samples after downward zero-crossing to look for upward zero-crossing
+       self.ped_debug    = 0             # show mask waveform-wise after refinment step
 
 
        self.noise_coh_group = [32]       # coherent noise channel grouping
@@ -43,6 +44,9 @@ class params:
        self.plt_corr_glb_show     = 0
        self.plt_evt_disp_daq_show = 0
        self.plt_evt_disp_vch_show = 0 # 0: do not plot - 1 plot before/after CNR - 2 before CNR - 3 after CNR
+       self.plt_2dh_show          = 0
+       self.plt_2dt_show          = 0
+       self.plt_3d_show           = 0
 
        self.plt_noise_zrange            = [0,900]      # color scale for noise plots
        self.plt_corr_daq_zrange         = [-1,1]       # color scale daq-wise correlation plot
@@ -67,6 +71,7 @@ class params:
                 self.ped_amp_thr     = data[config][elec]['pedestal']['amp_thr']
                 self.ped_dt_thr      = data[config][elec]['pedestal']['dt_thr']
                 self.ped_zero_cross_thr = data[config][elec]['pedestal']['zero_cross_thr']
+                self.ped_debug       = data[config][elec]['pedestal']['debug']
 
                 self.noise_coh_group = data[config][elec]['noise']['coherent']['groupings']
                 self.noise_fft_store = data[config][elec]['noise']['fft']['store']
@@ -105,6 +110,9 @@ class params:
                 self.plt_evt_disp_vch_show       = data[config]['plot']['evt_display']['viewch']['show']
                 self.plt_evt_disp_vch_ind_zrange = data[config]['plot']['evt_display']['viewch']['ind_zrange']
                 self.plt_evt_disp_vch_col_zrange = data[config]['plot']['evt_display']['viewch']['col_zrange']
+                self.plt_2dh_show                = data[config]['plot']['2d_hits']['show']
+                self.plt_2dt_show                = data[config]['plot']['2d_tracks']['show']
+                self.plt_3d_show                 = data[config]['plot']['3d']['show']
 
     # setters and getters (potentially not useful now)
     def set_ped_amp_sig_fst(self,value):

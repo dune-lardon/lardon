@@ -25,6 +25,15 @@
 	   "ind_zrange":[-50,50],
 	   "col_zrange":[-50,50]
          }
+       },
+       "2d_hits":{
+         "show": 0
+       },
+       "2d_tracks":{
+         "show": 0
+       },
+       "3d":{
+         "show": 0
        }
      },
      "top":{
@@ -35,7 +44,8 @@
            "ramp_thr": [1,1,2],
            "amp_thr": [2,2,3],
            "dt_thr": 100,
-           "zero_cross_thr": 15
+           "zero_cross_thr": 15,
+           "debug": 0 
         },
         "noise":{
            "coherent":{
@@ -82,7 +92,8 @@
            "ramp_thr": [1,1,2],
            "amp_thr": [2,2,3],
            "dt_thr": 100,
-           "zero_cross_thr": 15
+           "zero_cross_thr": 15,
+           "debug": 0
         },
 
         "noise":{

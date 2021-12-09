@@ -83,8 +83,8 @@ def update_mask_inputs(thresh, mean, rms):
     np.logical_and(dc.mask_daq, dc.alive_chan)
 
 
-def refine_mask(pars, debug=False):
-    if(debug == True): import matplotlib.pyplot as plt
+def refine_mask(pars):
+    if(pars.ped_debug == 1): import matplotlib.pyplot as plt
     
     for ch in range(cf.n_tot_channels):
 
@@ -112,7 +112,7 @@ def refine_mask(pars, debug=False):
                                   pars.ped_dt_thr,
                                   pars.ped_zero_cross_thr)  
 
-        if(debug==True and ch > 1 and (ch % 50) == 0):
+        if(pars.ped_debug == 1 and ch > 1 and (ch % 50) == 0):
            nrows, ncols = 10, 5
            fig = plt.figure()
            for it,channel in enumerate(range(ch-50,ch)):    

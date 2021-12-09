@@ -130,7 +130,6 @@ for ievent in range(nevent):
 
     ped.compute_pedestal(noise_type='filt')
     #tp = time.time()
-    #ped.refine_mask(pars)
     ped.update_mask(pars.ped_amp_sig_oth)
 
     
@@ -182,7 +181,7 @@ for ievent in range(nevent):
     
     print("hit %.2f s"%(time.time()-th))
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
-    #plot.plot_2dview_hits(to_be_shown=True)
+    if(pars.plt_2dh_show == 1): plot.plot_2dview_hits(to_be_shown=True)
     
     
 
@@ -198,7 +197,7 @@ for ievent in range(nevent):
 
     [t.mini_dump() for t in dc.tracks2D_list]
 
-    #plot.plot_2dview_2dtracks(to_be_shown=True)
+    if(pars.plt_2dt_show == 1): plot.plot_2dview_2dtracks(to_be_shown=True)
 
 
     trk3d.find_tracks_rtree(pars.trk3D_ztol,
@@ -206,7 +205,7 @@ for ievent in range(nevent):
                             pars.trk3D_len_min,
                             pars.trk3D_dtol)
 
-    #plot.plot_3d(to_be_shown=True)
+    if(pars.plt_3d_show == 1): plot.plot_3d(to_be_shown=True)
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
 
     print('  %.2f s to process '%(time.time()-t0))
