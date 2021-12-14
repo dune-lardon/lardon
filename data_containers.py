@@ -46,13 +46,15 @@ def reset_event():
     evt_list.clear()
 
 class channel:
-    def __init__(self, daqch, globch, view, vchan, length, capa):
+    def __init__(self, daqch, globch, view, vchan, length, capa, tot_length, tot_capa):
         self.daqch = daqch
         self.globch = globch
         self.view = view
         self.vchan = vchan
         self.length = length
+        self.tot_length = tot_length
         self.capa   = capa
+        self.tot_capa   = tot_capa
 
     def get_ana_chan(self):
         return self.view, self.vchan
@@ -155,23 +157,18 @@ class hits:
 
     def hit_charge(self):
         self.adc = self.max_adc if cf.view_type[self.view] == "Collection" else self.min_adc
+
         """ difference in TDE and BDE has to be understood """
 
-        self.charge_int *= cf.sampling / cf.ADC_to_fC
+        self.charge_int = self.charge_int / cf.sampling / cf.ADC_per_fC
 
-        self.charge_max = (self.max_adc) * cf.sampling / cf.ADC_to_fC
-        self.charge_min = (self.min_adc) * cf.sampling / cf.ADC_to_fC
-        self.charge_pv  = (self.max_adc - self.min_adc) * cf.sampling / cf.ADC_to_fC
+        self.charge_max = (self.max_adc) / cf.sampling / cf.ADC_per_fC
+        self.charge_min = (self.min_adc) / cf.sampling / cf.ADC_per_fC
+        self.charge_pv  = (self.max_adc - self.min_adc) / cf.sampling / cf.ADC_per_fC
 
         self.charge = self.charge_int  if cf.view_type[self.view] == "Collection" else self.charge_min
 
-        """
-        self.charge_int /= (cf.ADCperfC*cf.AreaCorr)
 
-        self.charge_max = (self.max_adc) / cf.ADCperfC
-        self.charge_min = (self.min_adc) / cf.ADCperfC
-        self.charge_pv  = (self.max_adc - self.min_adc) / cf.ADCperfC
-        """
 
 
     def set_match(self, ID):
@@ -438,7 +435,9 @@ class trk3D:
         self.match_ID  =  [-1]*cf.n_view#[t.ID for t in trks]
         self.chi2    = [-1]*cf.n_view
         self.momentum = -1
-        
+
+        self.d_match = -1
+
         self.n_hits   = [-1]*cf.n_view #t.n_hits for t in trks]
 
         self.len_straight = [-1]*cf.n_view
@@ -495,12 +494,13 @@ class trk3D:
                 
             
     def check_views(self):
+        n_fake = 0
         for i in range(cf.n_view):
             if(self.match_ID[i] == -1):
                 tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1, 0)
-                #print("3D track is missing view ", i)
                 self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.], isFake=True)
-
+                n_fake += 1
+        return n_fake
 
     def boundaries(self):
         ''' begining '''
@@ -527,25 +527,15 @@ class trk3D:
 
 
     
-    def angles(self):#, tv0, tv1):
-        #TO BE DONE !
-        """ initial angles """
-        """
-        slope_v0 = tv0.ini_slope #dx/dz
-        slope_v1 = tv1.ini_slope #dy/dz
-        self.ini_phi = math.degrees(math.atan2(slope_v1, slope_v0))
-        self.ini_theta = math.degrees(math.atan2(math.sqrt(pow(slope_v0,2)+pow(slope_v1,2)),-1.))
-        """
-        """ end angles """
-        """
-        slope_v0 = tv0.end_slope #dx/dz
-        slope_v1 = tv1.end_slope #dy/dz
-        self.end_phi = math.degrees(math.atan2(slope_v1, slope_v0))
-        self.end_theta = math.degrees(math.atan2(math.sqrt(pow(slope_v0,2)+pow(slope_v1,2)),-1.))
-        """
+    def set_angles(self, theta_ini, phi_ini, theta_end, phi_end):
+        self.ini_phi = phi_ini
+        self.ini_theta = theta_ini
+        self.end_phi = phi_end
+        self.end_theta = theta_end
+        
 
     def dump(self):
-        print('----')
+        print('\n----')
         print(" From (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f)"%(self.ini_x, self.ini_y, self.ini_z, self.end_x, self.end_y, self.end_z))
         print('z-overlap ', self.ini_z_overlap, ' to ', self.end_z_overlap)
         print("N Hits ", self.n_hits)
@@ -554,3 +544,5 @@ class trk3D:
         print(" Path Lengths ", self.len_path)
         print(" Total charges ", self.tot_charge)
         print(" z0 ", self.z0_corr, " t0 ", self.t0_corr)
+        print(" MATCHING DISTANCE SCORE : ", self.d_match)
+        print('----\n')
