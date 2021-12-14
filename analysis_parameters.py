@@ -1,3 +1,4 @@
+import config as cf
 import json as json
 import sys
 
@@ -47,7 +48,7 @@ class params:
        self.plt_evt_disp_vch_col_zrange = [-50,50]   # color scale for collection view event display plots
 
     def read(self,elec="top",config="1"):
-       with open('settings/analysis_parameters.json','r') as f:
+       with open(cf.lardon_path+'/settings/analysis_parameters.json','r') as f:
              print("AnalysisParameters: Loading analysis setting file: settings/analysis_parameters.json ... ", end='')
              data = json.load(f)
              print("done")
