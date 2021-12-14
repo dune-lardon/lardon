@@ -111,6 +111,7 @@ for ievent in range(nevent):
 
     #plot.plot_sticky_finder_daqch(to_be_shown=True)
 
+    #continue
     """ mask the unused channels """
     dc.mask_daq = dc.alive_chan
     
@@ -118,13 +119,16 @@ for ievent in range(nevent):
     ped.compute_pedestal(noise_type='raw', pars=pars)
 
     
-    #plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=True)
+    #plot.plot_noise_vch(noise_type='raw', option='raw', vrange=[0., 900.],to_be_shown=False)
     #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=False)
 
-
+    #cmap.arange_in_view_channels()
+    #plot.event_display_per_view([-50,50],[-10,50],option='raw_test', to_be_shown=True)
+    #continue
 
     tcoh = time.time()
     noise.coherent_noise_per_view(pars.noise_coh_group)
+    #noise.coherent_noise(pars.noise_coh_group)
     print("coherent noise : ", time.time()-tcoh)
 
 
@@ -133,11 +137,15 @@ for ievent in range(nevent):
     #ped.refine_mask(pars)
     ped.update_mask(pars.ped_amp_sig_oth)
 
-    
-    cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coh', to_be_shown=True)
+    #plot.plot_noise_vch(noise_type='filt', vrange=[0,100],option='coh_nocapa',to_be_shown=False)
+    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coh_w',to_be_shown=False)
+    #continue
+    #cmap.arange_in_view_channels()
+    #plot.event_display_per_view([-10,10],[-10,50],option='coh_nocapa', to_be_shown=True)
+    #plot.event_display_per_view([-100,100],[-50,50],option='coh_nocapa', to_be_shown=False)
 
-
+    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coh_w',to_be_shown=True)
+    #continue
     tf = time.time()
     ps = noise.FFT_low_pass(pars.noise_fft_lcut,pars.noise_fft_freq)
 
@@ -153,8 +161,8 @@ for ievent in range(nevent):
 
 
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='fft', option='fitlered', to_be_shown=False)
-
+    #plot.event_display_per_view([-80,80],[-10, 180],option='filt', to_be_shown=True)
+    
     #plot.plot_correlation_daqch(option='filtered',to_be_shown=True)
     #plot.plot_correlation_globch(option='filtered', to_be_shown=False)
 
