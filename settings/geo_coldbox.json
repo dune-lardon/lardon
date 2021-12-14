@@ -18,7 +18,7 @@
 	    "n_tot_channels":"1920",
 	    "sampling":"2.5",
 	    "n_sample":"10000",
-	    "ADC_to_fC":"1",
+	    "ADC_per_fC":"35.64",
 	    "view_offset":["-222.675","-168.0","-148.896"],
 	    "x_boundaries":["-168.","0"],
 	    "y_boundaries":["-148.896","148.896"]
@@ -29,7 +29,7 @@
 	    "n_tot_channels":"1792",
 	    "sampling":"2",
 	    "n_sample":"8192",
-	    "ADC_to_fC":"1",
+	    "ADC_per_fC":"266.76",
 	    "view_offset":["0","0.","-148.9"],
 	    "x_boundaries":["0", "168."],
 	    "y_boundaries":["-148.896","148.896"]
