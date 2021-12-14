@@ -17,7 +17,7 @@ def configure(detector, period, elec, run):
         cf.n_tot_channels = int(data[elec]['n_tot_channels'])
         cf.n_sample = int(data[elec]['n_sample'])
         cf.sampling = float(data[elec]['sampling'])
-        cf.ADC_to_fC = float(data[elec]['ADC_to_fC'])
+        cf.ADC_per_fC = float(data[elec]['ADC_per_fC'])
         cf.data_path += "/" + data[elec]['sub_path']
         cf.view_offset = [float(x) for x in data[elec]['view_offset']]
         cf.view_chan_repet  = [int(x) for x in data['view_chan_repet']]
