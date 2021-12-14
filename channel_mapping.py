@@ -52,10 +52,10 @@ def get_top_mapping():
             globch = int(li[8])
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
-                length, capa = strip[globch]
+                length, capa, tot_length, tot_capa = strip[globch]
             else:
-                length, capa = -1, -1
-            c = dc.channel(daqch, globch, view, channel, length, capa)
+                length, capa, tot_length, tot_capa = -1, -1, -1, -1
+            c = dc.channel(daqch, globch, view, channel, length, capa, tot_length, tot_capa)
             dc.chmap.append(c)
 
 def get_bot_mapping():
@@ -70,11 +70,11 @@ def get_bot_mapping():
             
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
-                length, capa = strip[globch]
+                length, capa, tot_length, tot_capa = strip[globch]
             else:
-                length, capa = -1, -1
+                length, capa, tot_length, tot_capa = -1, -1, -1, -1
             
-            c = dc.channel(daqch, globch, view, channel, length, capa)
+            c = dc.channel(daqch, globch, view, channel, length, capa, tot_length, tot_capa)
             dc.chmap.append(c)
                 
 
@@ -87,9 +87,11 @@ def get_strip_length():
             vch  =  int(li[1])
             globch = int(li[2])
             length = float(li[3])
-            
+            tot_length = float(li[4])
+
             capa = length*cf.view_capa[view]
-            strip.append( (length, capa) )
+            tot_capa = tot_length*cf.view_capa[view]
+            strip.append( (length, capa, tot_length, tot_capa) )
 
         return strip
             
