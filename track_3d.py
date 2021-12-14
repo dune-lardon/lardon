@@ -9,6 +9,96 @@ from rtree import index
 from operator import itemgetter
 
 
+def theta_phi_from_deriv(dxdz, dydz):
+    phi = math.degrees(math.atan2(dydz, dxdz))
+    theta = math.degrees(math.atan2(math.sqrt(pow(dxdz,2)+pow(dydz,2)),-1.))
+
+    return theta, phi
+
+
+def finalize_3d_track(track, npts):
+    view_used = [track.match_ID[i] >= 0 for i in range(cf.n_view)]
+    nv = sum(view_used)
+    zmin, zmax = track.ini_z_overlap, track.end_z_overlap
+    
+    print("Z-RANGE OF THE TRACK : ", zmin, zmax)
+    print(view_used, " -> ", nv, " views")
+
+    """ Divide z-range in N slices, can be changed to 1cm slice in future """
+    z_slices = np.linspace(zmin, zmax, npts) 
+    sx, sy = [], []
+    
+    theta_ini, theta_end, phi_ini, phi_end = [],[],[],[]
+
+
+
+    for iv in range(cf.n_view):
+        if(view_used[iv] == False): continue
+        #print("using view ",iv)
+        tx = [x[0] for x in track.path[iv]]
+        ty = [x[1] for x in track.path[iv]]
+        tz = [x[2] for x in track.path[iv]]
+        #print(len(tx), ' ', len(ty), " ", len(tz))
+        
+        """ sort by increasing z for the interpolation """
+        z, x, y = (np.asarray(list(t)) for t in zip(*sorted(zip(tz, tx, ty))))
+        
+        """ interpolation wants unique z, remove duplicates (could be done better) """
+        z_u, idx = np.unique(z, return_index=True)
+        """ interpolation needs at least 3 points """
+        if(len(z_u) < 4):
+            if(nv > 2):
+                nv -= 1
+                continue
+            else:
+                return False
+        x_u, y_u = x[idx], y[idx]
+
+        """ make 2 2D splines, 3D splines doesn't work very well in our case """
+        xz_spline = UnivariateSpline(z_u, x_u)
+        xz_deriv = xz_spline.derivative()
+        yz_spline = UnivariateSpline(z_u, y_u)
+        yz_deriv = yz_spline.derivative()
+        
+        sx.append(xz_spline(z_slices))
+        sy.append(yz_spline(z_slices))
+
+        theta, phi = theta_phi_from_deriv(xz_deriv(zmin), yz_deriv(zmin))
+        theta_ini.append(theta)
+        phi_ini.append(phi)
+
+        theta, phi = theta_phi_from_deriv(xz_deriv(zmax), yz_deriv(zmax))
+        theta_end.append(theta)
+        phi_end.append(phi)
+
+    sx = np.asarray(sx)
+    sy = np.asarray(sy)
+        
+    d_sx = np.square(np.diff(sx, append=[sx[0]], axis=0))
+    d_sy = np.square(np.diff(sy, append=[sy[0]], axis=0))
+    
+    
+    d_slice = np.sqrt(d_sx+d_sy)
+    dtot = np.sum(d_slice)/npts/nv
+    #print(" ---> DTOT ", dtot)
+
+    m_theta_ini = sum(theta_ini)/nv
+    m_theta_end = sum(theta_end)/nv
+    m_phi_ini = sum(phi_ini)/nv
+    m_phi_end = sum(phi_end)/nv
+
+    """
+    print("thetas")
+    print(theta_ini)
+    print(theta_end)
+    print("phis")
+    print(phi_ini)
+    print(phi_end)
+    """
+
+    track.set_angles(m_theta_ini, m_phi_ini, m_theta_end, m_phi_end)
+    track.d_match = dtot
+    return True
 
 def linear_interp(dx, z0, a):
     return dx*a + z0
@@ -25,12 +115,12 @@ def complete_trajectories(tracks):
         if(k == n_trk): k=0
         other = tracks[k]
 
-        """
+
         print("\n")
         track.mini_dump()
         print(" ... goes with ... ")
         other.mini_dump()
-        """
+
         
         v_track = track.view
         ang_track = np.radians(cf.view_angle[v_track])
@@ -44,7 +134,6 @@ def complete_trajectories(tracks):
         
 
         D = A[0,0]*A[1,1]-A[0,1]*A[1,0]
-
 
         if(D == 0.):
             print("MEGA PBM :::  DETERMINANT IS ZERO")
@@ -88,37 +177,40 @@ def complete_trajectories(tracks):
         dQ, ds     = [], []
         length     = 0.
 
+        """debug"""
+        xp, yp, zp, pp= 0,0,0,0
+
         for p in range(len(track.path)):
             pos = track.path[p][0]
             z = track.path[p][1]
 
             if( p == 0 ):
-                a0 = 0. if track.ini_slope == 0 else 1./track.ini_slope
+                a0t = 0. if track.ini_slope == 0 else 1./track.ini_slope
             else:
                 dp = track.path[p][0] - track.path[p-1][0]
                 dz = track.path[p][1] - track.path[p-1][1]
             
-                a0 = 0. if dz == 0 else dp/dz
+                a0t = 0. if dz == 0 else dp/dz
             
 
             if(z >= z_o_min and z <= z_o_max):
                 pos_spl = float(spline(z))
-                a1 = float(deriv(z))              
+                a1t = float(deriv(z))              
                 #a1 = 0. if a1 == 0 else 1./a1
             elif(z < z_o_min):
                 pos_spl = linear_interp(z-z_o_min, pos_o_min, deriv_z_min)
-                a1 = deriv_z_min #0. if deriv_z_min == 0 else 1./deriv_z_min
+                a1t = deriv_z_min #0. if deriv_z_min == 0 else 1./deriv_z_min
 
             elif(z > z_o_max):
                 pos_spl = linear_interp(z-z_o_max, pos_o_max, deriv_z_max)
-                a1 = deriv_z_max #0. if deriv_z_max == 0 else 1./deriv_z_max
+                a1t = deriv_z_max #0. if deriv_z_max == 0 else 1./deriv_z_max
 
 
                 
             xy = A.dot([pos_spl, pos])/D
             x, y = xy[0], xy[1]
 
-            dxdy = A.dot([a1, a0])/D
+            dxdy = A.dot([a1t, a0t])/D
             
             dxdz, dydz = dxdy[0], dxdy[1]
 
@@ -126,25 +218,47 @@ def complete_trajectories(tracks):
             a0 = 0. if dxdz == 0 else 1/dxdz
             a1 = 0. if dydz == 0 else 1/dydz
 
-            dr = cf.view_pitch[v_track]
+            
+            pxy = A.dot([0., cf.view_pitch[v_track]])/D
+            pitchx, pitchy = cf.view_pitch[v_track]*np.sin(ang_track), cf.view_pitch[v_track]*np.cos(ang_track)
 
+            dr = 1
 
-            """ WARNING THE DS COMPUTATION IS PROBABLY WRONG """
+            """ For views not parallel to an axis, I'm not sure it's correct """
             if(a1 == 0):
                 dr *= math.sqrt(1. + pow(a0,2))
             else : 
-                dr *= math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.))
+                dr = np.sqrt(pow(pitchx*math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)),2)) + np.sqrt(pow(pitchy*math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)),2))
 
 
 
             """ debugging """
-            """
-            if(p < 3):
+
+            if(p>9999):# and (v_track == 0 or v_other==0)):
                 print(p, " at z ", z, " : ", pos, " with ", pos_spl)
                 print("  -> x ", x, " y ", y)
-                print("   a0 ", a0, " a1 ", a1, " -> ds ", dr)
-            """
+                print("   before rotation : ", a0t, " ", a1t)
+                print("   rotated ", dxdz, " ", dydz)
+                print("   pitches ", pitchx, " ",pitchy)
+                print("With prev point  : ", np.sqrt(pow(x-xp,2)+pow(y-yp,2) +pow(z-zp,2)))
+                print(" with prev dx ", x-xp, " dy ", y-yp, " dz ", z-zp)
+                print(" with prev pos : ", pos-pp)
+                print("   -->a0 ", a0, " a1 ", a1, " -> ds ", dr)
+                if(a1!=0 and a0 != 0):
+                    print("  tests : ", math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)), " ", math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)))
+                    print("  single pitches ", pitchx* math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)), " ", pitchy*math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)))
+                if(a0t != 0 and a1t !=0):
+                    a0t = 1./a0t
+                    a1t = 1./a1t
+                    print("  no rot tests : ", math.sqrt(1. + pow(a0t, 2)*(1./pow(a1t, 2) + 1.)), " ", math.sqrt(1. + pow(a1t, 2)*(1./pow(a0t, 2) + 1.)))
+                    print("  -> ", pitchx*math.sqrt(1. + pow(a0t, 2)*(1./pow(a1t, 2) + 1.)) + pitchy*math.sqrt(1. + pow(a1t, 2)*(1./pow(a0t, 2) + 1.)), " or ", 0.8695*math.sqrt(1. + pow(a0t, 2)*(1./pow(a1t, 2) + 1.)))
+                    print("   an other test ; ", 0.8695*np.sqrt(1+pow(a0t,2)))
 
+                print("----------")
+                xp = x
+                yp = y
+                zp = z
+                pp = pos
                 
             trajectory.append( (x,y,z) )
             dQ.append(track.dQ[p])
@@ -152,7 +266,10 @@ def complete_trajectories(tracks):
         the_track.set_view(track, trajectory, dQ, ds)
 
             
-    #print('\n')
+        #print('\n')
+
+        #print(trajectory)
+    #print("* * * * * * * * * * * * * * * * * * * * * * * * * * * *\n")
     return the_track
 
 
@@ -305,13 +422,13 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
                 #print("balance : ", balance)
                 #print("dmin : ", dmin)
                 #print(" ID ", j_ID)
-                #if(balance < qfrac and dmin < ztol):
-                if(dmin < ztol):
+                if(balance < qfrac and dmin < ztol):
+                #if(dmin < ztol):
                     matches.append( (j_ID, balance, dmin) )
 
             if(len(matches) > 0):
                 ''' sort matches by balance '''        
-                matches = sorted(matches, key=itemgetter(2))
+                matches = sorted(matches, key=itemgetter(1))
                 ti.matched[tj.view] = matches[0][0]
     
 
@@ -335,10 +452,17 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
             #print("it's a match <3")
             #print("idx : ", i_idx, ' with ', len(trks))
             t3D = complete_trajectories(trks)           
+                
             
-            t3D.check_views()
+            n_fake = t3D.check_views()
+            if(n_fake > 1):
+                continue
             #print(t3D.path)
             t3D.boundaries()
+            #print("\nFINALIZE TRACK")
+            isok = finalize_3d_track(t3D, 10)
+            if(isok == False):
+                continue
             #t3D.angles(tv0, tv1)
             correct_timing(t3D, d_tol)
             dc.tracks3D_list.append(t3D)
