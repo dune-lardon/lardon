@@ -100,7 +100,7 @@ def coherent_noise_per_view(groupings):
             view = -1
 
         v_daq[i,:] = view
-        capa[i] = dc.chmap[i].capa
+        capa[i] = dc.chmap[i].tot_capa
 
 
     dc.data_daq /= capa[:,None]
