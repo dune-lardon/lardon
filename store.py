@@ -98,7 +98,9 @@ class Tracks3D(IsDescription):
     
     event   = UInt32Col()
     trigger = UInt32Col()
-
+    
+    matched = BoolCol(shape=(cf.n_view))
+    n_matched = UInt32Col()
 
     x_ini   = Float32Col()
     y_ini   = Float32Col()
@@ -125,6 +127,7 @@ class Tracks3D(IsDescription):
     z0_corr = Float32Col()
     t0_corr = Float32Col()
     
+    d_match = Float32Col()
 
 
 def create_tables(h5file):
@@ -267,6 +270,8 @@ def store_tracks3D(h5file):
        t3d['event'] = dc.evt_list[-1].evt_nb 
        t3d['trigger'] = dc.evt_list[-1].trigger_nb 
 
+       t3d['matched'] = [it.match_ID[i] >= 0 for i in range(cf.n_view)]
+       t3d['n_matched'] = sum([it.match_ID[i] >= 0 for i in range(cf.n_view)])
 
        t3d['x_ini'] = it.ini_x
        t3d['y_ini'] = it.ini_y
@@ -292,6 +297,8 @@ def store_tracks3D(h5file):
        
        t3d['z0_corr']   = it.z0_corr
        t3d['t0_corr']   = it.t0_corr
+
+       t3d['d_match']  = it.d_match
 
        for i in range(cf.n_view):
            pts = [[p[0], p[1], p[2], q, s] for p,q,s in zip(it.path[i], it.dQ[i], it.ds[i])]
