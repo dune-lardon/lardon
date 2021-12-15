@@ -12,7 +12,9 @@
         },
         "noise":{
            "coherent":{
-              "groupings":[32]
+              "groupings":[32],
+	       "per_view":0,
+	       "capa_weight":0
            },
            "fft":{
               "freq":-1,
@@ -77,7 +79,9 @@
 
         "noise":{
            "coherent":{
-              "groupings":[128]
+              "groupings":[128],
+	       "per_view":1,
+	       "capa_weight":1
            },
 
            "fft":{

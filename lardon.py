@@ -127,8 +127,8 @@ for ievent in range(nevent):
     #continue
 
     tcoh = time.time()
-    if(elec == "bot"):
-        noise.coherent_noise_per_view(pars.noise_coh_group)
+    if(pars.noise_coh_per_view):
+        noise.coherent_noise_per_view(pars.noise_coh_group, pars.noise_coh_capa_weight)
     else :
         noise.coherent_noise(pars.noise_coh_group)
 

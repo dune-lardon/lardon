@@ -14,10 +14,13 @@ class params:
        self.ped_dt_thr   = 100           # trigger window duration in which a signal is looked for
        self.ped_zero_cross_thr = 15      # minimal number of samples after downward zero-crossing to look for upward zero-crossing
 
+       
+       self.noise_coh_group = [32]        # coherent noise channel grouping
+       self.noise_coh_per_view = False    # apply the per card per view case
+       self.noise_coh_capa_weight = False # account for strip length
+       self.noise_fft_freq  = -1          # specific frequency removal (-1 is none)
+       self.noise_fft_lcut  = 0.6         # low-pass filter frequency cut
 
-       self.noise_coh_group = [32]       # coherent noise channel grouping
-       self.noise_fft_freq  = -1         # specific frequency removal (-1 is none)
-       self.noise_fft_lcut  = 0.6        # low-pass filter frequency cut
 
        self.hit_amp_sig     = [3,6,2]    # default amplitude trigger threshold for hit search - in RMS
        self.hit_dt_min      = [10,10,10] # minimal delta t for hit search - in bins
@@ -65,6 +68,9 @@ class params:
                 self.ped_zero_cross_thr = data[config][elec]['pedestal']['zero_cross_thr']
 
                 self.noise_coh_group = data[config][elec]['noise']['coherent']['groupings']
+                self.noise_coh_per_view = bool(data[config][elec]['noise']['coherent']['per_view'])
+                self.noise_coh_capa_weight = bool(data[config][elec]['noise']['coherent']['capa_weight'])
+
                 self.noise_fft_freq  = data[config][elec]['noise']['fft']['freq']
                 self.noise_fft_lcut  = data[config][elec]['noise']['fft']['low_cut']
 
@@ -150,7 +156,9 @@ class params:
         print("    FFT low pass cut ", self.noise_fft_lcut)
         print("    FFT frequency cut ", self.noise_fft_freq)
         print("    Coherent groups : ", self.noise_coh_group)
-        
+        print("    Coh per view case : ", self.noise_coh_per_view)
+        print("    Coh with capa weight  : ", self.noise_coh_capa_weight)
+
         print("\n~Hit Finder~ ")
         print("    Amplitude RMS threshold ", self.hit_amp_sig)
         print("    Minimum Hit duration in sample ", self.hit_dt_min)
