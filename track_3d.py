@@ -10,7 +10,7 @@ from operator import itemgetter
 
 
 def theta_phi_from_deriv(dxdz, dydz):
-    phi = math.degrees(math.atan2(dydz, dxdz))
+    phi = math.degrees(math.atan2(-1.*dydz, -1.*dxdz))
     theta = math.degrees(math.atan2(math.sqrt(pow(dxdz,2)+pow(dydz,2)),-1.))
 
     return theta, phi
@@ -21,8 +21,8 @@ def finalize_3d_track(track, npts):
     nv = sum(view_used)
     zmin, zmax = track.ini_z_overlap, track.end_z_overlap
     
-    print("Z-RANGE OF THE TRACK : ", zmin, zmax)
-    print(view_used, " -> ", nv, " views")
+    #print("Z-RANGE OF THE TRACK : ", zmin, zmax)
+    #print(view_used, " -> ", nv, " views")
 
     """ Divide z-range in N slices, can be changed to 1cm slice in future """
     z_slices = np.linspace(zmin, zmax, npts) 
@@ -106,7 +106,7 @@ def linear_interp(dx, z0, a):
 def complete_trajectories(tracks):
     """ Could be better ! At the moment, matches with only 2 tracks """
     n_trk = len(tracks)
-        
+    #print("\n-- -- -- -- -- ")
     the_track = dc.trk3D()
 
     for i in range(n_trk):
@@ -374,7 +374,11 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
     for idx, ID in enumerate(idx_to_ID):
         ID_to_idx[ID] = idx
 
+    #print('id to index')
+    #print(ID_to_idx)
 
+    #print('index to ID')
+    #print(idx_to_ID)
     ''' search for the best matching track in the other view '''
 
     for ti in dc.tracks2D_list:
@@ -437,7 +441,7 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
     for i_idx in range(len(dc.tracks2D_list)):
         ti = dc.tracks2D_list[i_idx]
         i_ID = idx_to_ID[i_idx]
-
+        #print('-> ID ', i_ID, " index ", i_idx, " with ", ti.matched)
         #print('track ', i_idx, ' matches with ', ti.matched)
         trks = [ti]
         for iview in range(ti.view+1, cf.n_view):
@@ -468,3 +472,6 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
             dc.tracks3D_list[-1].dump()
+            for t in trks:
+                for i in range(cf.n_view):
+                    t.matched[i] = -1
