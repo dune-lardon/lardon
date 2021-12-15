@@ -119,12 +119,14 @@ for ievent in range(nevent):
 
     if(pars.plt_noise_show == 1 or pars.plt_noise_show == 2):
       plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=True)
-      plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=True)
+    if(pars.plt_evt_disp_daq_show == 1 or pars.plt_evt_disp_daq_show == 2):
+      plot.event_display_per_daqch(pars.plt_evt_disp_daq_yrange,pars.plt_evt_disp_daq_zrange,option='raw',to_be_shown=True)
 
 
 
     tcoh = time.time()
-    noise.coherent_noise_per_view(pars.noise_coh_group)
+#    noise.coherent_noise_per_view(pars.noise_coh_group)
+    noise.coherent_noise(pars.noise_coh_group)
     print("coherent noise : ", time.time()-tcoh)
 
 
@@ -153,7 +155,16 @@ for ievent in range(nevent):
 
     #cmap.arange_in_view_channels()
     if(pars.plt_evt_disp_vch_show == 1 or pars.plt_evt_disp_vch_show == 3):
-      lot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='filtered', to_be_shown=True)
+      plot.event_display_per_view(time_range=pars.plt_evt_disp_vch_yrange,
+                                  adc_ind=pars.plt_evt_disp_vch_ind_zrange,
+                                  adc_coll=pars.plt_evt_disp_vch_col_zrange,
+                                  option='filtered', to_be_shown=True)
+    if(pars.plt_evt_disp_daq_show == 1 or pars.plt_evt_disp_daq_show == 3):
+      plot.event_display_per_daqch(ch_range=pars.plt_evt_disp_daq_xrange,
+                                   time_range=pars.plt_evt_disp_daq_yrange,
+                                   adc_range=pars.plt_evt_disp_daq_zrange,
+                                   option='filtered',to_be_shown=True)
+
 
     if(pars.plt_corr_daq_show == 1): plot.plot_correlation_daqch(option='filtered',colorscale=pars.plt_corr_daq_zrange,to_be_shown=True)
     if(pars.plt_corr_glb_show == 1): plot.plot_correlation_globch(option='filtered',colorscale=pars.plt_corr_daq_zrange, to_be_shown=True)
