@@ -84,7 +84,7 @@ def update_mask_inputs(thresh, mean, rms):
 
 
 def refine_mask(pars):
-    if(pars.ped_debug == 1): import matplotlib.pyplot as plt
+    if(pars.ped_debug > 0): import matplotlib.pyplot as plt
     
     for ch in range(cf.n_tot_channels):
 
@@ -112,7 +112,7 @@ def refine_mask(pars):
                                   pars.ped_dt_thr,
                                   pars.ped_zero_cross_thr)  
 
-        if(pars.ped_debug == 1 and ch > 1 and (ch % 50) == 0):
+        if(pars.ped_debug > 0 and ch > 1 and (ch % 50) == 0):
            nrows, ncols = 10, 5
            fig = plt.figure()
            for it,channel in enumerate(range(ch-50,ch)):    
@@ -120,11 +120,12 @@ def refine_mask(pars):
                   ax = fig.add_subplot(nrows, ncols, it+1)
                   ax.set_title(title)
                   ax.plot(dc.data_daq[channel],'o',markersize=0.2)
-                  ax.axhline(y=dc.evt_list[-1].noise_filt.ped_rms[channel]*pars.ped_amp_thr[dc.chmap[channel].view], color='gray')
-                  ax.axhline(y=0, color='lightgray')
-                  ax.axhline(y=-dc.evt_list[-1].noise_filt.ped_rms[channel]*pars.ped_amp_thr[dc.chmap[channel].view], color='gray')
-                  ax.plot(np.max(dc.data_daq[channel, :])*dc.mask_daq[channel,:],linestyle='-',linewidth=1,color='r')
+                  ax.axhline(y=dc.evt_list[-1].noise_filt.ped_rms[channel]*pars.ped_amp_thr[dc.chmap[channel].view], color='gray',linewidth=0.1)
+                  ax.axhline(y=0, color='lightgray',linewidth=0.1)
+                  ax.axhline(y=-dc.evt_list[-1].noise_filt.ped_rms[channel]*pars.ped_amp_thr[dc.chmap[channel].view], color='gray',linewidth=0.1)
+                  if(pars.ped_debug==1): ax.plot(np.max(dc.data_daq[channel, :])*dc.mask_daq[channel,:],linestyle='-',linewidth=1,color='r')
                   ax.set(xlabel=None,ylabel=None)
+                  ax.set_xlim(500,2000)
                   ax.axis('off')
            plt.subplots_adjust(left=0.01, bottom=0.01, right=0.99, top=0.95, wspace=0.05, hspace=1)
            plt.show()

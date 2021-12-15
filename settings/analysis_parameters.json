@@ -17,13 +17,16 @@
        },
        "evt_display":{
          "daqch":{
-           "show":0,
+           "show": 0,
+           "xrange":[670,1580],
+           "yrange":[500,2000],
            "zrange":[-50,50]
          },
          "viewch":{
-	   "show":0,
-	   "ind_zrange":[-50,50],
-	   "col_zrange":[-50,50]
+	   "show": 3,
+	   "yrange":[500,2000],
+           "ind_zrange":[-50,50],
+	   "col_zrange":[-10,50]
          }
        },
        "2d_hits":{
