@@ -117,33 +117,34 @@ for ievent in range(nevent):
     """ compute the raw pedestal """
     ped.compute_pedestal(noise_type='raw', pars=pars)
 
-    
-    #plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=True)
-    #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=False)
+    if(pars.plt_noise_show == 1 or pars.plt_noise_show == 2):
+      plot.plot_noise_vch(noise_type='raw', vrange=pars.plt_noise_zrange,to_be_shown=True)
+    if(pars.plt_evt_disp_daq_show == 1 or pars.plt_evt_disp_daq_show == 2):
+      plot.event_display_per_daqch(pars.plt_evt_disp_daq_yrange,pars.plt_evt_disp_daq_zrange,option='raw',to_be_shown=True)
 
 
 
     tcoh = time.time()
-    noise.coherent_noise_per_view(pars.noise_coh_group)
+#    noise.coherent_noise_per_view(pars.noise_coh_group)
+    noise.coherent_noise(pars.noise_coh_group)
     print("coherent noise : ", time.time()-tcoh)
 
 
     ped.compute_pedestal(noise_type='filt')
     #tp = time.time()
-    #ped.refine_mask(pars)
     ped.update_mask(pars.ped_amp_sig_oth)
 
     
     cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coh', to_be_shown=True)
+    if(pars.plt_evt_disp_vch_show == 1 or pars.plt_evt_disp_vch_show == 2):
+      plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='coh', to_be_shown=True)
 
 
     tf = time.time()
     ps = noise.FFT_low_pass(pars.noise_fft_lcut,pars.noise_fft_freq)
 
 
-    """ DO NOT STORE ALL FFT PS !! """
-    #store.store_fft(output, ps)
+    if(pars.noise_fft_store == 1): store.store_fft(output, ps)
 
 
 
@@ -153,10 +154,20 @@ for ievent in range(nevent):
 
 
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view(pars.plt_evt_disp_vch_ind_zrange,pars.plt_evt_disp_vch_col_zrange,option='fft', option='fitlered', to_be_shown=False)
+    if(pars.plt_evt_disp_vch_show == 1 or pars.plt_evt_disp_vch_show == 3):
+      plot.event_display_per_view(time_range=pars.plt_evt_disp_vch_yrange,
+                                  adc_ind=pars.plt_evt_disp_vch_ind_zrange,
+                                  adc_coll=pars.plt_evt_disp_vch_col_zrange,
+                                  option='filtered', to_be_shown=True)
+    if(pars.plt_evt_disp_daq_show == 1 or pars.plt_evt_disp_daq_show == 3):
+      plot.event_display_per_daqch(ch_range=pars.plt_evt_disp_daq_xrange,
+                                   time_range=pars.plt_evt_disp_daq_yrange,
+                                   adc_range=pars.plt_evt_disp_daq_zrange,
+                                   option='filtered',to_be_shown=True)
 
-    #plot.plot_correlation_daqch(option='filtered',to_be_shown=True)
-    #plot.plot_correlation_globch(option='filtered', to_be_shown=False)
+
+    if(pars.plt_corr_daq_show == 1): plot.plot_correlation_daqch(option='filtered',colorscale=pars.plt_corr_daq_zrange,to_be_shown=True)
+    if(pars.plt_corr_glb_show == 1): plot.plot_correlation_globch(option='filtered',colorscale=pars.plt_corr_daq_zrange, to_be_shown=True)
 
     
 
@@ -165,7 +176,8 @@ for ievent in range(nevent):
     #noise.coherent_noise(pars.noise_coh_group)
     #print("coherent time took ", time.time()-tcoh)
 
-    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
+    if(pars.plt_noise_show == 1 or pars.plt_noise_show == 3): 
+      plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=True)
 
 
 
@@ -180,7 +192,7 @@ for ievent in range(nevent):
     
     print("hit %.2f s"%(time.time()-th))
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
-    #plot.plot_2dview_hits(to_be_shown=True)
+    if(pars.plt_2dh_show == 1): plot.plot_2dview_hits(to_be_shown=True)
     
     
 
@@ -196,7 +208,7 @@ for ievent in range(nevent):
 
     [t.mini_dump() for t in dc.tracks2D_list]
 
-    #plot.plot_2dview_2dtracks(to_be_shown=True)
+    if(pars.plt_2dt_show == 1): plot.plot_2dview_2dtracks(to_be_shown=True)
 
 
     trk3d.find_tracks_rtree(pars.trk3D_ztol,
@@ -204,7 +216,7 @@ for ievent in range(nevent):
                             pars.trk3D_len_min,
                             pars.trk3D_dtol)
 
-    #plot.plot_3d(to_be_shown=True)
+    if(pars.plt_3d_show == 1): plot.plot_3d(to_be_shown=True)
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
 
     print('  %.2f s to process '%(time.time()-t0))

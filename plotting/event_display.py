@@ -13,7 +13,7 @@ cmap_ed_coll = cc.cm.linear_tritanopic_krjcw_5_95_c24_r
 cmap_ed_ind  = cc.cm.diverging_tritanopic_cwr_75_98_c20
 
 
-def draw(view, ax, adc_min, adc_max):
+def draw(view, ax, t_min, t_max, adc_min, adc_max):
     ax = plt.gca() if ax is None else ax
     cmap = cmap_ed_coll if(cf.view_type[view] == 'Collection') else cmap_ed_ind
 
@@ -24,10 +24,13 @@ def draw(view, ax, adc_min, adc_max):
               cmap   = cmap,
               vmin   = adc_min, 
               vmax   = adc_max)
+    # custom time map limit for controlled zoom
+    if(t_min >=0 and t_max>=0):
+      ax.set_ylim(t_min,t_max)
 
     return ax
 
-def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_be_shown=False):
+def event_display_per_view(time_range=[-1,-1],adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_be_shown=False):
     fig = plt.figure(figsize=(10,5))
 
     gs = gridspec.GridSpec(nrows=2, 
@@ -46,10 +49,10 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
 
         if(cf.view_type[iv] == 'Induction'):
             
-            axs[iv] = draw(iv, axs[iv], adc_ind[0], adc_ind[1])
+            axs[iv] = draw(iv, axs[iv], time_range[0], time_range[1], adc_ind[0], adc_ind[1])
             vname = 'Ind.'
         else:
-            axs[iv] = draw(iv, axs[iv], adc_coll[0], adc_coll[1])
+            axs[iv] = draw(iv, axs[iv], time_range[0], time_range[1], adc_coll[0], adc_coll[1])
             vname = 'Coll.'
 
         axs[iv].set_title('View '+str(iv)+'/'+cf.view_name[iv]+' ('+vname+')')
@@ -98,7 +101,7 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
 
 
 
-def event_display_per_daqch(adc_range=[-10,10], option=None, to_be_shown=False):
+def event_display_per_daqch(ch_range=[-1,-1],time_range=[-1,-1],adc_range=[-10,10], option=None, to_be_shown=False):
     fig = plt.figure(figsize=(9,4))
 
     gs = gridspec.GridSpec(nrows=2, 
@@ -116,6 +119,15 @@ def event_display_per_daqch(adc_range=[-10,10], option=None, to_be_shown=False):
               vmin   = adc_range[0], 
               vmax   = adc_range[1])
 
+    # custom (x,y) map limits for controlled zoom
+    if(ch_range[0] >=0 and ch_range[1]>=0):
+      ax.set_xlim(ch_range[0], ch_range[1])
+
+    if(time_range[0] >=0 and time_range[1]>=0):
+      ax.set_ylim(time_range[0], time_range[1])
+
+    for i in range(int(len(dc.data_daq)/32.)):
+      ax.axvline(x=i*32-0.5)
     
     ax.set_xlabel('DAQ Channel Number')
     
