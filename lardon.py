@@ -119,16 +119,19 @@ for ievent in range(nevent):
     ped.compute_pedestal(noise_type='raw', pars=pars)
 
     
-    #plot.plot_noise_vch(noise_type='raw', option='raw', vrange=[0., 900.],to_be_shown=False)
+    #plot.plot_noise_vch(noise_type='raw', option='raw', vrange=[0., 50.],to_be_shown=True)
     #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=False)
 
     #cmap.arange_in_view_channels()
-    #plot.event_display_per_view([-50,50],[-10,50],option='raw_test', to_be_shown=True)
+    #plot.event_display_per_view([-50,50],[-10,150],option='raw', to_be_shown=True)
     #continue
 
     tcoh = time.time()
-    noise.coherent_noise_per_view(pars.noise_coh_group)
-    #noise.coherent_noise(pars.noise_coh_group)
+    if(elec == "bot"):
+        noise.coherent_noise_per_view(pars.noise_coh_group)
+    else :
+        noise.coherent_noise(pars.noise_coh_group)
+
     print("coherent noise : ", time.time()-tcoh)
 
 
