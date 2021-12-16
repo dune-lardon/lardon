@@ -8,7 +8,7 @@ plot_path  = "./results"
 """ to add in the json file ?? """
 
 LAr_temperature = 87. #K - to check in the slow control 
-e_drift = 0.434 #kV/cm - could be run specific ?
+e_drift = 0.404 #kV/cm - could be run specific ?
 
 """ default values overwritten by the json file """
 n_view = -1
