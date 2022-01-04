@@ -27,7 +27,7 @@ def draw(view, ax, adc_min, adc_max):
 
     return ax
 
-def event_display_per_view(adc_min_ind=-10, adc_max_ind=10, adc_min_coll=-5, adc_max_coll=30, option=None, to_be_shown=False):
+def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_be_shown=False):
     fig = plt.figure(figsize=(10,5))
 
     gs = gridspec.GridSpec(nrows=2, 
@@ -46,10 +46,10 @@ def event_display_per_view(adc_min_ind=-10, adc_max_ind=10, adc_min_coll=-5, adc
 
         if(cf.view_type[iv] == 'Induction'):
             
-            axs[iv] = draw(iv, axs[iv], adc_min_ind, adc_max_ind)
+            axs[iv] = draw(iv, axs[iv], adc_ind[0], adc_ind[1])
             vname = 'Ind.'
         else:
-            axs[iv] = draw(iv, axs[iv], adc_min_coll, adc_max_coll)
+            axs[iv] = draw(iv, axs[iv], adc_coll[0], adc_coll[1])
             vname = 'Coll.'
 
         axs[iv].set_title('View '+str(iv)+'/'+cf.view_name[iv]+' ('+vname+')')
@@ -98,7 +98,7 @@ def event_display_per_view(adc_min_ind=-10, adc_max_ind=10, adc_min_coll=-5, adc
 
 
 
-def event_display_per_daqch(adc_min=-10, adc_max=10, option=None, to_be_shown=False):
+def event_display_per_daqch(adc_range=[-10,10], option=None, to_be_shown=False):
     fig = plt.figure(figsize=(9,4))
 
     gs = gridspec.GridSpec(nrows=2, 
@@ -113,8 +113,8 @@ def event_display_per_daqch(adc_min=-10, adc_max=10, option=None, to_be_shown=Fa
               aspect = 'auto', 
               interpolation='none',
               cmap   = cmap_ed_ind,
-              vmin   = adc_min, 
-              vmax   = adc_max)
+              vmin   = adc_range[0], 
+              vmax   = adc_range[1])
 
     
     ax.set_xlabel('DAQ Channel Number')
