@@ -99,10 +99,10 @@ class event:
 
 class hits:
     def __init__(self, view, daq_channel, start, stop, charge_int, max_t, max_adc, min_t, min_adc):
-        self.ID = len(hits_list)
 
         self.idx = -1
         self.view    = view
+        self.ID = len(hits_list)
         self.daq_channel = daq_channel
         self.channel = chmap[daq_channel].vchan
         self.start   = start
@@ -189,7 +189,7 @@ class hits:
 
 
     def dump(self):
-        print("\n**View ", self.view, " Channel ", self.channel)
+        print("\n**View ", self.view, " Channel ", self.channel, " ID: ", self.ID)
 
         print(" from t ", self.start, " to ", self.stop, " dt = ", self.stop-self.start)
         print(" tmax ", self.max_t, " tmin ", self.min_t, ' dt = ', self.min_t-self.max_t)
