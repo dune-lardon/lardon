@@ -44,6 +44,8 @@ class FFT(IsDescription):
 class Hits(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
+    ID = UInt32Col()
+
 
     view        = UInt8Col()
     channel     = UInt16Col()
@@ -203,7 +205,7 @@ def store_hits(h5file):
     for ih in dc.hits_list:
        hit['event'] = dc.evt_list[-1].evt_nb
        hit['trigger'] = dc.evt_list[-1].trigger_nb
-       hit['ID']= ih.ID 
+       hit['ID']= ih.ID
 
        hit['daq_channel'] = ih.daq_channel
        hit['view']    = ih.view
