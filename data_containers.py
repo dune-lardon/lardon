@@ -251,6 +251,7 @@ class trk2D:
     def remove_hit(self, x, y, q):
         pos = -1
         for p,t in enumerate(self.path):
+            #The hit ID could be used to locate the corresponding hit instead of x,y,Q - To be implemented
             if(t[0] == x and t[1] == y and self.dQ[p]==q):
                 pos = p
                 break

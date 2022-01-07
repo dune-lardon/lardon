@@ -502,7 +502,7 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
                         if(chi2m < chicut):
 
                             chi2_up = filt.update(y1, x1-x0)
-                            track.add_hit_update(filt.getSlope(), filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, filt.getChi2())
+                            track.add_hit_update(filt.getSlope(), filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
                             idx_list.append(nn_idx)
 
 
