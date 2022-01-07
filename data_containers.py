@@ -485,7 +485,7 @@ class trk3D:
         self.path[view]  = path
         self.dQ[view]   = dq
         self.ds[view]   = ds
-        self.hits_iD[view] = hits_id
+        self.hits_ID[view] = hits_id
         self.tot_charge[view] = sum(q/s for q,s in zip(dq,ds))
 
         if(isFake == True):
