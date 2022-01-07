@@ -241,8 +241,8 @@ class trk2D:
         return (self.path[0][1] > other.path[0][1]) or (self.path[0][1] == other.path[0][1] and self.path[0][0] < other.path[0][0])
 
 
-    def add_drays(self, x, y, q, id):
-        self.drays.append((x,y,q,id))
+    def add_drays(self, x, y, q):
+        self.drays.append((x,y,q))
         self.dray_charge += q
         self.n_hits_dray += 1
         self.remove_hit(x, y, q)
