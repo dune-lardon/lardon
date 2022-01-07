@@ -264,7 +264,7 @@ def complete_trajectories(tracks):
             dQ.append(track.dQ[p])
             ds.append(dr)
             t3d_hits_id.append(track.hits_ID[p])
-        the_track.set_view(track, trajectory, dQ, ds, hits_ID)
+        the_track.set_view(track, trajectory, dQ, ds, t3d_hits_id)
 
 
         #print('\n')
