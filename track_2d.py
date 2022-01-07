@@ -17,7 +17,7 @@ import pierre_filter as pf
 
 def linear_reg(X, Y, cut):
     N = len(X)
-    x0, y0 = X[0], Y[0] 
+    x0, y0 = X[0], Y[0]
     fits = []
     for i in range(1, N):
         for j in range(i+1, N):
@@ -33,7 +33,7 @@ def linear_reg(X, Y, cut):
         return fits[0]
     else:
         """ sort by correlation factor """
-        fits = sorted(fits, key=itemgetter(1))        
+        fits = sorted(fits, key=itemgetter(1))
         return fits[0]
 
 def get_path(Pr, i, j):
@@ -56,7 +56,7 @@ def dump_track(idx):
     print("slope : %.2f [%.2f] to %.2f [%.2f]"%(t.ini_slope, t.ini_slope_err, t.end_slope, t.end_slope_err))
     print("Final Chi2 %.2f"%(t.chi2))
     print(" ")
-    
+
 
 
 def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
@@ -80,11 +80,11 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
 
     """ sort by decreasing z and increasing x """
     coord = [(x.X, x.Z) for x in hits]
-    charge = [x.charge for x in hits]    
+    charge = [x.charge for x in hits]
 
 
     track.reset_path(coord, charge)
-    
+
     coord = np.asarray(coord)
     """ compute the distance between each points"""
     graph = spatial.distance.cdist(coord, coord, 'euclidean')
@@ -92,7 +92,7 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
     graph = graph * (graph < np.sort(graph, axis=-1)[:,[n_NN]])
     """ keep only short edges """
     #graph[graph > rcut] = 0.
-        
+
     """ compute the MST from this graph """
     T = csgr.minimum_spanning_tree(csgraph=graph)
 
@@ -154,7 +154,7 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
             if(np.fabs(spline(iz) - ix) > 1.):
                 drays.append(i)
 
-        
+
 
         for l in drays:
             h = hits[l]
@@ -168,9 +168,9 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
         track.update_forward(spline.get_residual(), deriv(z_r[0]), deriv(z_r[0])*0.05)
         track.update_backward(spline.get_residual(), deriv(z_r[-1]), deriv(z_r[-1])*0.05)
 
-        
 
-        
+
+
     """ Forward filter the track with w/o drays """
     """
     tot_fwd_chi2 = -1
@@ -191,7 +191,7 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
     slope = (y1-y0)/(x1-x0)
     intercept = y1 - slope * x1
     ystart = slope * x0 + intercept
-        
+
     filt.initiate(ystart, slope)
 
     x0, y0 = x1, y1
@@ -206,11 +206,11 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
         x0, y0 = x1, y1
 
     track.update_forward(tot_fwd_chi2, filt.getSlope(), filt.getSlopeErr())
-    print(" from fwd filter slope ", filt.getSlope(), " +/- ", filt.getSlopeErr())      
+    print(" from fwd filter slope ", filt.getSlope(), " +/- ", filt.getSlopeErr())
     """
 
     """ Backward filter the track with w/o drays """
-    
+
     """
     tot_bkd_chi2 = -1
     i=len(coord)-1
@@ -230,7 +230,7 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
     slope = (y1-y0)/(x1-x0)
     intercept = y1 - slope * x1
     ystart = slope * x0 + intercept
-        
+
     filt.initiate(ystart, slope)
 
     x0, y0 = x1, y1
@@ -246,11 +246,11 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
 
     track.update_backward(tot_bkd_chi2, filt.getSlope(), filt.getSlopeErr())
 
-    print(" from bkw filter slope ", filt.getSlope(), " +/- ", filt.getSlopeErr())      
+    print(" from bkw filter slope ", filt.getSlope(), " +/- ", filt.getSlopeErr())
     """
     track.finalize_track()
 
-    
+
 
 
 def stitch_tracks(dist_min, slope_err_tol, r_extrapol_min, y_err, slope_err, pbeta):
@@ -265,10 +265,10 @@ def stitch_tracks(dist_min, slope_err_tol, r_extrapol_min, y_err, slope_err, pbe
         if(ti.chi2_fwd == 9999. and ti.chi2_bkwd == 9999.):
             i += 1
             continue
-        j = 0 
+        j = 0
         join = []
         while( j < len(dc.tracks2D_list) ):
-            if(i==j): 
+            if(i==j):
                 j += 1
                 if(j >= len(dc.tracks2D_list) ):
                     break
@@ -277,8 +277,8 @@ def stitch_tracks(dist_min, slope_err_tol, r_extrapol_min, y_err, slope_err, pbe
             if(tj.chi2_fwd == 9999. and tj.chi2_bkwd == 9999.):
                 j += 1
                 continue
-            
-            if(ti.path[0][1] > tj.path[0][1]): 
+
+            if(ti.path[0][1] > tj.path[0][1]):
                 if(ti.joinable(tj, dist_min, slope_err_tol, r_extrapol_min)):
                     join.append( (tj, j, ti.slope_comp(tj)))
             j += 1
@@ -294,13 +294,13 @@ def stitch_tracks(dist_min, slope_err_tol, r_extrapol_min, y_err, slope_err, pbe
             k = 0
             better_option = False
             while( k < len(dc.tracks2D_list) ):
-                if(k == i or k==m): 
+                if(k == i or k==m):
                     k += 1
                     if(k >= len(dc.tracks2D_list) ):
                         break
 
                 tk = dc.tracks2D_list[k]
-            
+
                 if(tk.path[0][1] > tm.path[0][1]):
                     if(tk.joinable(tm, dist_min, slope_err_tol, r_extrapol_min)):
                         if(tk.slope_comp(tm) < sm):
@@ -314,16 +314,16 @@ def stitch_tracks(dist_min, slope_err_tol, r_extrapol_min, y_err, slope_err, pbe
 
                 ti.merge(tm)
                 hits = [h for h in dc.hits_list if math.fabs(h.matched)==tmID]
-            
+
                 for h in hits:
                     h.set_match( tiID if h.matched > 0 else -tiID )
 
-                refilter_and_find_drays(tiID, y_err, slope_err, pbeta) 
+                refilter_and_find_drays(tiID, y_err, slope_err, pbeta)
                 del dc.tracks2D_list[m]
                 dc.evt_list[-1].n_tracks2D[ti.view] -= 1
                 i = 0
                 break
-        else:    
+        else:
             i += 1
 
 
@@ -352,16 +352,16 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
             continue
 
         """sort by decreasing Z and increasing channel """
-        hits.sort()            
-            
+        hits.sort()
+
         """ build the R-tree """
         tt.create_index(iview)
 
         [tt.insert_hit(h, i) for i,h in enumerate(hits)]
 
         visited = np.zeros((n_hits),dtype=bool)
-            
-        seeded = False  
+
+        seeded = False
 
         while(np.sum(visited) < n_hits):
 
@@ -375,17 +375,17 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
             """ in case everything has already been visited """
             if(idx == 0 and visited[idx] is True):
                 break
-                    
+
             visited[idx] = True
             tt.remove_hit(hits[idx], idx)
 
             """ get the N nearest hits """
-            nn_id = tt.nearest_id(hits[idx], 5)                
+            nn_id = tt.nearest_id(hits[idx], 5)
             """ sort them by closest distance """
             nn = [(i,tt.distance(hits[idx], hits[i])) for i in nn_id if tt.close_enough(hits[idx], hits[i])]
             nn.sort(key=itemgetter(1))
-            
-            
+
+
             """start the filter"""
             if(seeded is False and len(nn)>2):
 
@@ -397,7 +397,7 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
 
                 """ returns the sorted fit results """
                 fit = linear_reg(X, Y, 0.9)
-                    
+
                 x0, y0, t0 = hits[idx].Z, hits[idx].X, hits[idx].t
 
                 if(fit[0] != 9999):
@@ -406,24 +406,24 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
                     intercept = fit[2]
                     ystart  = slope*x0 + intercept
                     filt.initiate(ystart, slope)
-                    track = dc.trk2D(trackID, iview, slope, slope_err, y0, x0, t0, hits[idx].charge, filt.getChi2(), icl)
-                        
+                    track = dc.trk2D(trackID, iview, slope, slope_err, y0, x0, t0, hits[idx].charge, hits[idx].ID, filt.getChi2(), icl)
+
                     for i in [fit[3], fit[4]]:
                         """ add the seeding hits to the filter and remove them from the index """
                         nn_idx = nn[i-1][0]
                         x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].t
                         chi2_up = filt.update(y1, x1-x0)
-                        track.add_hit_update(slope, filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, filt.getChi2())
+                        track.add_hit_update(slope, filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
                         idx_list.append(nn_idx)
-                    
+
                         visited[nn_idx] = True
                         tt.remove_hit(hits[nn_idx], nn_idx)
 
 
 
-            """update the track from nearby hits"""                   
+            """update the track from nearby hits"""
             finished = False
-                    
+
             while(seeded is True and finished is False and np.sum(visited) < n_hits):
                 idx = nn_idx
                 x0, y0 = x1, y1
@@ -449,7 +449,7 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
                                                 y_err, slope_err, pbeta)
                         dc.evt_list[-1].n_tracks2D[iview] += 1
                         trackID += 1
-                
+
                     continue
 
                 updated = False
@@ -457,8 +457,8 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
                 ok_idx = []
                 best_idx = -1
                 best_chi2 = 99999.
-                        
-                for j,d in nn: 
+
+                for j,d in nn:
                     nn_idx = j
                     if(d > 2.): continue
 
@@ -467,7 +467,7 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
                     if(x1 >= x0):
                         if(tt.overlap_in_time(hits[idx], hits[nn_idx])==False):
                             continue
-                        
+
                     yp = filt.predict(x1-x0)
                     chi2m = filt.chi2_if_update(y1, x1-x0)
                     slope = (y1-y0)/(x1-x0) if x1!=x0 else 0
@@ -475,20 +475,20 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
 
                     if(chi2m < chicut and prod_slope >= 0.):
                         ok_idx.append( (nn_idx, tt.distance(hits[idx], hits[nn_idx])) )
-                                
+
                         if(chi2m < best_chi2):
                             best_idx = nn_idx
                             best_chi2 = chi2m
 
 
 
-                """ sort accepted hits by distance to idx """ 
+                """ sort accepted hits by distance to idx """
                 ok_idx.sort(key=itemgetter(1))
 
 
                 if(len(ok_idx) > 0):
                     for j,t in ok_idx:
-                            
+
                         nn_idx = j
                         x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].t
 
@@ -498,14 +498,14 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
                             continue
 
                         chi2m = filt.chi2_if_update(y1, x1-x0)
-                        
+
                         if(chi2m < chicut):
 
                             chi2_up = filt.update(y1, x1-x0)
                             track.add_hit_update(filt.getSlope(), filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, filt.getChi2())
                             idx_list.append(nn_idx)
 
-                                
+
                             visited[nn_idx]=True
                             tt.remove_hit(hits[nn_idx], nn_idx)
                             updated = True

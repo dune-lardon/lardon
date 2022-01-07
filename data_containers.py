@@ -203,7 +203,7 @@ class hits:
 
 
 class trk2D:
-    def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, chi2, cluster):
+    def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, chi2, hit_ID, cluster):
         self.trackID = ID
         self.view    = view
 
@@ -214,6 +214,7 @@ class trk2D:
 
         self.n_hits      = 1
         self.n_hits_dray = 0
+        self.hits_ID = [hit_ID]
 
         self.path    = [(x0,y0)]
         self.dQ      = [q0]
@@ -240,8 +241,8 @@ class trk2D:
         return (self.path[0][1] > other.path[0][1]) or (self.path[0][1] == other.path[0][1] and self.path[0][0] < other.path[0][0])
 
 
-    def add_drays(self, x, y, q):
-        self.drays.append((x,y,q))
+    def add_drays(self, x, y, q, id):
+        self.drays.append((x,y,q,id))
         self.dray_charge += q
         self.n_hits_dray += 1
         self.remove_hit(x, y, q)
@@ -257,24 +258,26 @@ class trk2D:
         if(pos >= 0):
             self.path.pop(pos)
             self.dQ.pop(pos)
+            self.hits_ID.pop(pos)
             self.n_hits -= 1
             self.tot_charge -= q
         else:
             print("?! cannot remove hit ", x, " ", y, " ", q, " pos ", pos)
 
 
-    def add_hit(self, x, y, q, t):
+    def add_hit(self, x, y, q, t, id):
         self.n_hits += 1
 
         self.len_path += math.sqrt( pow(self.path[-1][0]-x, 2) + pow(self.path[-1][1]-y,2) )
         #beware to append (x,y) after !
         self.path.append((x,y))
         self.dQ.append(q)
+        self.hits_ID.append(id)
         self.tot_charge += q
         self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
         self.end_time = t
 
-    def add_hit_update(self, slope, slope_err, x, y, t, q, chi2):
+    def add_hit_update(self, slope, slope_err, x, y, t, q, id, chi2):
         self.end_slope = slope
         self.end_slope_err = slope_err
         self.n_hits += 1
@@ -283,6 +286,7 @@ class trk2D:
         #beware to append (x,y) after !
         self.path.append((x,y))
         self.dQ.append(q)
+        self.hits_ID.append(id)
         self.chi2 = chi2
         self.tot_charge += q
         self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
@@ -309,6 +313,7 @@ class trk2D:
 
             self.path.reverse()
             self.dQ.reverse()
+            self.hits_ID.reverse()
             self.ini_slope, self.end_slope = self.end_slope, self.ini_slope
             self.ini_slope_err, self.end_slope_err = self.end_slope_err, self.ini_slope_err
 
@@ -410,6 +415,7 @@ class trk2D:
 
                self.path.extend(other.path)
                self.dQ.extend(other.dQ)
+               self.hits_ID.extend(other.hits_ID)
                self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
                self.end_time = other.end_time
 
@@ -421,6 +427,7 @@ class trk2D:
 
                self.path = other.path + self.path
                self.dQ = other.dQ + self.dQ
+               self.hits_ID = other.hits_ID + self.hits_ID
                self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1],2) )
                self.ini_time = other.ini_time
 
@@ -466,15 +473,18 @@ class trk3D:
         ''' track boundaries '''
         self.path = [[] for x in range(cf.n_view)]
         self.dQ = [[] for x in range(cf.n_view)]
+        self.hits_ID = [[] for x in range(cf.n_view)]
+
         self.ds = [[] for x in range(cf.n_view)]
 
 
-    def set_view(self, trk, path, dq, ds, isFake=False):
+    def set_view(self, trk, path, dq, ds, hits_id, isFake=False):
         view = trk.view
 
         self.path[view]  = path
         self.dQ[view]   = dq
         self.ds[view]   = ds
+        self.hits_iD[view] = hits_id
         self.tot_charge[view] = sum(q/s for q,s in zip(dq,ds))
 
         if(isFake == True):

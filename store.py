@@ -259,7 +259,7 @@ def store_tracks2D(h5file):
        t2d['track_total_charge'] = it.tot_charge
        t2d['dray_total_charge'] = it.dray_charge
 
-       pts = [[p[0], p[1], q] for p,q in zip(it.path,it.dQ)]
+       pts = [[p[0], p[1], q, r] for p,q, r in zip(it.path,it.dQ,it.hits_ID)]
        vl_h[it.view].append(pts)
        t2d.append()
 
@@ -304,6 +304,6 @@ def store_tracks3D(h5file):
        t3d['d_match']  = it.d_match
 
        for i in range(cf.n_view):
-           pts = [[p[0], p[1], p[2], q, s] for p,q,s in zip(it.path[i], it.dQ[i], it.ds[i])]
+           pts = [[p[0], p[1], p[2], q, s, r] for p,q,s,r in zip(it.path[i], it.dQ[i], it.ds[i], it.hits_ID[i])]
            vl_h[i].append(pts)
        t3d.append()
