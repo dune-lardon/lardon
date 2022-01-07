@@ -259,7 +259,7 @@ def store_tracks2D(h5file):
        t2d['track_total_charge'] = it.tot_charge
        t2d['dray_total_charge'] = it.dray_charge
 
-       pts = [[p[0], p[1], q, r] for p,q, r in zip(it.path,it.dQ,it.hits_ID)]
+       pts = [[p[0], p[1], q, r] for p,q,r in zip(it.path,it.dQ,it.hits_ID)]
        vl_h[it.view].append(pts)
        t2d.append()
 
