@@ -14,7 +14,7 @@ class Infos(IsDescription):
     n_channels   = UInt16Col()
     sampling     = Float32Col()
     n_samples    = Float32Col()
-    n_view       = Float32Col()
+    n_view       = UInt8Col()
     view_nchan   = Float32Col(shape=(cf.n_view))
 
 

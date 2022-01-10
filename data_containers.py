@@ -511,8 +511,8 @@ class trk3D:
         n_fake = 0
         for i in range(cf.n_view):
             if(self.match_ID[i] == -1):
-                tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1,0, 0)
-                self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.],[0, 1], isFake=True)
+                tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1,0, -1)
+                self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.],[-1, -1], isFake=True)
                 n_fake += 1
         return n_fake
 
