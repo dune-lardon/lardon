@@ -2,15 +2,23 @@
     "top":{
 	"99999":{
 	    "chmap":"cb_tde_chmap_v1.txt",	    	    
-            "broken_channels":[761,764]
+            "broken_channels":[761,764],
+	    "signal_is_inverted":"1"
 	}
     },
     "bot":{
 	"12064":{
-	    "chmap":"cb_bde_chmap_v19.txt"
+	    "chmap":"cb_bde_chmap_v19.txt",
+	    "signal_is_inverted":"0"
+	},
+	"12301":{
+	    "chmap":"cb_bde_chmap_v24.txt",
+	    "signal_is_inverted":"0",
+	    "broken_channels":[185,167,462,460,870,172,171,335,463,461,458,457,456,1364,719,1327,1330,1583,1511,1144,1199,871,943, 615, 687, 1127, 1200, 459]
 	},
 	"99999":{
-	    "chmap":"cb_bde_chmap_v24.txt"
+	    "chmap":"cb_bde_chmap_v24.txt",	    
+	    "signal_is_inverted":"0"
 	}		    
     }
 }

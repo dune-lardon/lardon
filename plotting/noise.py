@@ -14,10 +14,10 @@ from matplotlib.colors import LogNorm
 
 cmap_fft = cc.cm.CET_CBL2_r
 cmap_corr = cc.cm.CET_D9
+cmap_ed = cc.cm.linear_tritanopic_krjcw_5_95_c24_r
 
 
-
-def plot_noise_daqch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=False):
+def plot_noise_daqch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
     if(noise_type==""):
         print("plot_noise_vch needs to know which noise to show (raw or filt)")
         return
@@ -41,7 +41,7 @@ def plot_noise_daqch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=False
 
     ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('DAQ Channel Number')
-    ax_std.set_ylim(vmin,vmax)
+    ax_std.set_ylim(vrange[0],vrange[1])
 
     plt.tight_layout()
 
@@ -65,7 +65,7 @@ def plot_noise_daqch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=False
 
 
 
-def plot_noise_globch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=False):
+def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
     if(noise_type==""):
         print("plot_noise_vch needs to know which noise to show (raw or filt)")
         return
@@ -99,7 +99,7 @@ def plot_noise_globch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=Fals
 
     ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('DAQ Channel Number')
-    ax_std.set_ylim(vmin,vmax)
+    ax_std.set_ylim(vrange[0],vrange[1])
 
     plt.tight_layout()
 
@@ -124,10 +124,11 @@ def plot_noise_globch(noise_type, vmin=0, vmax=10, option=None, to_be_shown=Fals
 
 
 
-def plot_noise_vch(noise_type, vmin=0,vmax=10, option=None, to_be_shown=False):
+def plot_noise_vch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
     if(noise_type==""):
         print("plot_noise_vch needs to know which noise to show (raw or filt)")
         return
+
 
     if(noise_type != 'raw' and noise_type != 'filt'):
         print("plot_noise_vch needs to know which noise to show (raw or filt) : ", noise_type, ' is not recognized')
@@ -156,7 +157,7 @@ def plot_noise_vch(noise_type, vmin=0,vmax=10, option=None, to_be_shown=False):
         axs[iv].set_xlabel('Channel Number')
         axs[iv].set_title('View '+str(iv)+'/'+cf.view_name[iv])
         axs[iv].set_xlim(0,cf.view_nchan[iv])
-        axs[iv].set_ylim(vmin,vmax)
+        axs[iv].set_ylim(vrange[0],vrange[1])
     plt.tight_layout()
 
 
@@ -346,6 +347,7 @@ def plot_correlation_daqch(option=None, to_be_shown=False):
     plot_correlation(np.corrcoef(dc.data_daq),"daq",option,to_be_shown)
 
 
+
 def plot_correlation(corr,corr_type,option,to_be_shown):
     fig = plt.figure(figsize=(8,8))
     gs = gridspec.GridSpec(nrows=2, 
@@ -418,3 +420,65 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
         plt.show()
 
     plt.close()
+
+
+
+def plot_sticky_finder_daqch(option='', to_be_shown=False):
+
+    fig = plt.figure(figsize=(9,6))
+
+    gs = gridspec.GridSpec(nrows=2, 
+                           ncols=1,
+                           height_ratios=[1, 15])
+
+    ax_col = fig.add_subplot(gs[0,:])
+    ax     = fig.add_subplot(gs[1, :])
+
+
+    h = np.apply_along_axis(lambda a: np.histogram(a, bins=4096,range=(0,4096))[0], 1, dc.data_daq)
+
+
+    ax.imshow(h.transpose(), 
+              origin = 'lower', 
+              aspect = 'auto', 
+              interpolation='none',
+              cmap   = cmap_ed,
+              extent = (0,cf.n_tot_channels,0,4096),
+              vmin = 0,
+              vmax = 100)
+
+    jump = 64 if dc.evt_list[-1].elec == "top" else 128
+    for i in range(0,cf.n_tot_channels,jump):
+        ax.axvline(i, ls=':',lw=.1,c='k')
+    if(dc.evt_list[-1].elec == "bot"):
+         asic = 16
+         for i in range(0,cf.n_tot_channels,asic):
+             ax.axvline(i, ls=':',lw=.1,c='k')
+    
+    ax.set_xlabel('DAQ Channel Number')
+    
+    ax.set_ylabel('ADC')
+    ax_col.set_title('ADC appearance frequency')
+    cb = fig.colorbar(ax.images[-1], cax=ax_col, orientation='horizontal')
+    cb.ax.xaxis.set_ticks_position('top')
+    cb.ax.xaxis.set_label_position('top')
+
+    plt.tight_layout()
+
+    run_nb = str(dc.evt_list[-1].run_nb)
+    evt_nb = str(dc.evt_list[-1].trigger_nb)
+    elec   = dc.evt_list[-1].elec
+
+    if(option):
+        option = "_"+option
+    else:
+        option = ""
+
+
+    plt.savefig(cf.plot_path+'/sticky_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
+    
