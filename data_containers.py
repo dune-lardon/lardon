@@ -102,7 +102,9 @@ class hits:
 
         self.idx = -1
         self.view    = view
-        self.ID = len(hits_list)
+
+        """Each hit should have a unique ID per event"""
+        self.ID = len(hits_list)+1
         self.daq_channel = daq_channel
         self.channel = chmap[daq_channel].vchan
         self.start   = start
@@ -538,15 +540,11 @@ class trk3D:
         self.t0_corr = t0
         self.z0_corr = z0
 
-
-
-
     def set_angles(self, theta_ini, phi_ini, theta_end, phi_end):
         self.ini_phi = phi_ini
         self.ini_theta = theta_ini
         self.end_phi = phi_end
         self.end_theta = theta_end
-
 
     def dump(self):
         print('\n----')
