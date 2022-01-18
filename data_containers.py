@@ -100,11 +100,11 @@ class event:
 class hits:
     def __init__(self, view, daq_channel, start, stop, charge_int, max_t, max_adc, min_t, min_adc):
 
-        self.idx = -1
+        # self.idx = -1
         self.view    = view
 
         """Each hit should have a unique ID per event"""
-        self.ID = len(hits_list)+1
+        self.ID = -1
         self.daq_channel = daq_channel
         self.channel = chmap[daq_channel].vchan
         self.start   = start
@@ -144,7 +144,7 @@ class hits:
         return (self.Z > other.Z) or (self.Z == other.Z and self.X < other.X)
 
     def set_index(self, idx):
-        self.idx = idx
+        self.ID = idx
 
     def hit_positions(self, v):
         self.t = self.max_t if cf.view_type[self.view] == "Collection" else self.min_t
