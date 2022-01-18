@@ -3,7 +3,15 @@ from tables import *
 import numpy as np
 import data_containers as dc
 
+class Memory:
+    def __init__(self):
+        self.hits_ID_counter = -1
 
+    def update_counter(self, new_ref):
+        self.hits_ID_counter = new_ref
+
+    def transfer(self):
+        dc.hits_id = self.hits_ID_counter
 
 class Infos(IsDescription):
     run          = UInt16Col()
@@ -44,7 +52,8 @@ class FFT(IsDescription):
 class Hits(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
-    ID = UInt32Col()
+    ID = UInt16Col()
+    gID = UInt32Col()
 
 
     view        = UInt8Col()
@@ -64,6 +73,9 @@ class Hits(IsDescription):
     charge_max = Float32Col()
     charge_min = Float32Col()
     charge_pv  = Float32Col()
+    charge_sum = Float32Col()
+    charge_neg = Float32Col()
+    charge_pos  = Float32Col()
 
 
 class Tracks2D(IsDescription):
@@ -148,7 +160,6 @@ def create_tables(h5file):
     for i in range(cf.n_view):
         t = h5file.create_vlarray("/", 'trk3d_v'+str(i), Float32Atom(shape=(6)), "3D Path V"+str(i)+" (x, y, z, dq, ds, ID)")
 
-
 def store_run_infos(h5file, run, sub, elec, nevent, time):
     inf = h5file.root.infos.row
     inf['run']           = run
@@ -205,7 +216,7 @@ def store_hits(h5file):
     for ih in dc.hits_list:
        hit['event'] = dc.evt_list[-1].evt_nb
        hit['trigger'] = dc.evt_list[-1].trigger_nb
-       hit['ID']= ih.ID
+       hit['ID']= ih.gID
 
        hit['daq_channel'] = ih.daq_channel
        hit['view']    = ih.view
@@ -223,8 +234,10 @@ def store_hits(h5file):
        hit['charge_max'] = ih.charge_max
        hit['charge_min'] = ih.charge_min
        hit['charge_pv']  = ih.charge_pv
+       hit['charge_sum'] = ih.charge_sum
+       hit['charge_neg'] = ih.charge_neg
+       hit['charge_pos']  = ih.charge_pos
        hit.append()
-
 
 
 
