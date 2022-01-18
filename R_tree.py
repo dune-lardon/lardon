@@ -15,7 +15,7 @@ class R_tree:
 
     def insert_hit(self, hit, idx):
         self.tree.insert(idx, (hit.X-self.dX, hit.Z_stop, hit.X+self.dX, hit.Z_start))
-    
+
     def remove_hit(self, hit, idx):
         self.tree.delete(idx, (hit.X-self.dX, hit.Z_stop, hit.X+self.dX, hit.Z_start))
     def n_hits(self):
@@ -50,10 +50,9 @@ class R_tree:
 
 
     def close_enough(self, hA, hB):
-        if(hA.idx == hB.idx):
+        if(hA.ID == hB.ID):
             """ same hit """
-            return False 
-        
+            return False
+
         #if(self.distance_z(hA, hB) < ):#self.overlap_in_time(hA, hB)):
         return self.distance(hA, hB) < self.rcut
-        
