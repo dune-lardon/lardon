@@ -161,8 +161,9 @@ for ievent in range(nevent):
     ped.compute_pedestal(noise_type='filt')
     ped.refine_mask(pars)
     #ped.update_mask(pars.ped_amp_sig_oth)
+    
 
-    plot.plot_wvf_current_vch([(0, i) for i in np.range(40)])
+	
     #cmap.arange_in_view_channels()
     #plot.event_display_per_view([-80,80],[-10, 180],option='filt', to_be_shown=True)
 
@@ -191,6 +192,13 @@ for ievent in range(nevent):
 
     print("hit %.2f s"%(time.time()-th))
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
+    
+    if(ievent==7):
+        print([i.channel for i in dc.hits_list if i.view==0])
+        plot.plot_wvf_current_vch([(0,i.channel) for i in dc.hits_list if i.view==0], to_be_shown=True)
+        plot.plot_wvf_current_vch([(1,i.channel) for i in dc.hits_list if i.view==1], to_be_shown=True)
+        plot.plot_wvf_current_vch([(2,i.channel) for i in dc.hits_list if i.view==2], to_be_shown=True)
+
     # plot.plot_2dview_hits(to_be_shown=True)
 
 
