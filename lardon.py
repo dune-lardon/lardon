@@ -98,14 +98,14 @@ for ievent in range(nevent):
     if(evt_skip > 0 and ievent < evt_skip):
         continue
     dc.reset_event()
-    
+
     print("-*-*-*-*-*-*-*-*-*-*-")
     print(" READING EVENT ", ievent)
     print("-*-*-*-*-*-*-*-*-*-*-")
 
     reader.read_evt_header(ievent)
     dc.evt_list[-1].dump()
-    
+
 
     reader.read_evt(ievent)
 
@@ -114,11 +114,11 @@ for ievent in range(nevent):
     #continue
     """ mask the unused channels """
     dc.mask_daq = dc.alive_chan
-    
+
     """ compute the raw pedestal """
     ped.compute_pedestal(noise_type='raw', pars=pars)
 
-    
+
     #plot.plot_noise_vch(noise_type='raw', option='raw', vrange=[0., 50.],to_be_shown=True)
     #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=False)
 
@@ -157,7 +157,6 @@ for ievent in range(nevent):
     #store.store_fft(output, ps)
 
 
-
     ped.compute_pedestal(noise_type='filt')
     ped.refine_mask(pars)
     #ped.update_mask(pars.ped_amp_sig_oth)
@@ -165,39 +164,29 @@ for ievent in range(nevent):
 
     #cmap.arange_in_view_channels()
     #plot.event_display_per_view([-80,80],[-10, 180],option='filt', to_be_shown=True)
-    
+
     #plot.plot_correlation_daqch(option='filtered',to_be_shown=True)
     #plot.plot_correlation_globch(option='filtered', to_be_shown=False)
 
-    
-
-    
     #tcoh = time.time()
     #noise.coherent_noise(pars.noise_coh_group)
     #print("coherent time took ", time.time()-tcoh)
 
     #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
 
-
-
-    
     th = time.time()
     hf.find_hits(pars.hit_pad_left,
-                 pars.hit_pad_right, 
-                 pars.hit_dt_min[0], 
+                 pars.hit_pad_right,
+                 pars.hit_dt_min[0],
                  pars.hit_amp_sig[0],
                  pars.hit_amp_sig[1],
                  pars.hit_amp_sig[2])
-    
+
     print("hit %.2f s"%(time.time()-th))
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
-    #plot.plot_2dview_hits(to_be_shown=True)
-    
-    
 
+    # plot.plot_2dview_hits(to_be_shown=True)
 
-                
-    
     trk2d.find_tracks_rtree(pars.trk2D_nhits,
                             pars.trk2D_rcut,
                             pars.trk2D_chi2cut,
@@ -207,7 +196,7 @@ for ievent in range(nevent):
 
     [t.mini_dump() for t in dc.tracks2D_list]
 
-    #plot.plot_2dview_2dtracks(to_be_shown=True)
+    # plot.plot_2dview_2dtracks(to_be_shown=True)
 
 
     trk3d.find_tracks_rtree(pars.trk3D_ztol,
@@ -215,14 +204,14 @@ for ievent in range(nevent):
                             pars.trk3D_len_min,
                             pars.trk3D_dtol)
 
-    #plot.plot_3d(to_be_shown=True)
+    # plot.plot_3d(to_be_shown=True)
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
 
     print('  %.2f s to process '%(time.time()-t0))
 
     store.store_event(output)
     store.store_pedestals(output)
-    store.store_hits(output)    
+    store.store_hits(output)
     store.store_tracks2D(output)
     store.store_tracks3D(output)
 reader.close_file()

@@ -14,7 +14,7 @@ class Infos(IsDescription):
     n_channels   = UInt16Col()
     sampling     = Float32Col()
     n_samples    = Float32Col()
-    n_view       = Float32Col()
+    n_view       = UInt8Col()
     view_nchan   = Float32Col(shape=(cf.n_view))
 
 
@@ -44,6 +44,8 @@ class FFT(IsDescription):
 class Hits(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
+    ID = UInt32Col()
+
 
     view        = UInt8Col()
     channel     = UInt16Col()
@@ -95,10 +97,10 @@ class Tracks2D(IsDescription):
 
 
 class Tracks3D(IsDescription):
-    
+
     event   = UInt32Col()
     trigger = UInt32Col()
-    
+
     matched = BoolCol(shape=(cf.n_view))
     n_matched = UInt32Col()
 
@@ -126,7 +128,7 @@ class Tracks3D(IsDescription):
 
     z0_corr = Float32Col()
     t0_corr = Float32Col()
-    
+
     d_match = Float32Col()
 
 
@@ -140,13 +142,13 @@ def create_tables(h5file):
 
     table = h5file.create_table("/", 'tracks2d', Tracks2D, 'Tracks2D')
     for i in range(cf.n_view):
-        t = h5file.create_vlarray("/", 'trk2d_v'+str(i), Float32Atom(shape=(3)), "2D Path V"+str(i)+" (x, z, q)")
+        t = h5file.create_vlarray("/", 'trk2d_v'+str(i), Float32Atom(shape=(4)), "2D Path V"+str(i)+" (x, z, q, ID)")
 
     table = h5file.create_table("/", 'tracks3d', Tracks3D, 'Tracks3D')
     for i in range(cf.n_view):
-        t = h5file.create_vlarray("/", 'trk3d_v'+str(i), Float32Atom(shape=(5)), "3D Path V"+str(i)+" (x, y, z, dq, ds)")
+        t = h5file.create_vlarray("/", 'trk3d_v'+str(i), Float32Atom(shape=(6)), "3D Path V"+str(i)+" (x, y, z, dq, ds, ID)")
 
-    
+
 def store_run_infos(h5file, run, sub, elec, nevent, time):
     inf = h5file.root.infos.row
     inf['run']           = run
@@ -201,9 +203,10 @@ def store_hits(h5file):
     hit = h5file.root.hits.row
 
     for ih in dc.hits_list:
-       hit['event'] = dc.evt_list[-1].evt_nb 
-       hit['trigger'] = dc.evt_list[-1].trigger_nb 
-       
+       hit['event'] = dc.evt_list[-1].evt_nb
+       hit['trigger'] = dc.evt_list[-1].trigger_nb
+       hit['ID']= ih.ID
+
        hit['daq_channel'] = ih.daq_channel
        hit['view']    = ih.view
        hit['channel'] = ih.channel
@@ -211,17 +214,17 @@ def store_hits(h5file):
        hit['tdc_min'] = ih.min_t
        hit['z']       = ih.Z
        hit['x']       = ih.X
-       
-       
+
+
        hit['adc_max']  = ih.max_adc
        hit['adc_min']  = ih.min_adc
-       
+
        hit['charge_int']  = ih.charge_int
        hit['charge_max'] = ih.charge_max
        hit['charge_min'] = ih.charge_min
        hit['charge_pv']  = ih.charge_pv
        hit.append()
-       
+
 
 
 
@@ -231,9 +234,9 @@ def store_tracks2D(h5file):
 
 
     for it in dc.tracks2D_list:
-       t2d['event'] = dc.evt_list[-1].evt_nb 
-       t2d['trigger'] = dc.evt_list[-1].trigger_nb 
-    
+       t2d['event'] = dc.evt_list[-1].evt_nb
+       t2d['trigger'] = dc.evt_list[-1].trigger_nb
+
        t2d['view'] = it.view
        t2d['pos_ini'] = it.path[0][0]
        t2d['pos_end'] = it.path[-1][0]
@@ -249,15 +252,15 @@ def store_tracks2D(h5file):
        t2d['slope_end'] = it.end_slope
        t2d['slope_ini_err'] = it.ini_slope_err
        t2d['slope_end_err'] = it.end_slope_err
-       
+
        t2d['len_straight'] = it.len_straight
        t2d['len_path'] = it.len_path
-       
+
        t2d['track_total_charge'] = it.tot_charge
        t2d['dray_total_charge'] = it.dray_charge
 
-       pts = [[p[0], p[1], q] for p,q in zip(it.path,it.dQ)]
-       vl_h[it.view].append(pts)       
+       pts = [[p[0], p[1], q, r] for p,q,r in zip(it.path,it.dQ,it.hits_ID)]
+       vl_h[it.view].append(pts)
        t2d.append()
 
 
@@ -267,8 +270,8 @@ def store_tracks3D(h5file):
     vl_h = [h5file.get_node('/trk3d_v'+str(i)) for i in range(cf.n_view)]
 
     for it in dc.tracks3D_list:
-       t3d['event'] = dc.evt_list[-1].evt_nb 
-       t3d['trigger'] = dc.evt_list[-1].trigger_nb 
+       t3d['event'] = dc.evt_list[-1].evt_nb
+       t3d['trigger'] = dc.evt_list[-1].trigger_nb
 
        t3d['matched'] = [it.match_ID[i] >= 0 for i in range(cf.n_view)]
        t3d['n_matched'] = sum([it.match_ID[i] >= 0 for i in range(cf.n_view)])
@@ -280,27 +283,27 @@ def store_tracks3D(h5file):
        t3d['y_end'] = it.end_y
        t3d['z_end'] = it.end_z
        t3d['chi2']  = it.chi2
-       
+
 
        t3d['z_ini_overlap'] = it.ini_z_overlap
        t3d['z_end_overlap'] = it.end_z_overlap
-       
+
        t3d['theta_ini'] = it.ini_theta
        t3d['theta_end'] = it.end_theta
        t3d['phi_ini']   = it.ini_phi
        t3d['phi_end']   = it.end_phi
-       
+
        t3d['n_hits']        = it.n_hits
        t3d['len_straight']  = it.len_straight
        t3d['len_path']      = it.len_path
        t3d['total_charge']  = it.tot_charge
-       
+
        t3d['z0_corr']   = it.z0_corr
        t3d['t0_corr']   = it.t0_corr
 
        t3d['d_match']  = it.d_match
 
        for i in range(cf.n_view):
-           pts = [[p[0], p[1], p[2], q, s] for p,q,s in zip(it.path[i], it.dQ[i], it.ds[i])]
-           vl_h[i].append(pts)       
+           pts = [[p[0], p[1], p[2], q, s, r] for p,q,s,r in zip(it.path[i], it.dQ[i], it.ds[i], it.hits_ID[i])]
+           vl_h[i].append(pts)
        t3d.append()

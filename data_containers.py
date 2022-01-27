@@ -58,10 +58,10 @@ class channel:
 
     def get_ana_chan(self):
         return self.view, self.vchan
-        
+
     def get_daqch(self):
         return self.daqch
-        
+
     def get_globch(self):
         return self.globch
 
@@ -83,7 +83,7 @@ class event:
         self.n_tracks2D = np.zeros((cf.n_view), dtype=int)
         self.n_tracks3D = 0
 
-    
+
     def set_noise_raw(self, noise):
         self.noise_raw = noise
 
@@ -95,18 +95,23 @@ class event:
         print("Taken at ", time.ctime(self.time_s), " + ", self.time_ns, " ns ")
 
 
-            
+
 
 class hits:
     def __init__(self, view, daq_channel, start, stop, charge_int, max_t, max_adc, min_t, min_adc):
-        self.idx = -1
+
+        # self.idx = -1
         self.view    = view
+
+        """Each hit should have a unique ID per event"""
+        self.ID = -1
         self.daq_channel = daq_channel
         self.channel = chmap[daq_channel].vchan
         self.start   = start
         self.stop    = stop
         self.Z_start = -1
         self.Z_stop  = -1
+
 
         """ time is in time bin number """
         self.max_t   = max_t
@@ -118,19 +123,19 @@ class hits:
         self.charge_max  = 0.
         self.charge_min  = 0.
         self.charge_pv   = 0. #peak-valley
-        
+
         self.charge = 0.
 
         self.max_adc = max_adc
         self.min_adc = min_adc
-        self.adc = 0. 
+        self.adc = 0.
 
 
         self.cluster = -1
         self.X       = -1
         self.Z       = -1
         self.matched = -9999
-        
+
         self.ped_bef = -1
         self.ped_aft = -1
 
@@ -139,14 +144,14 @@ class hits:
         return (self.Z > other.Z) or (self.Z == other.Z and self.X < other.X)
 
     def set_index(self, idx):
-        self.idx = idx
+        self.ID = idx
 
     def hit_positions(self, v):
         self.t = self.max_t if cf.view_type[self.view] == "Collection" else self.min_t
 
         """ trick because view Y is separated into 2 sub-volumes in CB """
         self.X = self.channel%cf.view_chan_repet[self.view] * cf.view_pitch[self.view] + cf.view_offset[self.view]
-        
+
         """ transforms time bins into distance from the anode """
         """ for CB it does not mean someting concrete """
         self.Z = cf.anode_z - v * self.t / cf.sampling
@@ -180,13 +185,13 @@ class hits:
     def set_ped(self, bef, aft):
         self.ped_bef = bef
         self.ped_aft = aft
-        
+
     def get_charges(self):
         return (self.charge_int, self.charge_max, self.charge_min, self.charge_pv)
 
 
     def dump(self):
-        print("\n**View ", self.view, " Channel ", self.channel)
+        print("\n**View ", self.view, " Channel ", self.channel, " ID: ", self.ID)
 
         print(" from t ", self.start, " to ", self.stop, " dt = ", self.stop-self.start)
         print(" tmax ", self.max_t, " tmin ", self.min_t, ' dt = ', self.min_t-self.max_t)
@@ -200,10 +205,10 @@ class hits:
 
 
 class trk2D:
-    def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, chi2, cluster):
+    def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, chi2, hit_ID, cluster):
         self.trackID = ID
         self.view    = view
-    
+
         self.ini_slope       = ini_slope
         self.ini_slope_err   = ini_slope_err
         self.end_slope       = ini_slope
@@ -211,6 +216,7 @@ class trk2D:
 
         self.n_hits      = 1
         self.n_hits_dray = 0
+        self.hits_ID = [hit_ID]
 
         self.path    = [(x0,y0)]
         self.dQ      = [q0]
@@ -219,7 +225,7 @@ class trk2D:
         self.chi2_bkwd   = chi2
 
         self.drays   = []
-        
+
         self.tot_charge = q0
         self.dray_charge = 0.
 
@@ -231,7 +237,7 @@ class trk2D:
 
         self.ini_time = t0
         self.end_time = t0
-        
+
     def __lt__(self,other):
         """ sort tracks by decreasing Z and increasing channel """
         return (self.path[0][1] > other.path[0][1]) or (self.path[0][1] == other.path[0][1] and self.path[0][0] < other.path[0][0])
@@ -247,6 +253,7 @@ class trk2D:
     def remove_hit(self, x, y, q):
         pos = -1
         for p,t in enumerate(self.path):
+            #The hit ID could be used to locate the corresponding hit instead of x,y,Q - To be implemented
             if(t[0] == x and t[1] == y and self.dQ[p]==q):
                 pos = p
                 break
@@ -254,24 +261,26 @@ class trk2D:
         if(pos >= 0):
             self.path.pop(pos)
             self.dQ.pop(pos)
+            self.hits_ID.pop(pos)
             self.n_hits -= 1
             self.tot_charge -= q
         else:
             print("?! cannot remove hit ", x, " ", y, " ", q, " pos ", pos)
 
 
-    def add_hit(self, x, y, q, t):
+    def add_hit(self, x, y, q, t, id):
         self.n_hits += 1
-        
+
         self.len_path += math.sqrt( pow(self.path[-1][0]-x, 2) + pow(self.path[-1][1]-y,2) )
         #beware to append (x,y) after !
         self.path.append((x,y))
         self.dQ.append(q)
+        self.hits_ID.append(id)
         self.tot_charge += q
         self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
         self.end_time = t
 
-    def add_hit_update(self, slope, slope_err, x, y, t, q, chi2):
+    def add_hit_update(self, slope, slope_err, x, y, t, q, id, chi2):
         self.end_slope = slope
         self.end_slope_err = slope_err
         self.n_hits += 1
@@ -280,6 +289,7 @@ class trk2D:
         #beware to append (x,y) after !
         self.path.append((x,y))
         self.dQ.append(q)
+        self.hits_ID.append(id)
         self.chi2 = chi2
         self.tot_charge += q
         self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
@@ -299,17 +309,18 @@ class trk2D:
         self.path = path
         self.dQ = dQ
         self.finalize_track()
-        
+
 
     def finalize_track(self):
         if(self.path[-1][1] > self.path[0][1]):
 
             self.path.reverse()
             self.dQ.reverse()
+            self.hits_ID.reverse()
             self.ini_slope, self.end_slope = self.end_slope, self.ini_slope
             self.ini_slope_err, self.end_slope_err = self.end_slope_err, self.ini_slope_err
 
-            self.chi2_fwd, self.chi2_bkwd = self.chi2_bkwd, self.chi2_fwd 
+            self.chi2_fwd, self.chi2_bkwd = self.chi2_bkwd, self.chi2_fwd
             print(self.trackID, " : wrong order check :", self.path[0][1], " to ", self.path[-1][1])
             self.ini_time, self.end_time = self.end_time, self.ini_time
 
@@ -319,12 +330,12 @@ class trk2D:
         self.n_hits_dray = len(self.drays)
         self.dray_charge = sum(k for i,j,k in self.drays)
 
-        self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )        
+        self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
         self.len_path = 0.
         for i in range(self.n_hits-1):
             self.len_path +=  math.sqrt( pow(self.path[i][0]-self.path[i+1][0], 2) + pow(self.path[i][1]-self.path[i+1][1],2) )
-            
-            
+
+
 
     def dist(self, other, i=-1, j=0):
         return math.sqrt(pow( self.path[i][0] - other.path[j][0], 2) + pow(self.path[i][1] - other.path[j][1], 2))
@@ -369,7 +380,7 @@ class trk2D:
         xb = other.path[0][0]
         zb = other.path[0][1]
 
-        if(self.end_slope == 0 and other.ini_slope == 0) : 
+        if(self.end_slope == 0 and other.ini_slope == 0) :
             return True
 
         if(self.end_slope == 0):
@@ -381,9 +392,9 @@ class trk2D:
 
 
     def joinable(self, other, dcut, sigcut, rcut):
-        if(self.view != other.view): 
+        if(self.view != other.view):
             return False
-        if( self.dist(other) < dcut and self.slope_comp(other) <  sigcut and self.x_extrapolate(other, rcut) and self.z_extrapolate(other, rcut)):            
+        if( self.dist(other) < dcut and self.slope_comp(other) <  sigcut and self.x_extrapolate(other, rcut) and self.z_extrapolate(other, rcut)):
             return True
 
 
@@ -394,7 +405,7 @@ class trk2D:
         self.chi2_bkwd += other.chi2_bkwd #should be refiltered though
         self.tot_charge += other.tot_charge
         self.dray_charge += other.dray_charge
-        self.len_path += other.len_path 
+        self.len_path += other.len_path
         self.len_path += self.dist(other)
         self.matched = [-1 for x in range(cf.n_view)]
         self.drays.extend(other.drays)
@@ -404,9 +415,10 @@ class trk2D:
                self.ini_slope_err = self.ini_slope_err
                self.end_slope = other.end_slope
                self.end_slope_err = other.end_slope_err
-               
+
                self.path.extend(other.path)
                self.dQ.extend(other.dQ)
+               self.hits_ID.extend(other.hits_ID)
                self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
                self.end_time = other.end_time
 
@@ -418,7 +430,8 @@ class trk2D:
 
                self.path = other.path + self.path
                self.dQ = other.dQ + self.dQ
-               self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1],2) )        
+               self.hits_ID = other.hits_ID + self.hits_ID
+               self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1],2) )
                self.ini_time = other.ini_time
 
     def charge_in_z_interval(self, start, stop):
@@ -426,12 +439,12 @@ class trk2D:
 
     def mini_dump(self):
         print("view : ", self.view, " from (%.1f,%.1f)"%(self.path[0][0], self.path[0][1]), " to (%.1f, %.1f)"%(self.path[-1][0], self.path[-1][1]), " N = ", self.n_hits, " L = %.1f/%.1f"%(self.len_straight, self.len_path), " Q = ", self.tot_charge, " Dray N = ", self.n_hits_dray, " Qdray ", self.dray_charge)
-               
+
 
 
 class trk3D:
     def __init__(self):
-        
+
         self.match_ID  =  [-1]*cf.n_view#[t.ID for t in trks]
         self.chi2    = [-1]*cf.n_view
         self.momentum = -1
@@ -459,21 +472,24 @@ class trk3D:
         #self.ini_time = min([t.ini_time for t in trks])
         #self.end_time = max([t.end_time for t in trks])
 
-        
-        ''' track boundaries '''                
+
+        ''' track boundaries '''
         self.path = [[] for x in range(cf.n_view)]
         self.dQ = [[] for x in range(cf.n_view)]
+        self.hits_ID = [[] for x in range(cf.n_view)]
+
         self.ds = [[] for x in range(cf.n_view)]
 
-        
-    def set_view(self, trk, path, dq, ds, isFake=False):
+
+    def set_view(self, trk, path, dq, ds, hits_id, isFake=False):
         view = trk.view
 
         self.path[view]  = path
         self.dQ[view]   = dq
         self.ds[view]   = ds
+        self.hits_ID[view] = hits_id
         self.tot_charge[view] = sum(q/s for q,s in zip(dq,ds))
-        
+
         if(isFake == True):
             self.len_straight[view] = 0.
             self.len_path[view] = 0.
@@ -484,21 +500,21 @@ class trk3D:
             self.n_hits[view] = len(path)
             self.chi2[view] = trk.chi2_fwd
             self.match_ID[view] = trk.trackID
-            
+
             self.len_straight[view] = math.sqrt( sum([pow(path[0][i]-path[-1][i], 2) for i in range(3)]))
             self.len_path[view] = 0.
 
             for i in range(len(path)-1):
                 self.len_path[view] +=  math.sqrt( pow(path[i][0]-path[i+1][0], 2) + pow(path[i][1]-path[i+1][1],2)+ pow(path[i][2]-path[i+1][2],2) )
-            
-                
-            
+
+
+
     def check_views(self):
         n_fake = 0
         for i in range(cf.n_view):
             if(self.match_ID[i] == -1):
-                tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1, 0)
-                self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.], isFake=True)
+                tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1,0, -1)
+                self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.],[-1, -1], isFake=True)
                 n_fake += 1
         return n_fake
 
@@ -518,21 +534,17 @@ class trk3D:
         self.end_z = self.path[v_lower][-1][2]
 
         self.end_z_overlap = max([self.path[i][-1][2] if k >= 0 else -9999. for i,k in zip(range(cf.n_view),self.match_ID)])
-        
+
     def set_t0_z0(self, t0, z0):
-        
+
         self.t0_corr = t0
         self.z0_corr = z0
 
-
-
-    
     def set_angles(self, theta_ini, phi_ini, theta_end, phi_end):
         self.ini_phi = phi_ini
         self.ini_theta = theta_ini
         self.end_phi = phi_end
         self.end_theta = theta_end
-        
 
     def dump(self):
         print('\n----')

@@ -20,14 +20,14 @@ def finalize_3d_track(track, npts):
     view_used = [track.match_ID[i] >= 0 for i in range(cf.n_view)]
     nv = sum(view_used)
     zmin, zmax = track.ini_z_overlap, track.end_z_overlap
-    
+
     #print("Z-RANGE OF THE TRACK : ", zmin, zmax)
     #print(view_used, " -> ", nv, " views")
 
     """ Divide z-range in N slices, can be changed to 1cm slice in future """
-    z_slices = np.linspace(zmin, zmax, npts) 
+    z_slices = np.linspace(zmin, zmax, npts)
     sx, sy = [], []
-    
+
     theta_ini, theta_end, phi_ini, phi_end = [],[],[],[]
 
 
@@ -39,10 +39,10 @@ def finalize_3d_track(track, npts):
         ty = [x[1] for x in track.path[iv]]
         tz = [x[2] for x in track.path[iv]]
         #print(len(tx), ' ', len(ty), " ", len(tz))
-        
+
         """ sort by increasing z for the interpolation """
         z, x, y = (np.asarray(list(t)) for t in zip(*sorted(zip(tz, tx, ty))))
-        
+
         """ interpolation wants unique z, remove duplicates (could be done better) """
         z_u, idx = np.unique(z, return_index=True)
         """ interpolation needs at least 3 points """
@@ -59,7 +59,7 @@ def finalize_3d_track(track, npts):
         xz_deriv = xz_spline.derivative()
         yz_spline = UnivariateSpline(z_u, y_u)
         yz_deriv = yz_spline.derivative()
-        
+
         sx.append(xz_spline(z_slices))
         sy.append(yz_spline(z_slices))
 
@@ -73,11 +73,11 @@ def finalize_3d_track(track, npts):
 
     sx = np.asarray(sx)
     sy = np.asarray(sy)
-        
+
     d_sx = np.square(np.diff(sx, append=[sx[0]], axis=0))
     d_sy = np.square(np.diff(sy, append=[sy[0]], axis=0))
-    
-    
+
+
     d_slice = np.sqrt(d_sx+d_sy)
     dtot = np.sum(d_slice)/npts/nv
     #print(" ---> DTOT ", dtot)
@@ -111,7 +111,7 @@ def complete_trajectories(tracks):
 
     for i in range(n_trk):
         track = tracks[i]
-        k = i+1 
+        k = i+1
         if(k == n_trk): k=0
         other = tracks[k]
 
@@ -121,17 +121,17 @@ def complete_trajectories(tracks):
         print(" ... goes with ... ")
         other.mini_dump()
 
-        
+
         v_track = track.view
         ang_track = np.radians(cf.view_angle[v_track])
 
         v_other = other.view
         ang_other = np.radians(cf.view_angle[v_other])
-        
-        A = np.array([[np.cos(ang_track), -np.cos(ang_other)],
-                      [-np.sin(ang_track), np.sin(ang_other)]])    
 
-        
+        A = np.array([[np.cos(ang_track), -np.cos(ang_other)],
+                      [-np.sin(ang_track), np.sin(ang_other)]])
+
+
 
         D = A[0,0]*A[1,1]-A[0,1]*A[1,0]
 
@@ -145,9 +145,9 @@ def complete_trajectories(tracks):
         pos_o = [k[0] for k in reversed(other.path)]
         z_o = [k[1] for k in reversed(other.path)]
 
-        """ order lists according to z increasing """ 
+        """ order lists according to z increasing """
         z_o, pos_o = (list(t) for t in zip(*sorted(zip(z_o, pos_o))))
-        
+
         """ get the other track z range """
         pos_o_min, z_o_min = pos_o[0],  z_o[0]
         pos_o_max, z_o_max = pos_o[-1], z_o[-1]
@@ -172,10 +172,10 @@ def complete_trajectories(tracks):
 
         a0, a1 = 0., 0.
         dx, dy, dz = 0., 0., 0.
-        
-        trajectory = []
-        dQ, ds     = [], []
-        length     = 0.
+
+        trajectory          = []
+        dQ, ds, t3d_hits_id = [], [], []
+        length              = 0.
 
         """debug"""
         xp, yp, zp, pp= 0,0,0,0
@@ -189,13 +189,13 @@ def complete_trajectories(tracks):
             else:
                 dp = track.path[p][0] - track.path[p-1][0]
                 dz = track.path[p][1] - track.path[p-1][1]
-            
+
                 a0t = 0. if dz == 0 else dp/dz
-            
+
 
             if(z >= z_o_min and z <= z_o_max):
                 pos_spl = float(spline(z))
-                a1t = float(deriv(z))              
+                a1t = float(deriv(z))
                 #a1 = 0. if a1 == 0 else 1./a1
             elif(z < z_o_min):
                 pos_spl = linear_interp(z-z_o_min, pos_o_min, deriv_z_min)
@@ -206,19 +206,19 @@ def complete_trajectories(tracks):
                 a1t = deriv_z_max #0. if deriv_z_max == 0 else 1./deriv_z_max
 
 
-                
+
             xy = A.dot([pos_spl, pos])/D
             x, y = xy[0], xy[1]
 
             dxdy = A.dot([a1t, a0t])/D
-            
+
             dxdz, dydz = dxdy[0], dxdy[1]
 
 
             a0 = 0. if dxdz == 0 else 1/dxdz
             a1 = 0. if dydz == 0 else 1/dydz
 
-            
+
             pxy = A.dot([0., cf.view_pitch[v_track]])/D
             pitchx, pitchy = cf.view_pitch[v_track]*np.sin(ang_track), cf.view_pitch[v_track]*np.cos(ang_track)
 
@@ -227,7 +227,7 @@ def complete_trajectories(tracks):
             """ For views not parallel to an axis, I'm not sure it's correct """
             if(a1 == 0):
                 dr *= math.sqrt(1. + pow(a0,2))
-            else : 
+            else :
                 dr = np.sqrt(pow(pitchx*math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)),2)) + np.sqrt(pow(pitchy*math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)),2))
 
 
@@ -259,13 +259,14 @@ def complete_trajectories(tracks):
                 yp = y
                 zp = z
                 pp = pos
-                
+
             trajectory.append( (x,y,z) )
             dQ.append(track.dQ[p])
             ds.append(dr)
-        the_track.set_view(track, trajectory, dQ, ds)
+            t3d_hits_id.append(track.hits_ID[p])
+        the_track.set_view(track, trajectory, dQ, ds, t3d_hits_id)
 
-            
+
         #print('\n')
 
         #print(trajectory)
@@ -277,7 +278,7 @@ def complete_trajectories(tracks):
 def correct_timing(trk, tol):
     vdrift = lar.drift_velocity()
     z_top = cf.anode_z
-    
+
     ''' maximum drift distance given the time window '''
     z_max = z_top - cf.n_sample*vdrift/cf.sampling
     z_cath = z_top - cf.drift_length
@@ -309,7 +310,7 @@ def correct_timing(trk, tol):
         trk.set_t0_z0(t0, z0)
         return
 
-    #early track case 
+    #early track case
     if(from_top):
         #print('early case!')
         if(exit_wall == False):
@@ -325,7 +326,7 @@ def correct_timing(trk, tol):
             trk.set_t0_z0(t0, z0)
             #print('but exits through wall')
             return
-    
+
 
     #print('is a late track!')
     #later track case
@@ -363,14 +364,14 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
         start = t.path[0][1]
         stop  = t.path[-1][1]
 
-        if(t.len_straight >= len_min):        
+        if(t.len_straight >= len_min):
             rtree_idx.insert(t.trackID, (t.view, stop, t.view, start))
         i+=1
         idx_to_ID.append(t.trackID)
 
-        
+
     ID_to_idx = [-1]*(max(idx_to_ID)+1)
-    
+
     for idx, ID in enumerate(idx_to_ID):
         ID_to_idx[ID] = idx
 
@@ -394,13 +395,13 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
                 continue
             else:
                 overlaps.append(list(rtree_idx.intersection((iview, ti_stop, iview, ti_start))))
-        
+
         #print("\nNEW TRACK ")
         #ti.mini_dump()
         #print(overlaps)
 
 
-        for ov in overlaps: 
+        for ov in overlaps:
             #print(ov)
             matches = []
             for j_ID in ov:
@@ -411,7 +412,7 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
 
                 tj_start = tj.path[0][1]
                 tj_stop  = tj.path[-1][1]
-            
+
                 zmin = max(ti_stop, tj_stop)
                 zmax = min(ti_start, tj_start)
                 qi = np.fabs(ti.charge_in_z_interval(zmin, zmax))
@@ -431,10 +432,10 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
                     matches.append( (j_ID, balance, dmin) )
 
             if(len(matches) > 0):
-                ''' sort matches by balance '''        
+                ''' sort matches by balance '''
                 matches = sorted(matches, key=itemgetter(1))
                 ti.matched[tj.view] = matches[0][0]
-    
+
 
     ''' now do the matching !'''
 
@@ -455,9 +456,9 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
         if(len(trks) > 1):
             #print("it's a match <3")
             #print("idx : ", i_idx, ' with ', len(trks))
-            t3D = complete_trajectories(trks)           
-                
-            
+            t3D = complete_trajectories(trks)
+
+
             n_fake = t3D.check_views()
             if(n_fake > 1):
                 continue
