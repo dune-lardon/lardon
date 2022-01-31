@@ -115,6 +115,17 @@ for ievent in range(nevent):
     """ mask the unused channels """
     dc.mask_daq = dc.alive_chan
 
+    if(ievent==-1):
+        ki1=[18, 231, 230, 229, 228, 227, 226, 225, 224, 235, 234, 233, 232, 247, 199, 198, 197, 196, 195, 194, 193, 192, 207, 207, 206, 206, 205, 205, 204, 204, 203, 203, 202, 202, 201, 201, 200, 215, 215, 214, 214, 213, 213, 212, 212, 211, 211, 210, 210, 209, 209, 208, 208, 221, 220, 218, 218, 217, 217, 216, 216, 191, 190, 189, 188, 107, 115, 327, 328]
+        ki2=[22, 23, 9, 34, 125, 248, 249, 250, 251, 252, 253, 254, 255, 240, 241, 242, 243, 244, 245, 246, 247, 232, 233, 234, 235, 236, 237, 238, 239, 231, 280, 281, 282, 283, 284, 285, 286, 287, 264, 265, 266, 267, 268, 268, 269, 256, 257, 258, 259, 260, 261, 262, 263, 296, 297, 298, 288, 289, 290, 291, 292, 293, 294, 295, 585, 584, 544, 436, 414]
+        ki3=[101, 70, 33, 50, 25, 567, 542, 502, 500, 500, 467, 430, 389, 394, 402, 353, 295, 289, 289, 317, 316, 263, 262, 261, 260, 259, 258, 257, 256, 231, 230, 229, 228, 228, 227, 226, 225, 224, 239, 238, 237, 236, 235, 234, 233, 232, 247, 247, 246, 245, 244, 243, 242, 241, 240, 240, 255, 255, 255, 254, 254, 253, 253, 252, 252, 251, 251, 250, 250, 249, 249, 248, 248, 248, 199, 198, 197, 196, 195, 194, 194, 193, 192, 207, 206, 205, 204, 203, 202, 201, 200, 215, 214, 213, 212, 211, 211, 210, 209, 208, 223, 222, 221, 220, 219, 218, 217, 216, 167, 161, 175, 174, 173, 173, 172, 171, 170, 169, 168, 183, 182, 181, 180, 179, 178, 177, 176, 191, 190, 189, 188, 187, 186, 185, 184, 155, 154, 152]
+        ki1=[39, 43, 42, 41, 40, 40, 198, 197, 197, 136, 154, 153, 152, 292]
+        ki2=[36, 90, 93, 94, 95, 96, 195, 197, 197, 198, 240, 241, 242, 243, 232, 233, 236, 237, 229, 231, 483, 444, 358]
+        #ki3=[110, 35, 50, 7, 7, 6, 5, 5, 2, 2, 2, 1, 0, 13, 12, 11, 10, 10, 9, 9, 22, 544, 516, 537, 536, 495, 488, 502, 510, 478, 389, 388, 395, 304, 269, 269, 269, 268, 268, 268, 268, 268, 276, 217, 135, 135, 134, 134, 133, 132, 131, 131, 130, 129, 128, 139, 137, 136]
+        #plot.plot_wvf_current_vch([(0,i) for i in ki1[0:10]], to_be_shown=True)
+        #plot.plot_wvf_current_vch([(1,i) for i in ki2[0:10]], to_be_shown=True)
+        #plot.plot_wvf_current_vch([(2,i) for i in ki3[0:10]], to_be_shown=True)
+
     """ compute the raw pedestal """
     ped.compute_pedestal(noise_type='raw', pars=pars)
 
@@ -157,9 +168,11 @@ for ievent in range(nevent):
     #store.store_fft(output, ps)
 
 
+
     ped.compute_pedestal(noise_type='filt')
     ped.refine_mask(pars)
     #ped.update_mask(pars.ped_amp_sig_oth)
+
 
 
     #cmap.arange_in_view_channels()
@@ -168,11 +181,17 @@ for ievent in range(nevent):
     #plot.plot_correlation_daqch(option='filtered',to_be_shown=True)
     #plot.plot_correlation_globch(option='filtered', to_be_shown=False)
 
+
+
+
     #tcoh = time.time()
     #noise.coherent_noise(pars.noise_coh_group)
     #print("coherent time took ", time.time()-tcoh)
 
     #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
+
+
+
 
     th = time.time()
     hf.find_hits(pars.hit_pad_left,
@@ -182,10 +201,27 @@ for ievent in range(nevent):
                  pars.hit_amp_sig[1],
                  pars.hit_amp_sig[2])
 
-    print("hit %.2f s"%(time.time()-th))
-    print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
+    # print("hit %.2f s"%(time.time()-th))
+    # print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
+
+    if(ievent==-1):
+        print([i.channel for i in dc.hits_list if i.view==0])
+        print([i.channel for i in dc.hits_list if i.view==1])
+        print([i.channel for i in dc.hits_list if i.view==2])
+        plot.plot_wvf_current_vch([(0,i) for i in ki1[0:10]], to_be_shown=True)
+        plot.plot_wvf_current_vch([(1,i) for i in ki2[0:10]], to_be_shown=True)
+        #plot.plot_wvf_current_vch([(2,i) for i in ki3[0:10]], to_be_shown=True)
+
+        #plot.plot_wvf_current_vch([(0,i.channel) for i in dc.hits_list if i.view==0], to_be_shown=True)
+        #plot.plot_wvf_current_vch([(1,i.channel) for i in dc.hits_list if i.view==1], to_be_shown=True)
+        #plot.plot_wvf_current_vch([(2,i.channel) for i in dc.hits_list if i.view==2], to_be_shown=True)
 
     # plot.plot_2dview_hits(to_be_shown=True)
+
+
+
+
+
 
     trk2d.find_tracks_rtree(pars.trk2D_nhits,
                             pars.trk2D_rcut,
