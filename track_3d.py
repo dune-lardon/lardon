@@ -116,10 +116,10 @@ def complete_trajectories(tracks):
         other = tracks[k]
 
 
-        print("\n")
-        track.mini_dump()
-        print(" ... goes with ... ")
-        other.mini_dump()
+        # print("\n")
+        # track.mini_dump()
+        # print(" ... goes with ... ")
+        # other.mini_dump()
 
 
         v_track = track.view

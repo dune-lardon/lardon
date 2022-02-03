@@ -76,6 +76,7 @@ cmap.set_unused_channels()
 
 
 cf.data_path="/home/thoudy/Work/Nuage/data/"
+cf.data_path="/home/woody/Work/Nuage/data/"
 
 """ setup the decoder """
 reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file)
@@ -201,16 +202,19 @@ for ievent in range(nevent):
     # if(ievent==-1):
     ki1 = [i.channel for i in dc.hits_list if i.view==0]
     ki2 = [i.channel for i in dc.hits_list if i.view==0]
-    kres = [(i.ID,i.channel, i.charge_int, i.charge_max, i.charge_min, i.charge_pv) for i in dc.hits_list if i.view==0]
-    for j in kres:
-        print(j)
+    kres = [(ievent, i.ID, i.channel, i.Z_start, i.max_t-i.min_t, i.charge_int, i.charge_max, i.charge_min, i.charge_pv, i.charge_sum, i.charge_neg, i.charge_pos) for i in dc.hits_list if i.view==0]
+    f=open("HitsOutput.txt" ,'ab')
+    np.savetxt(f,kres)
+    f.close()
+    # for j in kres:
+    #     print(j)
 
 
     sick_channels = [33,40,41,117,120,121,122,123,124,125,126,127,128,129,130,131,132,133,135,197,212,213,244,276,277,302,303,304,305,306,307,308,310,311]
     to_be_plotted = [i for i in set(ki1) if i in sick_channels]
         # print([i.channel for i in dc.hits_list if i.view==1])
         # print([i.channel for i in dc.hits_list if i.view==2])
-    if len(to_be_plotted)>0:
+    if len(to_be_plotted)>0 and False:
         plot.plot_wvf_current_vch([(0,y) for y in to_be_plotted], to_be_shown=True)
 
         # plot.plot_wvf_current_vch([(1,i) for i in ki2[0:10]], to_be_shown=True)

@@ -98,7 +98,7 @@ class event:
 
 
 class hits:
-    def __init__(self, view, daq_channel, start, stop, charge_int, max_t, max_adc, min_t, min_adc):
+    def __init__(self, view, daq_channel, start, stop, charge_int, max_t, max_adc, min_t, min_adc, pos_adc, neg_adc, sum_adc):
 
         # self.idx = -1
         self.view    = view
@@ -123,8 +123,12 @@ class hits:
         self.charge_max  = 0.
         self.charge_min  = 0.
         self.charge_pv   = 0. #peak-valley
-
+        self.charge_pos  = pos_adc
+        self.charge_neg  = neg_adc
+        self.charge_sum  = sum_adc
         self.charge = 0.
+
+
 
         self.max_adc = max_adc
         self.min_adc = min_adc

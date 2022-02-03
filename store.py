@@ -64,6 +64,9 @@ class Hits(IsDescription):
     charge_max = Float32Col()
     charge_min = Float32Col()
     charge_pv  = Float32Col()
+    charge_sum = Float32Col()
+    charge_neg = Float32Col()
+    charge_pos  = Float32Col()
 
 
 class Tracks2D(IsDescription):
@@ -223,6 +226,9 @@ def store_hits(h5file):
        hit['charge_max'] = ih.charge_max
        hit['charge_min'] = ih.charge_min
        hit['charge_pv']  = ih.charge_pv
+       hit['charge_sum'] = ih.charge_sum
+       hit['charge_neg'] = ih.charge_neg
+       hit['charge_pos']  = ih.charge_pos
        hit.append()
 
 
