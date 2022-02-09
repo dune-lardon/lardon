@@ -75,8 +75,8 @@ cmap.get_mapping(elec)
 cmap.set_unused_channels()
 
 
-cf.data_path="/home/thoudy/Work/Nuage/data/"
 cf.data_path="/home/woody/Work/Nuage/data/"
+cf.data_path="/home/thoudy/Work/Nuage/data/"
 
 """ setup the decoder """
 reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file)
