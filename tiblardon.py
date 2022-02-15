@@ -75,7 +75,7 @@ cmap.get_mapping(elec)
 cmap.set_unused_channels()
 
 
-# cf.data_path="/home/thoudy/Work/Nuage/data/"
+cf.data_path="/home/thoudy/Work/Nuage/data/"
 # cf.data_path="/home/woody/Work/Nuage/data/"
 
 
@@ -96,10 +96,13 @@ print(f" --->> Will process {nevent - evt_skip} events [out of {nb_evt}] of run 
 """ store basic informations """
 store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
 store.store_chan_map(output)
-
-
+mem = store.Memory()
+print(mem.hits_ID_counter)
+mem.update_counter(0)
+print(mem.hits_ID_counter)
 
 for ievent in range(nevent):
+    mem.transfer()
     t0 = time.time()
     if(evt_skip > 0 and ievent < evt_skip):
         continue
@@ -111,7 +114,7 @@ for ievent in range(nevent):
 
     reader.read_evt_header(ievent)
     dc.evt_list[-1].dump()
-
+    print(mem.hits_ID_counter)
 
     reader.read_evt(ievent)
 
@@ -200,24 +203,24 @@ for ievent in range(nevent):
     # print("hit %.2f s"%(time.time()-th))
     # print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
 
-    # if(ievent==-1):
-    ki1 = [i.channel for i in dc.hits_list if i.view==0]
-    ki2 = [i.channel for i in dc.hits_list if i.view==0]
-    kres = [(ievent, i.ID, i.channel, i.Z_start, i.max_t-i.min_t, i.charge_int, i.charge_max, i.charge_min, i.charge_pv, i.charge_sum, i.charge_neg, i.charge_pos) for i in dc.hits_list if i.view==0]
-    f=open("HitsOutput.txt" ,'ab')
-    np.savetxt(f,kres)
-    f.close()
-    # for j in kres:
-    #     print(j)
+    # # if(ievent==-1):
+    # ki1 = [i.channel for i in dc.hits_list if i.view==0]
+    # ki2 = [i.channel for i in dc.hits_list if i.view==0]
+    # kres = [(ievent, i.ID, i.channel, i.Z_start, i.max_t-i.min_t, i.charge_int, i.charge_max, i.charge_min, i.charge_pv, i.charge_sum, i.charge_neg, i.charge_pos) for i in dc.hits_list if i.view==0]
+    # f=open("HitsOutput.txt" ,'ab')
+    # np.savetxt(f,kres)
+    # f.close()
+    # # for j in kres:
+    # #     print(j)
 
 
-    sick_channels = [33,40,41,117,120,121,122,123,124,125,126,127,128,129,130,131,132,133,135,197,212,213,244,276,277,302,303,304,305,306,307,308,310,311]
-    to_be_plotted = [i for i in set(ki1) if not i in sick_channels]
+    # sick_channels = [33,40,41,117,120,121,122,123,124,125,126,127,128,129,130,131,132,133,135,197,212,213,244,276,277,302,303,304,305,306,307,308,310,311]
+    # to_be_plotted = [i for i in set(ki1) if not i in sick_channels]
         # print([i.channel for i in dc.hits_list if i.view==1])
         # print([i.channel for i in dc.hits_list if i.view==2])
-    if len(to_be_plotted)>0:
-        for y in set(ki1):
-            plot.plot_wvf_current_vch([(0,y)], to_be_shown=True)
+    # if len(to_be_plotted)>0 and False:
+    #     for y in set(ki1):
+    #         plot.plot_wvf_current_vch([(2,y)], to_be_shown=True)
 
         # plot.plot_wvf_current_vch([(1,i) for i in ki2[0:10]], to_be_shown=True)
         #plot.plot_wvf_current_vch([(2,i) for i in ki3[0:10]], to_be_shown=True)
@@ -240,10 +243,12 @@ for ievent in range(nevent):
                             pars.trk2D_slope_err,
                             pars.trk2D_pbeta)
 
-    [t.mini_dump() for t in dc.tracks2D_list]
+    #[t.mini_dump() for t in dc.tracks2D_list]
 
     # plot.plot_2dview_2dtracks(to_be_shown=True)
 
+    print([i.ID for i in dc.hits_list])
+    print([i.gID for i in dc.hits_list])
 
     trk3d.find_tracks_rtree(pars.trk3D_ztol,
                             pars.trk3D_qfrac,
@@ -254,7 +259,7 @@ for ievent in range(nevent):
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
 
     print('  %.2f s to process '%(time.time()-t0))
-
+    mem.update_counter(max([ih.gID for ih in dc.hits_list])+1)
     store.store_event(output)
     store.store_pedestals(output)
     store.store_hits(output)

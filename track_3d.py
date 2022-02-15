@@ -472,7 +472,7 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
             correct_timing(t3D, d_tol)
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
-            dc.tracks3D_list[-1].dump()
+            #dc.tracks3D_list[-1].dump()
             for t in trks:
                 for i in range(cf.n_view):
                     t.matched[i] = -1

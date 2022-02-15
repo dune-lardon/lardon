@@ -8,6 +8,7 @@ evt_list = []
 hits_list = []
 tracks2D_list = []
 tracks3D_list = []
+hits_id = -1
 
 
 data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
@@ -29,9 +30,6 @@ alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
 # Maybe these two containers are completely useless ?
 data = np.zeros((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
 mask = np.ones((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=bool)
-
-
-
 
 def reset_event():
     mask_daq[:,:] = True
@@ -105,6 +103,9 @@ class hits:
 
         """Each hit should have a unique ID per event"""
         self.ID = -1
+
+        """Each hit should have a unique ID per subrun"""
+        self.gID = -1
         self.daq_channel = daq_channel
         self.channel = chmap[daq_channel].vchan
         self.start   = start
@@ -129,7 +130,6 @@ class hits:
         self.charge = 0.
 
 
-
         self.max_adc = max_adc
         self.min_adc = min_adc
         self.adc = 0.
@@ -149,6 +149,7 @@ class hits:
 
     def set_index(self, idx):
         self.ID = idx
+        self.gID = idx+hits_id
 
     def hit_positions(self, v):
         self.t = self.max_t if cf.view_type[self.view] == "Collection" else self.min_t
