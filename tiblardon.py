@@ -97,9 +97,7 @@ print(f" --->> Will process {nevent - evt_skip} events [out of {nb_evt}] of run 
 store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
 store.store_chan_map(output)
 mem = store.Memory()
-print(mem.hits_ID_counter)
 mem.update_counter(0)
-print(mem.hits_ID_counter)
 
 for ievent in range(nevent):
     mem.transfer()
@@ -114,7 +112,6 @@ for ievent in range(nevent):
 
     reader.read_evt_header(ievent)
     dc.evt_list[-1].dump()
-    print(mem.hits_ID_counter)
 
     reader.read_evt(ievent)
 
