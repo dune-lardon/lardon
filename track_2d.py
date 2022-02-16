@@ -406,14 +406,14 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
                     intercept = fit[2]
                     ystart  = slope*x0 + intercept
                     filt.initiate(ystart, slope)
-                    track = dc.trk2D(trackID, iview, slope, slope_err, y0, x0, t0, hits[idx].charge, hits[idx].ID, filt.getChi2(), icl)
+                    track = dc.trk2D(trackID, iview, slope, slope_err, y0, x0, t0, hits[idx].charge, hits[idx].gID, filt.getChi2(), icl)
 
                     for i in [fit[3], fit[4]]:
                         """ add the seeding hits to the filter and remove them from the index """
                         nn_idx = nn[i-1][0]
                         x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].t
                         chi2_up = filt.update(y1, x1-x0)
-                        track.add_hit_update(slope, filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
+                        track.add_hit_update(slope, filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].gID, filt.getChi2())
                         idx_list.append(nn_idx)
 
                         visited[nn_idx] = True
@@ -502,7 +502,7 @@ def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
                         if(chi2m < chicut):
 
                             chi2_up = filt.update(y1, x1-x0)
-                            track.add_hit_update(filt.getSlope(), filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
+                            track.add_hit_update(filt.getSlope(), filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].gID, filt.getChi2())
                             idx_list.append(nn_idx)
 
 

@@ -50,7 +50,7 @@ class R_tree:
 
 
     def close_enough(self, hA, hB):
-        if(hA.ID == hB.ID):
+        if(hA.gID == hB.gID):
             """ same hit """
             return False
 
