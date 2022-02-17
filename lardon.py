@@ -90,8 +90,8 @@ print(f" --->> Will process {nevent - evt_skip} events [out of {nb_evt}] of run 
 """ store basic informations """
 store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
 store.store_chan_map(output)
-
-
+mem = store.Memory()
+mem.update_counter(0)
 
 for ievent in range(nevent):
     t0 = time.time()
@@ -194,7 +194,7 @@ for ievent in range(nevent):
                             pars.trk2D_slope_err,
                             pars.trk2D_pbeta)
 
-    [t.mini_dump() for t in dc.tracks2D_list]
+    #[t.mini_dump() for t in dc.tracks2D_list]
 
     # plot.plot_2dview_2dtracks(to_be_shown=True)
 
@@ -208,7 +208,7 @@ for ievent in range(nevent):
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
 
     print('  %.2f s to process '%(time.time()-t0))
-
+    mem.update_counter(max([ih.gID for ih in dc.hits_list])+1)
     store.store_event(output)
     store.store_pedestals(output)
     store.store_hits(output)
