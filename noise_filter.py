@@ -16,7 +16,7 @@ def FFT_low_pass(lowpass_cut, freq_cut=-1):
     rate = cf.sampling #in MHz
 
     freq = np.linspace(0, rate/2., n)
-    print('frequency binning ', freq[1]-freq[0])
+
     """define gaussian low pass filter"""
     gauss_cut = np.where(freq < lowpass_cut, 1., gaussian(freq, lowpass_cut, 0.02))
 
