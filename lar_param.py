@@ -2,7 +2,7 @@ import config as cf
 
 import numpy as np
 import math
-
+            
 def drift_velocity():
     T = cf.LAr_temperature
     E = cf.e_drift

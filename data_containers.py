@@ -8,7 +8,9 @@ evt_list = []
 hits_list = []
 tracks2D_list = []
 tracks3D_list = []
-
+pulse_fit_res = []
+wvf_pos = [[] for x in range(cf.n_tot_channels)]
+wvf_neg = [[] for x in range(cf.n_tot_channels)]
 
 data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
 
@@ -44,9 +46,12 @@ def reset_event():
     tracks2D_list.clear()
     tracks3D_list.clear()
     evt_list.clear()
+    
+    pulse_fit_res.clear()
+
 
 class channel:
-    def __init__(self, daqch, globch, view, vchan, length, capa, tot_length, tot_capa):
+    def __init__(self, daqch, globch, view, vchan, length, capa, tot_length, tot_capa, gain):
         self.daqch = daqch
         self.globch = globch
         self.view = view
@@ -55,6 +60,7 @@ class channel:
         self.tot_length = tot_length
         self.capa   = capa
         self.tot_capa   = tot_capa
+        self.gain = gain
 
     def get_ana_chan(self):
         return self.view, self.vchan
@@ -64,6 +70,20 @@ class channel:
 
     def get_globch(self):
         return self.globch
+
+
+class fit_pulse:
+    def __init__(self, idaq, v, chan, np_pos, np_neg, fit_pos, fit_neg):
+        self.daq_channel = idaq
+        self.view = v
+        self.channel = chan
+        self.n_pulse_pos = np_pos
+        self.n_pulse_neg = np_neg
+        
+        self.fit_pos = fit_pos
+        self.fit_neg = fit_neg
+
+
 
 class noise:
     def __init__(self, ped, rms):
@@ -98,9 +118,7 @@ class event:
 
 
 class hits:
-    def __init__(self, view, daq_channel, start, stop, charge_int, max_t, max_adc, min_t, min_adc):
-
-        # self.idx = -1
+    def __init__(self, view, daq_channel, start, stop, max_t, max_adc, min_t, min_adc, zero_t, signal):
         self.view    = view
 
         """Each hit should have a unique ID per event"""
@@ -111,25 +129,25 @@ class hits:
         self.stop    = stop
         self.Z_start = -1
         self.Z_stop  = -1
+        self.signal = signal
 
 
         """ time is in time bin number """
         self.max_t   = max_t
         self.min_t   = min_t
-
+        self.zero_t  = zero_t
         self.t = 0.
 
-        self.charge_int  = charge_int
-        self.charge_max  = 0.
-        self.charge_min  = 0.
-        self.charge_pv   = 0. #peak-valley
-
+        self.charge_pos  = 0.
+        self.charge_neg  = 0.        
         self.charge = 0.
 
+        
         self.max_adc = max_adc
         self.min_adc = min_adc
-        self.adc = 0.
 
+        self.max_fC = self.max_adc*chmap[self.daq_channel].gain
+        self.min_fC = self.min_adc*chmap[self.daq_channel].gain
 
         self.cluster = -1
         self.X       = -1
@@ -147,32 +165,30 @@ class hits:
         self.ID = idx
 
     def hit_positions(self, v):
-        self.t = self.max_t if cf.view_type[self.view] == "Collection" else self.min_t
+        self.t = self.max_t
 
-        """ trick because view Y is separated into 2 sub-volumes in CB """
-        self.X = self.channel%cf.view_chan_repet[self.view] * cf.view_pitch[self.view] + cf.view_offset[self.view]
+        """ trick because view Y is separated into 2 sub-volumes in CB1 """
+        self.X = self.channel%cf.view_chan_repet[self.view] * cf.view_pitch[self.view] + cf.view_offset[self.view] +  cf.view_pitch[self.view]/2.
+        
 
         """ transforms time bins into distance from the anode """
         """ for CB it does not mean someting concrete """
-        self.Z = cf.anode_z - v * self.t / cf.sampling
+        """ correct Z with PCB positions """
 
-        self.Z_start = cf.anode_z - v * self.start /cf.sampling
-        self.Z_stop = cf.anode_z - v * self.stop / cf.sampling
+        self.Z = cf.anode_z - v * self.t / cf.sampling - cf.view_z_offset[self.view]
+        self.Z_start = cf.anode_z - v * self.start /cf.sampling -  cf.view_z_offset[self.view]
+        self.Z_stop  = cf.anode_z - v * self.stop / cf.sampling - cf.view_z_offset[self.view]
+
 
 
     def hit_charge(self):
-        self.adc = self.max_adc if cf.view_type[self.view] == "Collection" else self.min_adc
+        
+        self.charge_pos *= chmap[self.daq_channel].gain
+        self.charge_neg *= chmap[self.daq_channel].gain
 
-        """ difference in TDE and BDE has to be understood """
 
-        self.charge_int = self.charge_int / cf.sampling / cf.ADC_per_fC
-
-        self.charge_max = (self.max_adc) / cf.sampling / cf.ADC_per_fC
-        self.charge_min = (self.min_adc) / cf.sampling / cf.ADC_per_fC
-        self.charge_pv  = (self.max_adc - self.min_adc) / cf.sampling / cf.ADC_per_fC
-
-        self.charge = self.charge_int  if cf.view_type[self.view] == "Collection" else self.charge_min
-
+        """ I'm not sure this is good """
+        self.charge = self.charge_pos # if cf.view_type[self.view] == "Collection" else self.charge_neg
 
 
 
@@ -187,19 +203,25 @@ class hits:
         self.ped_aft = aft
 
     def get_charges(self):
-        return (self.charge_int, self.charge_max, self.charge_min, self.charge_pv)
+        return (self.charge, self.charge_pos, self.charge_neg)
 
 
     def dump(self):
+
         print("\n**View ", self.view, " Channel ", self.channel, " ID: ", self.ID)
+        print("Type ", self.signal)
+        print("channel gain ", chmap[self.daq_channel].gain)
+
 
         print(" from t ", self.start, " to ", self.stop, " dt = ", self.stop-self.start)
         print(" tmax ", self.max_t, " tmin ", self.min_t, ' dt = ', self.min_t-self.max_t)
+        print("zero time ", self.zero_t)
         print(" ref time ", self.t)
 
         print(" positions : ", self.X, ", ", self.Z)
         print(" adc max ", self.max_adc, " adc min ", self.min_adc)
-        print(" charges ", self.charge_int, " ", self.charge_max, " ", self.charge_min, " ", self.charge_pv)
+        print(" fC max ", self.max_fC, " fC min ", self.min_fC)
+        print(" charges pos : ", self.charge_pos, " neg : ", self.charge_neg)
 
 
 

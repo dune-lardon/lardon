@@ -3,6 +3,8 @@ import data_containers as dc
 import lar_param as lar
 
 from .select_hits import *
+from .save_plot import *
+
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -114,7 +116,7 @@ def template_data_view():
             axs[iv].tick_params(labelleft=False)
 
 
-    plt.subplots_adjust(top=0.9,
+    plt.subplots_adjust(top=0.87,
                         bottom=0.11,
                         left=0.1,
                         right=0.905,
@@ -142,17 +144,9 @@ def plot_2dview_hits(max_adc=100, option=None, to_be_shown=False):
         except: 
             print('no hits in view ', i)
 
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
 
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
-
-
-    plt.savefig(cf.plot_path+'/hits_view'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    save_with_details(fig, option, 'hits_view')
+    #plt.savefig(cf.plot_path+'/hits_view'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
     if(to_be_shown):
         plt.show()
@@ -166,7 +160,6 @@ def plot_2dview_2dtracks(option=None, to_be_shown=False):
     
     """ all hits """
     axs = draw_all_hits(axs, c="#e6e6e6", s=marker_size, marker='o', label='Hits')
-
     
     
     """ 2D tracks """
@@ -178,17 +171,8 @@ def plot_2dview_2dtracks(option=None, to_be_shown=False):
     ax_leg.legend(*axs[0].get_legend_handles_labels(),loc='center', ncol=2, markerscale=4, markerfirst=True)    
 
 
+    save_with_details(fig, option, 'track2D_hits')
 
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
-
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
-
-    plt.savefig(cf.plot_path+'/track2D'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
     if(to_be_shown):
         plt.show()
     plt.close()

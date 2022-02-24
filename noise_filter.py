@@ -82,7 +82,7 @@ def coherent_noise(groupings):
         dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
 
 
-def coherent_noise_per_view(groupings, capa_weight):
+def coherent_noise_per_view(groupings, capa_weight, calibrated):
     """
     1. Get which daq channels is which view 
     2. Computes the mean along this group of channels and this view for non ROI points
@@ -92,8 +92,10 @@ def coherent_noise_per_view(groupings, capa_weight):
 
 
     v_daq = np.empty((cf.n_tot_channels,cf.n_sample))
-    capa = np.zeros((cf.n_tot_channels))
-    
+    capa = np.ones((cf.n_tot_channels))
+    calib = np.ones((cf.n_tot_channels))
+
+
     for i in range(cf.n_tot_channels):
         view = dc.chmap[i].view
         if(view >= cf.n_view or view < 0):
@@ -102,10 +104,11 @@ def coherent_noise_per_view(groupings, capa_weight):
         v_daq[i,:] = view
         if(capa_weight):
             capa[i] = dc.chmap[i].tot_capa
-        else:
-            capa[i] = 1.
+        if(calibrated):
+            calib[i] = dc.chmap[i].gain
 
-
+    
+    dc.data_daq *= calib[:,None]
     dc.data_daq /= capa[:,None]
          
     for group in groupings:
@@ -141,4 +144,5 @@ def coherent_noise_per_view(groupings, capa_weight):
     """ restore original data shape """
     dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, cf.n_sample))
     dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
+    dc.data_daq /= calib[:,None]
     dc.data_daq *= capa[:,None]

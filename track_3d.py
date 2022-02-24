@@ -21,9 +21,6 @@ def finalize_3d_track(track, npts):
     nv = sum(view_used)
     zmin, zmax = track.ini_z_overlap, track.end_z_overlap
 
-    #print("Z-RANGE OF THE TRACK : ", zmin, zmax)
-    #print(view_used, " -> ", nv, " views")
-
     """ Divide z-range in N slices, can be changed to 1cm slice in future """
     z_slices = np.linspace(zmin, zmax, npts)
     sx, sy = [], []
@@ -31,14 +28,12 @@ def finalize_3d_track(track, npts):
     theta_ini, theta_end, phi_ini, phi_end = [],[],[],[]
 
 
-
     for iv in range(cf.n_view):
         if(view_used[iv] == False): continue
-        #print("using view ",iv)
+
         tx = [x[0] for x in track.path[iv]]
         ty = [x[1] for x in track.path[iv]]
         tz = [x[2] for x in track.path[iv]]
-        #print(len(tx), ' ', len(ty), " ", len(tz))
 
         """ sort by increasing z for the interpolation """
         z, x, y = (np.asarray(list(t)) for t in zip(*sorted(zip(tz, tx, ty))))
@@ -65,11 +60,12 @@ def finalize_3d_track(track, npts):
 
         theta, phi = theta_phi_from_deriv(xz_deriv(zmin), yz_deriv(zmin))
         theta_ini.append(theta)
-        phi_ini.append(phi)
+        phi_ini.append(phi)        
 
         theta, phi = theta_phi_from_deriv(xz_deriv(zmax), yz_deriv(zmax))
         theta_end.append(theta)
         phi_end.append(phi)
+        
 
     sx = np.asarray(sx)
     sy = np.asarray(sy)
@@ -80,21 +76,15 @@ def finalize_3d_track(track, npts):
 
     d_slice = np.sqrt(d_sx+d_sy)
     dtot = np.sum(d_slice)/npts/nv
-    #print(" ---> DTOT ", dtot)
+
 
     m_theta_ini = sum(theta_ini)/nv
     m_theta_end = sum(theta_end)/nv
     m_phi_ini = sum(phi_ini)/nv
     m_phi_end = sum(phi_end)/nv
 
-    """
-    print("thetas")
-    print(theta_ini)
-    print(theta_end)
-    print("phis")
-    print(phi_ini)
-    print(phi_end)
-    """
+    #print("mean theta ", m_theta_ini, m_theta_end)
+    #print("mean phi ", m_phi_ini, m_phi_end)
 
     track.set_angles(m_theta_ini, m_phi_ini, m_theta_end, m_phi_end)
     track.d_match = dtot
@@ -106,7 +96,7 @@ def linear_interp(dx, z0, a):
 def complete_trajectories(tracks):
     """ Could be better ! At the moment, matches with only 2 tracks """
     n_trk = len(tracks)
-    #print("\n-- -- -- -- -- ")
+
     the_track = dc.trk3D()
 
     for i in range(n_trk):
@@ -114,13 +104,6 @@ def complete_trajectories(tracks):
         k = i+1
         if(k == n_trk): k=0
         other = tracks[k]
-
-
-        print("\n")
-        track.mini_dump()
-        print(" ... goes with ... ")
-        other.mini_dump()
-
 
         v_track = track.view
         ang_track = np.radians(cf.view_angle[v_track])
@@ -234,7 +217,7 @@ def complete_trajectories(tracks):
 
             """ debugging """
 
-            if(p>9999):# and (v_track == 0 or v_other==0)):
+            if(p>9999):
                 print(p, " at z ", z, " : ", pos, " with ", pos_spl)
                 print("  -> x ", x, " y ", y)
                 print("   before rotation : ", a0t, " ", a1t)
@@ -244,21 +227,12 @@ def complete_trajectories(tracks):
                 print(" with prev dx ", x-xp, " dy ", y-yp, " dz ", z-zp)
                 print(" with prev pos : ", pos-pp)
                 print("   -->a0 ", a0, " a1 ", a1, " -> ds ", dr)
-                if(a1!=0 and a0 != 0):
-                    print("  tests : ", math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)), " ", math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)))
-                    print("  single pitches ", pitchx* math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)), " ", pitchy*math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)))
-                if(a0t != 0 and a1t !=0):
-                    a0t = 1./a0t
-                    a1t = 1./a1t
-                    print("  no rot tests : ", math.sqrt(1. + pow(a0t, 2)*(1./pow(a1t, 2) + 1.)), " ", math.sqrt(1. + pow(a1t, 2)*(1./pow(a0t, 2) + 1.)))
-                    print("  -> ", pitchx*math.sqrt(1. + pow(a0t, 2)*(1./pow(a1t, 2) + 1.)) + pitchy*math.sqrt(1. + pow(a1t, 2)*(1./pow(a0t, 2) + 1.)), " or ", 0.8695*math.sqrt(1. + pow(a0t, 2)*(1./pow(a1t, 2) + 1.)))
-                    print("   an other test ; ", 0.8695*np.sqrt(1+pow(a0t,2)))
-
                 print("----------")
                 xp = x
                 yp = y
                 zp = z
                 pp = pos
+
 
             trajectory.append( (x,y,z) )
             dQ.append(track.dQ[p])
@@ -267,15 +241,11 @@ def complete_trajectories(tracks):
         the_track.set_view(track, trajectory, dQ, ds, t3d_hits_id)
 
 
-        #print('\n')
-
-        #print(trajectory)
-    #print("* * * * * * * * * * * * * * * * * * * * * * * * * * * *\n")
     return the_track
 
 
 
-def correct_timing(trk, tol):
+def correct_timing(trk, xtol, ytol, ztol):
     vdrift = lar.drift_velocity()
     z_top = cf.anode_z
 
@@ -283,27 +253,20 @@ def correct_timing(trk, tol):
     z_max = z_top - cf.n_sample*vdrift/cf.sampling
     z_cath = z_top - cf.drift_length
 
-    from_top =  (z_top - trk.ini_z) < tol
-    exit_bot = (math.fabs(z_max - trk.end_z)) < tol
+    from_top =  (z_top - trk.ini_z) < ztol
+    exit_bot = (math.fabs(z_max - trk.end_z)) < ztol
 
-    from_wall_x = np.asarray([ math.fabs(trk.ini_x-s)<tol for s in cf.x_boundaries], dtype=bool)
-    from_wall_y = np.asarray([ math.fabs(trk.ini_y-s)<tol for s in cf.y_boundaries], dtype=bool)
+    from_wall_x = np.asarray([ math.fabs(trk.ini_x-s)<t for t, s in zip(xtol,cf.x_boundaries)], dtype=bool)
+    from_wall_y = np.asarray([ math.fabs(trk.ini_y-s)<t for t,s in zip(ytol,cf.y_boundaries)], dtype=bool)
 
     from_wall = np.any(np.concatenate((from_wall_x, from_wall_y), axis=None))
 
-    exit_wall_x = np.asarray([ math.fabs(trk.end_x-s)<tol for s in cf.x_boundaries], dtype=bool)
-    exit_wall_y = np.asarray([ math.fabs(trk.end_y-s)<tol for s in cf.y_boundaries], dtype=bool)
+    exit_wall_x = np.asarray([ math.fabs(trk.end_x-s)<t for t, s in zip(xtol,cf.x_boundaries)], dtype=bool)
+    exit_wall_y = np.asarray([ math.fabs(trk.end_y-s)<t for t, s in zip(ytol, cf.y_boundaries)], dtype=bool)
     exit_wall = np.any(np.concatenate((exit_wall_x, exit_wall_y), axis=None))
 
     z0 = 9999.
     t0 = 9999.
-
-    """
-    print("Start ", trk.ini_x, " ", trk.ini_y, " ", trk.ini_z)
-    print("top ?", from_top, " wall ? ", from_wall)
-    print(" End ",  trk.end_x, " ", trk.end_y, " ", trk.end_z)
-    print("bot ?", exit_bot, " wall ? ", exit_wall)
-    """
 
     """ unknown case is when track enters through wall """
     if(from_wall):
@@ -341,7 +304,7 @@ def correct_timing(trk, tol):
 
 
 
-def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
+def find_tracks_rtree(ztol, qfrac, len_min, dx_tol, dy_tol, dz_tol):
     if(len(dc.tracks2D_list) < 2):
         return
 
@@ -469,7 +432,7 @@ def find_tracks_rtree(ztol, qfrac, len_min, d_tol):
             if(isok == False):
                 continue
             #t3D.angles(tv0, tv1)
-            correct_timing(t3D, d_tol)
+            correct_timing(t3D, dx_tol, dy_tol, dz_tol)
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
             dc.tracks3D_list[-1].dump()
