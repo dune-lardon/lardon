@@ -106,8 +106,6 @@ store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
 store.store_chan_map(output)
 
 
-print('checking : ', cf.e_drift)
-
 for ievent in range(nevent):
     t0 = time.time()
     if(evt_skip > 0 and ievent < evt_skip):
@@ -124,7 +122,6 @@ for ievent in range(nevent):
 
     reader.read_evt(ievent)
     print('time to read %.3f'%(time.time()-t0))
-    #plot.plot_sticky_finder_daqch(to_be_shown=True)
 
 
     """ mask the unused channels """
@@ -161,15 +158,13 @@ for ievent in range(nevent):
     for n_iter in range(2):
         ped.compute_pedestal(noise_type='filt')
         #ped.update_mask(pars.ped_amp_sig_oth)
-        ped.refine_mask(pars, n_pass=1)
+        ped.refine_mask(pars, n_pass=1, test=True)
 
 
 
-    plot.plot_noise_vch(noise_type='filt', vrange=[0,20],to_be_shown=True)
-    plot.event_display_per_view_noise([-40,40],[-10, 150], option='noise', to_be_shown=True)
+    #plot.plot_noise_vch(noise_type='filt', vrange=[0,20],to_be_shown=True)
+    #plot.event_display_per_view_noise([-40,40],[-10, 150], option='noise', to_be_shown=True)
 
-
-    #plot.plot_wvf_current_vch([(0,188),(1,466),(2,291)], to_be_shown=True)
 
     """ CNR """
     tcoh = time.time()
@@ -182,20 +177,16 @@ for ievent in range(nevent):
 
 
     ped.compute_pedestal(noise_type='filt')
-    ped.refine_mask(pars, n_pass=2)
+    ped.refine_mask(pars, n_pass=2, test=True)
     #ped.update_mask(pars.ped_amp_sig_oth)
     ped.compute_pedestal(noise_type='filt')
 
-    plot.plot_noise_vch(noise_type='filt', vrange=[0,20],to_be_shown=True)
 
+    #plot.plot_noise_vch(noise_type='filt', vrange=[0,20],to_be_shown=True)
     #plot.plot_wvf_current_vch([(0,188),(1,466),(2,291)], to_be_shown=True)
-    #plot.plot_noise_vch(noise_type='filt', vrange=[0,100],option='coh_nocapa',to_be_shown=False)
 
-    
-    #plot.plot_correlation_daqch(option='filtered',to_be_shown=True)
-    #plot.plot_correlation_globch(option='filtered', to_be_shown=True)
 
-    plot.event_display_per_view_roi([-40,40],[-10, 150], option='roi', to_be_shown=True)
+    #plot.event_display_per_view_roi([-40,40],[-10, 150], option='roi', to_be_shown=True)
 
     
 
@@ -211,24 +202,15 @@ for ievent in range(nevent):
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
 
 
+    #plot.event_display_per_view_hits_found([-40,40],[-10, 150],option='hits', to_be_shown=True)
+
     # plot.plot_2dview_hits(to_be_shown=True)
 
-
     #plot.plot_wvf_current_hits_roi_vch([(0,212),(0,211),(0,210),(0,209)],to_be_shown=True)
-    plot.plot_wvf_current_hits_roi_vch([(1,513),(1,514),(1,515),(1,516)],to_be_shown=True)
-    plot.plot_wvf_current_hits_roi_vch([(1,470),(1,471),(1,472),(1,475)],to_be_shown=True)
-    #plot.plot_wvf_current_hits_roi_vch([(2,308),(2,307),(2,306),(2,305)],to_be_shown=True)
-    #plot.plot_wvf_current_hits_roi_vch([(2,58),(2,59),(2,60),(2,61)],to_be_shown=True)
-    #plot.plot_wvf_diff_vch([(0,212),(1,514),(2,305)],to_be_shown=True)
-    #plot.plot_2dview_hits(to_be_shown=True)
+
     #plot.plot_track_wvf_vch([[(0,x) for x in range(30,63)],[(1,x) for x in range(30,70)],[(2,x) for x in range(35,80)]], tmin=1200, tmax=2000, to_be_shown=True, option='1')    
     
-    plot.event_display_per_view_hits_found([-40,40],[-10, 150],option='hits', to_be_shown=True)
-    """
-    plot.plot_track_wvf_vch([[(0,x) for x in range(30,63)],[(1,x) for x in range(30,70)],[(2,x) for x in range(35,80)]], tmin=1200, tmax=2000, to_be_shown=True, option='1')
 
-    plot.plot_track_wvf_vch([[(0,x) for x in range(190,220)],[(1,x) for x in range(174,184)],[(1,x) for x in range(502,520)],[(2,x) for x in range(268,323)]], tmin=9200, tmax=10000, to_be_shown=True,option='2')
-    """
                 
     
 
@@ -251,6 +233,7 @@ for ievent in range(nevent):
                             pars.trk3D_dy_tol,
                             pars.trk3D_dz_tol)
 
+
     # plot.plot_3d(to_be_shown=True)
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
 
@@ -262,7 +245,9 @@ for ievent in range(nevent):
     store.store_tracks2D(output)
     store.store_tracks3D(output)
 
-#store.store_avf_wvf(output)
+if(is_pulse==True):
+    store.store_avf_wvf(output)
+
 reader.close_file()
 output.close()
 print('it took %.2f s to run'%(time.time()-tstart))
