@@ -16,7 +16,7 @@ class Infos(IsDescription):
     n_samples    = Float32Col()
     n_view       = UInt8Col()
     view_nchan   = Float32Col(shape=(cf.n_view))
-
+    e_drift      = Float32Col()
 
 
 class ChanMap(IsDescription):
@@ -41,6 +41,30 @@ class Pedestal(IsDescription):
 class FFT(IsDescription):
     ps = Float32Col(shape=(cf.n_tot_channels, int(cf.n_sample/2)+1))
 
+
+class Waveform(IsDescription):
+    view        = UInt8Col()
+    channel     = UInt16Col()
+    daq_channel = UInt16Col()
+
+    pos_mean = Float32Col(shape=(60))
+    pos_std  = Float32Col(shape=(60))
+    neg_mean = Float32Col(shape=(60))
+    neg_std  = Float32Col(shape=(60))
+
+
+class Pulse(IsDescription):
+    event   = UInt32Col()
+    trigger = UInt32Col()
+    
+    view        = UInt8Col()
+    channel     = UInt16Col()
+    daq_channel = UInt16Col()
+
+    n_pulse_pos = UInt16Col()
+    n_pulse_neg = UInt16Col()
+
+
 class Hits(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
@@ -51,19 +75,22 @@ class Hits(IsDescription):
     channel     = UInt16Col()
     daq_channel = UInt16Col()
 
-    tdc_max = UInt16Col()
-    tdc_min = UInt16Col()
+    is_collection  = BoolCol()
+
+    tdc_max  = UInt16Col()
+    tdc_min  = UInt16Col()
+    tdc_zero = UInt16Col()
+
     z       = Float32Col()
     x       = Float32Col()
 
 
-    adc_max  = Float32Col()
-    adc_min  = Float32Col()
+    fC_max  = Float32Col()
+    fC_min  = Float32Col()
 
-    charge_int  = Float32Col()
-    charge_max = Float32Col()
-    charge_min = Float32Col()
-    charge_pv  = Float32Col()
+    charge_pos = Float32Col()
+    charge_neg = Float32Col()
+
 
 
 class Tracks2D(IsDescription):
@@ -126,7 +153,7 @@ class Tracks3D(IsDescription):
     len_path     = Float32Col(shape=(cf.n_view))
     total_charge = Float32Col(shape=(cf.n_view))
 
-    z0_corr = Float32Col()
+    z0_corr = Float64Col()
     t0_corr = Float32Col()
 
     d_match = Float32Col()
@@ -142,11 +169,27 @@ def create_tables(h5file):
 
     table = h5file.create_table("/", 'tracks2d', Tracks2D, 'Tracks2D')
     for i in range(cf.n_view):
+
         t = h5file.create_vlarray("/", 'trk2d_v'+str(i), Float32Atom(shape=(4)), "2D Path V"+str(i)+" (x, z, q, ID)")
 
     table = h5file.create_table("/", 'tracks3d', Tracks3D, 'Tracks3D')
     for i in range(cf.n_view):
         t = h5file.create_vlarray("/", 'trk3d_v'+str(i), Float32Atom(shape=(6)), "3D Path V"+str(i)+" (x, y, z, dq, ds, ID)")
+
+
+
+def create_tables_pulsing(h5file):
+    table = h5file.create_table("/", 'infos', Infos, 'Infos')
+    table = h5file.create_table("/", 'chmap', ChanMap, "ChanMap")
+    table = h5file.create_table("/", "pulse", Pulse, "Pulse")
+    table = h5file.create_table("/", 'pedestals', Pedestal, 'Pedestals')
+    table = h5file.create_table("/", 'event', Event, "Event")
+
+    table = h5file.create_table('/','waveform',Waveform,'Waveform')
+
+
+    t = h5file.create_vlarray("/", 'pos_pulse', Float32Atom(shape=(8)), "Positive Pulses (start, tmax, vmax, A, tau, area, fit_area, chi2)")
+    t = h5file.create_vlarray("/", 'neg_pulse', Float32Atom(shape=(8)), "Negative Pulses (start, tmin, vmin, A, tau, area, fit_area, chi2)")
 
 
 def store_run_infos(h5file, run, sub, elec, nevent, time):
@@ -161,6 +204,7 @@ def store_run_infos(h5file, run, sub, elec, nevent, time):
     inf['n_samples']     = cf.n_sample
     inf['n_view']        = cf.n_view
     inf['view_nchan']    = cf.view_nchan
+    inf['e_drift']       = cf.e_drift
     inf.append()
 
 
@@ -210,19 +254,25 @@ def store_hits(h5file):
        hit['daq_channel'] = ih.daq_channel
        hit['view']    = ih.view
        hit['channel'] = ih.channel
-       hit['tdc_max'] = ih.max_t
-       hit['tdc_min'] = ih.min_t
+
+       hit['is_collection'] = ih.signal == "Collection"
+       
+       hit['tdc_max']  = ih.max_t
+       hit['tdc_min']  = ih.min_t
+       hit['tdc_zero'] = ih.zero_t
+
        hit['z']       = ih.Z
        hit['x']       = ih.X
+       
+       
+       hit['fC_max']  = ih.max_fC
+       hit['fC_min']  = ih.min_fC
+       
+
+       hit['charge_pos'] = ih.charge_pos
+       hit['charge_neg'] = ih.charge_neg
 
 
-       hit['adc_max']  = ih.max_adc
-       hit['adc_min']  = ih.min_adc
-
-       hit['charge_int']  = ih.charge_int
-       hit['charge_max'] = ih.charge_max
-       hit['charge_min'] = ih.charge_min
-       hit['charge_pv']  = ih.charge_pv
        hit.append()
 
 
@@ -307,3 +357,54 @@ def store_tracks3D(h5file):
            pts = [[p[0], p[1], p[2], q, s, r] for p,q,s,r in zip(it.path[i], it.dQ[i], it.ds[i], it.hits_ID[i])]
            vl_h[i].append(pts)
        t3d.append()
+
+
+
+
+def store_avf_wvf(h5file):
+    twvf = h5file.root.waveform.row
+    
+
+    for i in range(cf.n_tot_channels):
+        twvf['view'] = dc.chmap[i].view
+        twvf['channel'] = dc.chmap[i].vchan
+        twvf['daq_channel'] = i
+
+
+        w_pos = np.asarray(dc.wvf_pos[i])
+        if(len(w_pos)>0):
+            twvf['pos_mean'] = np.mean(w_pos, axis=0)
+            twvf['pos_std'] = np.std(w_pos, axis=0)
+        else:
+            twvf['pos_mean'] = [-1 for x in range(60)]
+            twvf['pos_std']  = [-1 for x in range(60)]
+
+        w_neg = np.asarray(dc.wvf_neg[i])
+        if(len(w_neg)>0):
+            twvf['neg_mean'] = np.mean(w_neg, axis=0)
+            twvf['neg_std'] = np.std(w_neg, axis=0)
+        else:
+            twvf['neg_mean'] = [-1 for x in range(60)]
+            twvf['neg_std'] = [-1 for x in range(60)]
+
+        twvf.append()
+
+def store_pulse(h5file):
+    tpul = h5file.root.pulse.row
+    vl_pos = h5file.get_node('/pos_pulse')
+    vl_neg = h5file.get_node('/neg_pulse')
+
+    for p in dc.pulse_fit_res:
+        tpul['event'] = dc.evt_list[-1].evt_nb 
+        tpul['trigger'] = dc.evt_list[-1].trigger_nb     
+        tpul['view'] = p.view
+        tpul['channel'] = p.channel
+        tpul['daq_channel'] = p.daq_channel
+        tpul['n_pulse_pos'] = p.n_pulse_pos
+        tpul['n_pulse_neg'] = p.n_pulse_neg
+
+        vl_pos.append(p.fit_pos)
+        vl_neg.append(p.fit_neg)
+    
+        tpul.append()
+    

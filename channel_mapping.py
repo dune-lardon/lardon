@@ -7,13 +7,17 @@ from abc import ABC, abstractmethod
 
 def set_unused_channels():
     if(len(cf.broken_channels) > 0):
-       print("remove daq broken channels: ",cf.broken_channels)
+       print(" Removing ",len(cf.broken_channels)," broken channels :")
 
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
         if(view >= cf.n_view or view < 0 or i in cf.broken_channels):
             dc.alive_chan[i,:] = False
-            
+
+            if(i in cf.broken_channels):
+                print(i, ' [v',view,' ch',chan,'], ',sep='',end='')
+    print('\n')
+
 def arange_in_view_channels():
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
@@ -24,7 +28,7 @@ def arange_in_view_channels():
 
 
 def get_mapping(elec):
-    print("channel mapping file is ", cf.channel_map)
+    #print("channel mapping file is ", cf.channel_map)
     if(os.path.exists(cf.channel_map) is False):
         print('the channel mapping file ', fmap, ' does not exists')
         sys.exit()
@@ -38,43 +42,51 @@ def get_mapping(elec):
         
 def get_top_mapping():
     strip = get_strip_length()
+    calib  = get_calibration()
     with open(cf.channel_map, 'r') as f:
-        for line in f.readlines():
+        for line in f.readlines()[1:]:
             li = line.split()
             daqch =  int(li[0])
             kel   =  int(li[1])
             kelch =  int(li[2])
-            crate =  int(li[3])
-            slot  =  int(li[4])
-            slotch =  int(li[5])
-            view =  int(li[6])
-            channel =  int(li[7])
-            globch = int(li[8])
+            AB    =  int(li[3])
+            crate =  int(li[4])
+            slot  =  int(li[5])
+            slotch =  int(li[6])
+            view =  int(li[7])
+            channel =  int(li[8])
+            globch = int(li[9])
+            gain = calib[daqch]
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
                 length, capa, tot_length, tot_capa = strip[globch]
             else:
                 length, capa, tot_length, tot_capa = -1, -1, -1, -1
-            c = dc.channel(daqch, globch, view, channel, length, capa, tot_length, tot_capa)
+            c = dc.channel(daqch, globch, view, channel, length, capa, tot_length, tot_capa, gain)
             dc.chmap.append(c)
 
 def get_bot_mapping():
     strip = get_strip_length()
+    calib  = get_calibration()
     with open(cf.channel_map, 'r') as f:
-        for line in f.readlines():
+        for line in f.readlines()[1:]:
             li = line.split()
             daqch =  int(li[0])
             globch = int(li[1])
-            view = int(li[2])
-            channel = int(li[3])
-            
+            AB = int(li[2])
+            femb = int(li[3])
+            asic = int(li[4])
+            asic_ch = int(li[5])        
+            view = int(li[6])
+            channel = int(li[7])
+            gain = calib[daqch]
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
                 length, capa, tot_length, tot_capa = strip[globch]
             else:
                 length, capa, tot_length, tot_capa = -1, -1, -1, -1
             
-            c = dc.channel(daqch, globch, view, channel, length, capa, tot_length, tot_capa)
+            c = dc.channel(daqch, globch, view, channel, length, capa, tot_length, tot_capa, gain)
             dc.chmap.append(c)
                 
 
@@ -94,4 +106,20 @@ def get_strip_length():
             strip.append( (length, capa, tot_length, tot_capa) )
 
         return strip
+
+
+
+
+def get_calibration():
+    gain = []
+    fC_per_e = 1.602e-4 #e- charge in fC
+    if(len(cf.channel_calib) > 0):
+        with open(cf.channel_calib,"r") as f:
+            for line in f.readlines()[1:]:
+                li = line.split()
+                g = float(li[7])
+                gain.append(g*fC_per_e)
+    else:
+        gain = [cf.e_per_ADCtick*fC_per_e for x in range(cf.n_tot_channels)]
+    return gain
             

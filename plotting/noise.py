@@ -11,6 +11,7 @@ import itertools as itr
 import math
 import colorcet as cc
 from matplotlib.colors import LogNorm
+from .save_plot import *
 
 cmap_fft = cc.cm.CET_CBL2_r
 cmap_corr = cc.cm.CET_D9
@@ -44,19 +45,10 @@ def plot_noise_daqch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
     ax_std.set_ylim(vrange[0],vrange[1])
 
     plt.tight_layout()
+    plt.subplots_adjust(top=0.92)
 
-
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
-
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
-
-
-    plt.savefig(cf.plot_path+'/ped_'+noise_type+'_rms_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    save_with_details(fig, option, 'ped_'+noise_type+'_rms_daqch')
+    #plt.savefig(cf.plot_path+'/ped_'+noise_type+'_rms_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
     if(to_be_shown):
         plt.show()
@@ -65,7 +57,7 @@ def plot_noise_daqch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
 
 
 
-def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
+def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False, capa=False):
     if(noise_type==""):
         print("plot_noise_vch needs to know which noise to show (raw or filt)")
         return
@@ -86,34 +78,39 @@ def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False)
 
     for i in range(cf.n_tot_channels):
         gch = dc.chmap[i].globch
+        if(capa==True):
+            ct  = dc.chmap[i].tot_capa
+        else:
+            ct = 1.
         if(gch < 0):
             continue
         else:
             if(noise_type=='raw'):
-                rms[gch] = dc.evt_list[-1].noise_raw.ped_rms[i]
+                rms[gch] = dc.evt_list[-1].noise_raw.ped_rms[i]/ct
             elif(noise_type=='filt'):
-                rms[gch] = dc.evt_list[-1].noise_filt.ped_rms[i]
+                rms[gch] = dc.evt_list[-1].noise_filt.ped_rms[i]/ct
 
     ch = np.linspace(0, cf.n_tot_channels, cf.n_tot_channels, endpoint=False)
     ax_std.scatter(ch, rms,s=2)
 
-    ax_std.set_ylabel('RMS Ped [ADC]')
-    ax_std.set_xlabel('DAQ Channel Number')
+    if(capa==True):
+        ax_std.set_ylabel('RMS Ped [ADC/pF]')
+    else:
+        ax_std.set_ylabel('RMS Ped [ADC]')
+    ax_std.set_xlabel('Global Channel Number')
     ax_std.set_ylim(vrange[0],vrange[1])
+    ax_std.set_xlim(0, sum(cf.view_nchan))
+
+    nprev = 0
+    for i in range(cf.n_view-1):
+        ax_std.axvline(nprev + cf.view_nchan[i], lw=.4,c='k')
+        nprev += cf.view_nchan[i]
+
 
     plt.tight_layout()
 
 
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
-
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
-
-
+    save_with_details(fig, option, 'ped_'+noise_type+'_rms_globch')
     plt.savefig(cf.plot_path+'/ped_'+noise_type+'_rms_globch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
 
@@ -124,7 +121,7 @@ def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False)
 
 
 
-def plot_noise_vch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
+def plot_noise_vch(noise_type, vrange=[0,10], option=None, to_be_shown=False, calibrated=False):
     if(noise_type==""):
         print("plot_noise_vch needs to know which noise to show (raw or filt)")
         return
@@ -143,35 +140,38 @@ def plot_noise_vch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
 
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
+        calib = 1.
+        if(calibrated==True):
+            calib = 1e-3*dc.chmap[i].gain
         if(view >= cf.n_view or view < 0):
             continue
         if(noise_type=='filt'):
-            rms[view, chan] = dc.evt_list[-1].noise_filt.ped_rms[i]
+            rms[view, chan] = dc.evt_list[-1].noise_filt.ped_rms[i]*calib
         else:
-            rms[view, chan] = dc.evt_list[-1].noise_raw.ped_rms[i]
+            rms[view, chan] = dc.evt_list[-1].noise_raw.ped_rms[i]*calib
 
     for iv in range(cf.n_view):
 
         axs[iv].scatter(np.linspace(0, cf.view_nchan[iv], cf.view_nchan[iv], endpoint=False),rms[iv,:cf.view_nchan[iv]],s=2)
-        axs[iv].set_ylabel('RMS Ped [ADC]')
+        if(calibrated):
+            axs[iv].set_ylabel(r'RMS Ped [ke$^-$]')
+        else:
+            axs[iv].set_ylabel('RMS Ped [ADC]')
         axs[iv].set_xlabel('Channel Number')
         axs[iv].set_title('View '+str(iv)+'/'+cf.view_name[iv])
         axs[iv].set_xlim(0,cf.view_nchan[iv])
         axs[iv].set_ylim(vrange[0],vrange[1])
+        axs[iv].axvline(0.5*cf.view_nchan[iv]-0.5, c='k',ls='dotted',lw=.5)
     plt.tight_layout()
 
 
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
-
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
+    unit = 'ADC'
+    if(calibrated):
+        unit='ke'
 
 
-    plt.savefig(cf.plot_path+'/ped_'+noise_type+'_rms_vch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    save_with_details(fig, option, 'ped_'+noise_type+'_'+unit+'_rms_vch')
+    #plt.savefig(cf.plot_path+'/ped_'+noise_type+'_'+unit+'_rms_vch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
     if(to_be_shown):
         plt.show()
@@ -184,7 +184,7 @@ def plot_FFT_daqch(ps, option=None, to_be_shown=False):
     fig = plt.figure(figsize=(9,6))
     gs = gridspec.GridSpec(nrows=2, 
                            ncols=2,
-                           height_ratios=[1, 15], width_ratios=[2,1])
+                           height_ratios=[1, 15], width_ratios=[5,1])
     
     ax_col = fig.add_subplot(gs[0,0])
     ax_2D = fig.add_subplot(gs[1, 0])
@@ -216,17 +216,8 @@ def plot_FFT_daqch(ps, option=None, to_be_shown=False):
     plt.tight_layout()
 
 
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
-
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
-
-
-    plt.savefig(cf.plot_path+'/fft_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    save_with_details(fig, option, 'fft_daqch')
+    #plt.savefig(cf.plot_path+'/fft_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
     if(to_be_shown):
         plt.show()
@@ -266,7 +257,7 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
         ps_v[view, chan] = ps[i]
             
 
-    
+    proj_max=[0.3, 0.2, 0.1]
     for i in range(3):
 
         axs_2D[i].imshow(ps_v[i,:cf.view_nchan[i]].transpose(), 
@@ -275,9 +266,9 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
                          interpolation='none',
                          cmap   = cmap_fft,
                          extent=[0, cf.view_nchan[i], 0., cf.sampling/2.], 
-                         norm=LogNorm(vmin=1e-1, vmax=5))
+                         norm=LogNorm(vmin=1e-2, vmax=2e-1))
     
-        
+        axs_2D[i].set_ylim(0., 1.25)
 
         axs_2D[i].set_xlabel('Channels')
         axs_2D[i].set_title('View '+str(i)+'/'+cf.view_name[i])
@@ -289,8 +280,11 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
             cb.ax.xaxis.set_ticks_position('top')
             cb.ax.xaxis.set_label_position('top')
 
-
         axs_proj[i].plot(np.mean(ps_v[i,:cf.view_nchan[i]], axis=0), freq,c='k')
+        #if(i==0):
+            #axs_proj[i].set_xlim(0, 0.5)#0.4)
+        #axs_proj[i].set_xlim(0, proj_max[i])#0.5)#0.4)
+        #axs_proj[i].set_ylim(0., 1.25)
         #axs_proj[i].yaxis.tick_right()
         #axs_proj[i].yaxis.set_label_position("right")
         
@@ -312,18 +306,11 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
 
     #plt.tight_layout()
 
-
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
-
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
+    save_with_details(fig, option, 'fft_vch')
 
 
-    plt.savefig(cf.plot_path+'/fft_vch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
+    #plt.savefig(cf.plot_path+'/fft_vch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
     if(to_be_shown):
         plt.show()
@@ -402,18 +389,10 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
     cb.ax.xaxis.set_label_position('top')
 
     plt.tight_layout()
-
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
-
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
+    save_with_details(fig, option, 'correlation_'+corr_type+'ch')
 
 
-    plt.savefig(cf.plot_path+'/correlation_'+corr_type+'ch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    #plt.savefig(cf.plot_path+'/correlation_'+corr_type+'ch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
 
     if(to_be_shown):
@@ -435,7 +414,7 @@ def plot_sticky_finder_daqch(option='', to_be_shown=False):
     ax     = fig.add_subplot(gs[1, :])
 
 
-    h = np.apply_along_axis(lambda a: np.histogram(a, bins=4096,range=(0,4096))[0], 1, dc.data_daq)
+    h = np.apply_along_axis(lambda a: np.histogram(a, bins=4096,range=(-0.5,4095.5))[0], 1, dc.data_daq)
 
 
     ax.imshow(h.transpose(), 
@@ -443,13 +422,13 @@ def plot_sticky_finder_daqch(option='', to_be_shown=False):
               aspect = 'auto', 
               interpolation='none',
               cmap   = cmap_ed,
-              extent = (0,cf.n_tot_channels,0,4096),
+              extent = (0,cf.n_tot_channels,-.5,4095.5),
               vmin = 0,
               vmax = 100)
 
     jump = 64 if dc.evt_list[-1].elec == "top" else 128
     for i in range(0,cf.n_tot_channels,jump):
-        ax.axvline(i, ls=':',lw=.1,c='k')
+        ax.axvline(i, ls=':',lw=.4,c='k')
     if(dc.evt_list[-1].elec == "bot"):
          asic = 16
          for i in range(0,cf.n_tot_channels,asic):
@@ -458,24 +437,30 @@ def plot_sticky_finder_daqch(option='', to_be_shown=False):
     ax.set_xlabel('DAQ Channel Number')
     
     ax.set_ylabel('ADC')
+    ax.set_ylim(-5,4100)
     ax_col.set_title('ADC appearance frequency')
     cb = fig.colorbar(ax.images[-1], cax=ax_col, orientation='horizontal')
     cb.ax.xaxis.set_ticks_position('top')
     cb.ax.xaxis.set_label_position('top')
 
     plt.tight_layout()
-
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
-
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
+    save_with_details(fig, option, 'sticky_daqch')
 
 
-    plt.savefig(cf.plot_path+'/sticky_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    #plt.savefig(cf.plot_path+'/sticky_daqch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png', dpi=200)
+
+    '''
+    channel = 1550
+    htest, etest = np.histogram(dc.data_daq[channel], bins=4096,range=(-0.5,4095.5))
+    xbins = etest[:-1]# +0.5
+    print(xbins.shape)
+    print(xbins[:5])
+    figtest = plt.figure(2, figsize=(9,3))
+    axtest = figtest.add_subplot(111)
+    axtest.step(xbins,htest)
+
+    figtest.savefig(cf.plot_path+'/sticky_ch'+str(channel)+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    '''
 
     if(to_be_shown):
         plt.show()

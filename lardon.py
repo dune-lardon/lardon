@@ -6,6 +6,8 @@ import det_spec as det
 import tables as tab
 import time as time
 
+print("\nWelcome to LARDON !\n")
+
 tstart = time.time()
 
 parser = argparse.ArgumentParser()
@@ -19,6 +21,8 @@ parser.add_argument('-out', dest='outname', help='extra name on the output', def
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
 parser.add_argument('-f', '--file', help="Override derived filename")
 parser.add_argument('-conf','--config',dest='conf', help='Analysis configuration ID', default='1')
+parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used for pulsing data')
+
 args = parser.parse_args()
 
 if(args.elec == 'top' or args.elec == 'tde'):
@@ -35,7 +39,8 @@ outname_option = args.outname
 evt_skip = args.evt_skip
 det.configure(detector, period, elec, run)
 
-print("Welcome to LARDON !")
+is_pulse = args.is_pulse
+
 
 import config as cf
 import data_containers as dc
@@ -62,7 +67,16 @@ else:
     outname_option = ""
 name_out = f"{cf.store_path}/{elec}_{run}_{sub}{outname_option}.h5"
 output = tab.open_file(name_out, mode="w", title="Reconstruction Output")
-store.create_tables(output)
+
+
+if(is_pulse):
+    print('This is PULSING data reconstruction. Pulses will be found and fitted')
+    print('WARNING : IT TAKES A LOT OF TIME')
+    import pulse_waveforms as pulse
+    store.create_tables_pulsing(output)
+else:
+    store.create_tables(output)
+
 
 """ set analysis parameters """
 pars = params.params()
@@ -70,7 +84,7 @@ pars.read(config=args.conf,elec=elec)
 pars.dump()
 
 """ set the channel mapping """
-print(" will use ", cf.channel_map)
+
 cmap.get_mapping(elec)
 cmap.set_unused_channels()
 
@@ -92,6 +106,7 @@ store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
 store.store_chan_map(output)
 
 
+print('checking : ', cf.e_drift)
 
 for ievent in range(nevent):
     t0 = time.time()
@@ -108,27 +123,58 @@ for ievent in range(nevent):
 
 
     reader.read_evt(ievent)
-
+    print('time to read %.3f'%(time.time()-t0))
     #plot.plot_sticky_finder_daqch(to_be_shown=True)
 
-    #continue
+
     """ mask the unused channels """
     dc.mask_daq = dc.alive_chan
 
     """ compute the raw pedestal """
+    """ produces a rough mask estimate """
     ped.compute_pedestal(noise_type='raw', pars=pars)
 
+    """ update the pedestal """
+    ped.compute_pedestal(noise_type='filt')
 
-    #plot.plot_noise_vch(noise_type='raw', option='raw', vrange=[0., 50.],to_be_shown=True)
-    #plot.event_display_per_daqch(pars.plt_evt_disp_daqch_zrange,option='raw',to_be_shown=False)
 
-    #cmap.arange_in_view_channels()
-    #plot.event_display_per_view([-50,50],[-10,150],option='raw', to_be_shown=True)
-    #continue
+    if(is_pulse==True):
+        """ pulse analysis does not need noise filtering """
 
+        pulse.find_pulses()
+    
+        store.store_event(output)
+        store.store_pedestals(output)
+        store.store_pulse(output)
+        continue
+
+    """ low pass FFT cut """
+    tf = time.time()
+    ps = noise.FFT_low_pass(pars.noise_fft_lcut,pars.noise_fft_freq)
+
+
+    """ WARNING : DO NOT STORE ALL FFT PS !! """
+    #store.store_fft(output, ps)
+    #plot.plot_FFT_vch(ps, to_be_shown=True)
+
+
+    for n_iter in range(2):
+        ped.compute_pedestal(noise_type='filt')
+        #ped.update_mask(pars.ped_amp_sig_oth)
+        ped.refine_mask(pars, n_pass=1)
+
+
+
+    plot.plot_noise_vch(noise_type='filt', vrange=[0,20],to_be_shown=True)
+    plot.event_display_per_view_noise([-40,40],[-10, 150], option='noise', to_be_shown=True)
+
+
+    #plot.plot_wvf_current_vch([(0,188),(1,466),(2,291)], to_be_shown=True)
+
+    """ CNR """
     tcoh = time.time()
     if(pars.noise_coh_per_view):
-        noise.coherent_noise_per_view(pars.noise_coh_group, pars.noise_coh_capa_weight)
+        noise.coherent_noise_per_view(pars.noise_coh_group, pars.noise_coh_capa_weight, pars.noise_coh_calibrated)
     else :
         noise.coherent_noise(pars.noise_coh_group)
 
@@ -136,43 +182,22 @@ for ievent in range(nevent):
 
 
     ped.compute_pedestal(noise_type='filt')
-    #tp = time.time()
-    #ped.refine_mask(pars)
-    ped.update_mask(pars.ped_amp_sig_oth)
-
-    #plot.plot_noise_vch(noise_type='filt', vrange=[0,100],option='coh_nocapa',to_be_shown=False)
-    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coh_w',to_be_shown=False)
-    #continue
-    #cmap.arange_in_view_channels()
-    #plot.event_display_per_view([-10,10],[-10,50],option='coh_nocapa', to_be_shown=True)
-    #plot.event_display_per_view([-100,100],[-50,50],option='coh_nocapa', to_be_shown=False)
-
-    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coh_w',to_be_shown=True)
-    #continue
-    tf = time.time()
-    ps = noise.FFT_low_pass(pars.noise_fft_lcut,pars.noise_fft_freq)
-
-
-    """ DO NOT STORE ALL FFT PS !! """
-    #store.store_fft(output, ps)
-
-
-    ped.compute_pedestal(noise_type='filt')
-    ped.refine_mask(pars)
+    ped.refine_mask(pars, n_pass=2)
     #ped.update_mask(pars.ped_amp_sig_oth)
+    ped.compute_pedestal(noise_type='filt')
 
+    plot.plot_noise_vch(noise_type='filt', vrange=[0,20],to_be_shown=True)
 
-    #cmap.arange_in_view_channels()
-    #plot.event_display_per_view([-80,80],[-10, 180],option='filt', to_be_shown=True)
+    #plot.plot_wvf_current_vch([(0,188),(1,466),(2,291)], to_be_shown=True)
+    #plot.plot_noise_vch(noise_type='filt', vrange=[0,100],option='coh_nocapa',to_be_shown=False)
 
+    
     #plot.plot_correlation_daqch(option='filtered',to_be_shown=True)
-    #plot.plot_correlation_globch(option='filtered', to_be_shown=False)
+    #plot.plot_correlation_globch(option='filtered', to_be_shown=True)
 
-    #tcoh = time.time()
-    #noise.coherent_noise(pars.noise_coh_group)
-    #print("coherent time took ", time.time()-tcoh)
+    plot.event_display_per_view_roi([-40,40],[-10, 150], option='roi', to_be_shown=True)
 
-    #plot.plot_noise_vch(noise_type='filt', vrange=pars.plt_noise_zrange,option='coherent',to_be_shown=False)
+    
 
     th = time.time()
     hf.find_hits(pars.hit_pad_left,
@@ -185,7 +210,27 @@ for ievent in range(nevent):
     print("hit %.2f s"%(time.time()-th))
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
 
+
     # plot.plot_2dview_hits(to_be_shown=True)
+
+
+    #plot.plot_wvf_current_hits_roi_vch([(0,212),(0,211),(0,210),(0,209)],to_be_shown=True)
+    plot.plot_wvf_current_hits_roi_vch([(1,513),(1,514),(1,515),(1,516)],to_be_shown=True)
+    plot.plot_wvf_current_hits_roi_vch([(1,470),(1,471),(1,472),(1,475)],to_be_shown=True)
+    #plot.plot_wvf_current_hits_roi_vch([(2,308),(2,307),(2,306),(2,305)],to_be_shown=True)
+    #plot.plot_wvf_current_hits_roi_vch([(2,58),(2,59),(2,60),(2,61)],to_be_shown=True)
+    #plot.plot_wvf_diff_vch([(0,212),(1,514),(2,305)],to_be_shown=True)
+    #plot.plot_2dview_hits(to_be_shown=True)
+    #plot.plot_track_wvf_vch([[(0,x) for x in range(30,63)],[(1,x) for x in range(30,70)],[(2,x) for x in range(35,80)]], tmin=1200, tmax=2000, to_be_shown=True, option='1')    
+    
+    plot.event_display_per_view_hits_found([-40,40],[-10, 150],option='hits', to_be_shown=True)
+    """
+    plot.plot_track_wvf_vch([[(0,x) for x in range(30,63)],[(1,x) for x in range(30,70)],[(2,x) for x in range(35,80)]], tmin=1200, tmax=2000, to_be_shown=True, option='1')
+
+    plot.plot_track_wvf_vch([[(0,x) for x in range(190,220)],[(1,x) for x in range(174,184)],[(1,x) for x in range(502,520)],[(2,x) for x in range(268,323)]], tmin=9200, tmax=10000, to_be_shown=True,option='2')
+    """
+                
+    
 
     trk2d.find_tracks_rtree(pars.trk2D_nhits,
                             pars.trk2D_rcut,
@@ -194,7 +239,7 @@ for ievent in range(nevent):
                             pars.trk2D_slope_err,
                             pars.trk2D_pbeta)
 
-    [t.mini_dump() for t in dc.tracks2D_list]
+    #[t.mini_dump() for t in dc.tracks2D_list]
 
     # plot.plot_2dview_2dtracks(to_be_shown=True)
 
@@ -202,7 +247,9 @@ for ievent in range(nevent):
     trk3d.find_tracks_rtree(pars.trk3D_ztol,
                             pars.trk3D_qfrac,
                             pars.trk3D_len_min,
-                            pars.trk3D_dtol)
+                            pars.trk3D_dx_tol, 
+                            pars.trk3D_dy_tol,
+                            pars.trk3D_dz_tol)
 
     # plot.plot_3d(to_be_shown=True)
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
@@ -214,6 +261,8 @@ for ievent in range(nevent):
     store.store_hits(output)
     store.store_tracks2D(output)
     store.store_tracks3D(output)
+
+#store.store_avf_wvf(output)
 reader.close_file()
 output.close()
 print('it took %.2f s to run'%(time.time()-tstart))

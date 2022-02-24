@@ -14,7 +14,8 @@
            "coherent":{
               "groupings":[32],
 	       "per_view":0,
-	       "capa_weight":0
+	       "capa_weight":0,
+	       "calibrated":0
            },
            "fft":{
               "freq":-1,
@@ -44,7 +45,9 @@
 	    "ztol":3.0,
 	    "qfrac":5.0, 
 	    "len_min":2.0, 
-	    "d_tol":0.5
+	    "dx_tol": [3.0,0.5],
+	    "dy_tol": [3.0,3.0],
+	    "dz_tol": 2.0
 	},
 
         "plot":{
@@ -81,7 +84,8 @@
            "coherent":{
               "groupings":[128],
 	       "per_view":1,
-	       "capa_weight":1
+	       "capa_weight":1,
+	       "calibrated":1
            },
 
            "fft":{
@@ -112,13 +116,15 @@
 	    "ztol":3.0,
 	    "qfrac":5.0, 
 	    "len_min":2.0, 
-	    "d_tol":0.5
+	    "dx_tol":[0.5,3.0],
+	    "dy_tol":[3.0,3.0],
+	    "dz_tol":2.0
 	},
 
         "plot":{
            "noise":{
               "show": 0,
-              "zrange": [0,900]
+              "zrange": [0,15]
            },
            "evt_display":{
               "daqch":{

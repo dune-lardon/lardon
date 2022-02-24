@@ -5,6 +5,7 @@ import numpy as np
 import numba as nb
 import numexpr as ne
 
+import time
 
 @nb.jit(nopython = True)
 def compute_pedestal_nb(data, mask):
@@ -41,6 +42,7 @@ def compute_pedestal_nb(data, mask):
     return mean, res
 
 def compute_pedestal(noise_type='None', pars=None):
+    t0 = time.time()
     mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq)
 
     if(noise_type=='raw'):
@@ -73,6 +75,7 @@ def compute_pedestal(noise_type='None', pars=None):
       print('ERROR: You must set a noise type for pedestal setting')
       sys.exit()
         
+    print('compute ped took ', time.time()-t0)
 
 def update_mask(thresh):
     dc.mask_daq = ne.evaluate( "where((abs(data) > thresh*rms), 0, 1)", global_dict={'data':dc.data_daq, 'rms':dc.evt_list[-1].noise_filt.ped_rms[:,None]}).astype(bool)
@@ -83,9 +86,12 @@ def update_mask_inputs(thresh, mean, rms):
     np.logical_and(dc.mask_daq, dc.alive_chan)
 
 
-def refine_mask(pars, debug=False):
+def refine_mask(pars, n_pass = 1, debug=False):
     if(debug == True): import matplotlib.pyplot as plt
-    
+    t0 = time.time()
+
+    print('refine_mask is being called!')
+
     for ch in range(cf.n_tot_channels):
 
         if(dc.alive_chan[ch,0]==False):
@@ -99,19 +105,41 @@ def refine_mask(pars, debug=False):
         rms  = dc.evt_list[-1].noise_filt.ped_rms[ch]
 
         if(cf.view_type[view] == "Collection"): 
-            mask_collection_signal(dc.mask_daq[ch], dc.data_daq[ch],
-                                   pars.ped_rise_thr[view],
-                                   pars.ped_ramp_thr[view],
-                                   rms*pars.ped_amp_thr[view],
-                                   pars.ped_dt_thr)
+            #dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft):
+            if(n_pass > 1):
+                mask_collection_signal_me(dc.mask_daq[ch], dc.data_daq[ch],
+                                          15, 3*rms, 5*rms, 3, 10, 10, 15)
+
+            else:
+                mask_collection_signal_me(dc.mask_daq[ch], dc.data_daq[ch],
+                                          15, 2*rms, 4*rms, 3, 10, 10, 15)                
+
+            """
+                                      pars.ped_rise_thr[view],
+                                      pars.ped_ramp_thr[view],
+                                      rms*pars.ped_amp_thr[view],
+                                      pars.ped_dt_thr)
+            """
         else:          
+            #(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, high_pos_thr, rise_pos_thr, fall_pos_thr, dt_neg_thr, low_neg_thr, high_neg_thr, rise_neg_thr, fall_neg_thr, pad_bef, pad_aft):
+
+            if(n_pass>1):
+                mask_induction_signal_me(dc.mask_daq[ch], dc.data_daq[ch],
+                                         20, 10, 2.*rms, 3.5*rms, 3, 3, 
+                                         10, -2.*rms, -3.5*rms, 3, 3, 10,15)
+            
+            else:
+                mask_induction_signal_me(dc.mask_daq[ch], dc.data_daq[ch],
+                                         20, 10, 1.8*rms, 2.5*rms, 3, 3, 
+                                         10, -1.8*rms, -2.5*rms, 3, 3, 10,15)
+            """
             mask_induction_signal(dc.mask_daq[ch], dc.data_daq[ch],
                                   pars.ped_rise_thr[view],
                                   pars.ped_ramp_thr[view],
                                   rms*pars.ped_amp_thr[view],
                                   pars.ped_dt_thr,
                                   pars.ped_zero_cross_thr)  
-
+            """
         if(debug==True and ch > 1 and (ch % 50) == 0):
            nrows, ncols = 10, 5
            fig = plt.figure()
@@ -129,15 +157,126 @@ def refine_mask(pars, debug=False):
            plt.subplots_adjust(left=0.01, bottom=0.01, right=0.99, top=0.95, wspace=0.05, hspace=1)
            plt.show()
 
+    print('refine_mask is done ', time.time()-t0)
 
+@nb.jit('(boolean[:],float64[:],int64,float64,float64,int64,int64,int64,int64)',nopython = True)
+def mask_collection_signal_me(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft):
+    mask[:]=1
+
+    start, stop, t_max, val_max, dt = -1, -1, -1, -1, 0
+    tot = len(data)
+
+    for x,val in np.ndenumerate(data):    
+        t = x[0]
+        if(val > low_thr and start > 0):
+            dt += 1
+            stop = t
             
+            if(val > val_max):
+                val_max = val
+                t_max = t
+
+        if(val > low_thr and start < 0):
+            start = t
+            
+        if(val <= low_thr and start > 0):
+            if(dt >= dt_thr and (t_max-start)>rise_thr and (stop-t_max)>fall_thr and val_max > high_thr):
+                start -= pad_bef
+                if(start < 0): start = 0
+
+                stop += pad_aft
+                if(stop >= tot): stop = tot
+
+                mask[start:stop+1] = 0
+            
+            start, stop, t_max, val_max, dt = -1, -1, -1, -1, 0
+
+
+@nb.jit('(boolean[:],float64[:],int64,int64,float64,float64,int64,int64,int64,float64,float64,int64,int64,int64,int64)',nopython = True)
+def mask_induction_signal_me(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, high_pos_thr, rise_pos_thr, fall_pos_thr, dt_neg_thr, low_neg_thr, high_neg_thr, rise_neg_thr, fall_neg_thr, pad_bef, pad_aft):
+
+    mask[:]=1
+
+    start_pos = -1
+    stop_pos = -1
+
+    start_neg = -1
+    stop_neg = -1
+
+    t_max = -1
+    val_max = -1
+
+    t_min = -1
+    val_min = 1
+
+    dt_pos = 0
+    dt_neg = 0
+
+    tot = len(data)
+
+    last_t_max = -1
+    last_stop_pos = -1
+
+    for x,val in np.ndenumerate(data):    
+        t = x[0]
+        
+        if(val > low_pos_thr and start_pos > 0):
+            dt_pos += 1
+            stop_pos = t
+            
+            if(val > val_max):
+                val_max = val
+                t_max = t
+
+        if(val > low_pos_thr and start_pos < 0):
+            start_pos = t
+            
+        if(val <= low_pos_thr and start_pos > 0):
+            if(dt_pos >= dt_pos_thr and (t_max-start_pos)>rise_pos_thr and (stop_pos-t_max)>fall_pos_thr and val_max > high_pos_thr):
+
+                start_pos -= pad_bef
+                if(start_pos < 0): start_pos = 0
+                stop_pos += pad_aft
+                if(stop_pos >= tot): stop_pos = tot
+
+                mask[start_pos:stop_pos+1] = 0
+                last_t_max = t_max
+                last_stop = stop_pos
+                
+            start_pos, stop_pos, t_max, val_max, dt_pos = -1, -1, -1, -1, 0
+
+        if(val < low_neg_thr and start_neg > 0):
+            dt_neg += 1
+            stop_neg = t
+            
+            if(val < val_min):
+                val_min = val
+                t_min = t
+
+        if(val < low_neg_thr and start_neg < 0):
+            start_neg = t
+            
+        if(val >= low_neg_thr and start_neg > 0):
+            if(dt_neg >= dt_neg_thr and (t_min-start_neg)>rise_neg_thr and (stop_neg-t_min)>fall_neg_thr and val_min < high_neg_thr):
+
+
+                start_neg -= pad_bef
+                if(start_neg < 0): start_neg = 0
+                stop_neg += pad_aft
+                if(stop_neg >= tot): stop_neg = tot
+                mask[start_neg:stop_neg+1] = 0
+
+                if((t_min-last_t_max) < dt_posneg_thr):
+                    if(last_stop_pos < start_neg+1):
+                        mask[stop_pos:start_neg+1] = 0                    
+            start_neg, stop_neg, t_min, val_min, dt_neg = -1, -1, -1, 1, 0
 
 @nb.jit('(boolean[:],float64[:],int64,int64,float64,int64)',nopython = True)
 def mask_collection_signal(mask, data, rise_thr, ramp_thr, amp_thr, dt_thr):
 
     
       tmp_start   = 0 # store candidate signal start to be registered when stop is found
-      trig_pos    = 0 # store position at which sample exceed  amp_thrs*ped_rms - 0 otherwise
+      trig_pos    = -1 # store position at which sample exceed  amp_thrs*ped_rms - 0 otherwise
       find_pos    = 0 # counter for consecutive positive sample 
       ramp        = 0 # counter 3 consecutive rising samples
       ongoing     = 0 # flag triggered when signal start found
@@ -152,8 +291,8 @@ def mask_collection_signal(mask, data, rise_thr, ramp_thr, amp_thr, dt_thr):
             trig_pos = x[0]
 
         # set back positive trigger to zero if a certain period is over
-        elif(x[0] - trig_pos > dt_thr): 
-            trig_pos = 0
+        elif(trig_pos > 0 and (x[0] - trig_pos > dt_thr)): 
+            trig_pos = -1
 
         # if rising edge found - register begining of signal
         if(trig_pos > 0 and find_pos >= rise_thr and ramp > ramp_thr and ongoing == 0):
@@ -170,7 +309,7 @@ def mask_collection_signal(mask, data, rise_thr, ramp_thr, amp_thr, dt_thr):
           zero_cross_check = 0
           find_pos         = 0
           ongoing          = 0
-          trig_pos         = 0
+          trig_pos         = -1
 
         if(val > 0):
            # start counter for positive samples

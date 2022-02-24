@@ -1,0 +1,10 @@
+results/
+__pycache__/
+reco/
+ana/
+*~
+settings/*~
+settings/chmap/*~
+setting/calib/*~
+plotting/*~
+*pyc

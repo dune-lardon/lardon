@@ -18,6 +18,7 @@ class params:
        self.noise_coh_group = [32]        # coherent noise channel grouping
        self.noise_coh_per_view = False    # apply the per card per view case
        self.noise_coh_capa_weight = False # account for strip length
+       self.noise_coh_calibrated = False      # account for channel calibration
        self.noise_fft_freq  = -1          # specific frequency removal (-1 is none)
        self.noise_fft_lcut  = 0.6         # low-pass filter frequency cut
 
@@ -39,7 +40,10 @@ class params:
        self.trk3D_ztol     = 3.    #min z diff of two tracks boundaries when matched
        self.trk3D_qfrac    = 5.    #max charge balance between two trk when matched (unused now)
        self.trk3D_len_min  = 2.    #min trk length to be considered in matching
-       self.trk3D_dtol     = 0.5   #distance tolerance to detector boundaries for timing computation
+
+       self.trk3D_dx_tol   = [2.,2.]    #distance tolerance to detector x-boundaries for timing computation
+       self.trk3D_dy_tol   = [2.,2.]    #distance tolerance to detector y-boundaries for timing computation
+       self.trk3D_dz_tol   = 2.    #distance tolerance to detector z-upper boundary for timing computation
 
        self.plt_noise_show        = 0
        self.plt_evt_disp_daq_show = 0
@@ -52,9 +56,9 @@ class params:
 
     def read(self,elec="top",config="1"):
        with open(cf.lardon_path+'/settings/analysis_parameters.json','r') as f:
-             print("AnalysisParameters: Loading analysis setting file: settings/analysis_parameters.json ... ", end='')
+             #print("AnalysisParameters: Loading analysis setting file: settings/analysis_parameters.json ... ", end='')
              data = json.load(f)
-             print("done")
+             #print("done")
              if(config not in data):
                 print("WARNING: Analysis configuration ",config," not found.")
                 print("         Default thresholds will be applied.")
@@ -70,6 +74,7 @@ class params:
                 self.noise_coh_group = data[config][elec]['noise']['coherent']['groupings']
                 self.noise_coh_per_view = bool(data[config][elec]['noise']['coherent']['per_view'])
                 self.noise_coh_capa_weight = bool(data[config][elec]['noise']['coherent']['capa_weight'])
+                self.noise_coh_calibrated = bool(data[config][elec]['noise']['coherent']['calibrated'])
 
                 self.noise_fft_freq  = data[config][elec]['noise']['fft']['freq']
                 self.noise_fft_lcut  = data[config][elec]['noise']['fft']['low_cut']
@@ -92,8 +97,10 @@ class params:
                 self.trk3D_ztol     = data[config][elec]['track_3d']['ztol']
                 self.trk3D_qfrac    = data[config][elec]['track_3d']['qfrac']
                 self.trk3D_len_min  = data[config][elec]['track_3d']['len_min']
-                self.trk3D_dtol     = data[config][elec]['track_3d']['d_tol']
 
+                self.trk3D_dx_tol   = data[config][elec]['track_3d']['dx_tol']
+                self.trk3D_dy_tol   = data[config][elec]['track_3d']['dy_tol']
+                self.trk3D_dz_tol   = data[config][elec]['track_3d']['dz_tol']
 
                 self.plt_noise_show              = data[config][elec]['plot']['noise']['show']
                 self.plt_noise_zrange            = data[config][elec]['plot']['noise']['zrange']
@@ -144,7 +151,7 @@ class params:
     def dump(self):
         print("\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ")
         print(" \t ~Reconstruction Parameters used~ ")
-        print("~ Pedestal/Masking~ ")
+        print("~Pedestal/Masking~ ")
         print("    1st pass rms threshold : ", self.ped_amp_sig_fst, " 2nd pass : ", self.ped_amp_sig_oth)
         print("    Nb of consecutive positive sample over threshold ", self.ped_rise_thr)
         print("    Nb of consecutive increasing samples over threshold ", self.ped_ramp_thr)
@@ -158,6 +165,7 @@ class params:
         print("    Coherent groups : ", self.noise_coh_group)
         print("    Coh per view case : ", self.noise_coh_per_view)
         print("    Coh with capa weight  : ", self.noise_coh_capa_weight)
+        print("    Coh with calibrated ch : ", self.noise_coh_calibrated)
 
         print("\n~Hit Finder~ ")
         print("    Amplitude RMS threshold ", self.hit_amp_sig)
@@ -174,7 +182,6 @@ class params:
         print("    Max Z difference at 2D track boundaries : ", self.trk3D_ztol)
         print("    Max track charge balance : ", self.trk3D_qfrac)
         print("    Min track 2D length : ", self.trk3D_len_min)
-        print("    Distance to detector boundaries : ", self.trk3D_dtol)
-
+        print("    Distance to detector x-boundaries : ", self.trk3D_dx_tol, 'y-boundaries: ', self.trk3D_dy_tol, " z-boundary ", self.trk3D_dz_tol)
         print("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n")
 

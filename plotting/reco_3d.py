@@ -3,6 +3,7 @@ import data_containers as dc
 import lar_param as lar
 
 from .select_hits import *
+from .save_plot import *
 
 import numpy as np
 import matplotlib as mpl
@@ -93,17 +94,9 @@ def plot_3d(option=None, to_be_shown=True):
 
 
 
-    run_nb = str(dc.evt_list[-1].run_nb)
-    evt_nb = str(dc.evt_list[-1].trigger_nb)
-    elec   = dc.evt_list[-1].elec
+    save_with_details(fig, option, 'track3D', is3D=True)
 
-    if(option):
-        option = "_"+option
-    else:
-        option = ""
-
-
-    plt.savefig(cf.plot_path+'/track3D'+option+'_elec_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    #plt.savefig(cf.plot_path+'/track3D'+option+'_elec_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
     if(to_be_shown):
         plt.show()
     plt.close()

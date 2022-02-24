@@ -12,21 +12,33 @@ def hit_search(data, view, daq_chan, start, dt_min, thr1, thr2, thr3):
     if(cf.view_type[view] != "Collection" and cf.view_type[view] != "Induction"): 
         print(cf.view_type[view], " is not recognized")
         sys.exit()
+
     elif(cf.view_type[view] == "Collection"):
-        h_num, h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc = hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2)
+        n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2)
+
+        for i in range(n):
+            ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
+            return ll
+
     elif(cf.view_type[view] == "Induction"):
-        h_num, h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc = hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr3)
+        n, h_start, h_stop, h_max_t, h_max_adc, h_min_t, h_min_adc, h_zero_t = hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr3)
 
-    if(h_num == 0): return ll
+        for i in range(n):
+            ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], h_min_t[i], h_min_adc[i], h_zero_t[i], "Induction"))
+            return ll
 
-    for start, stop, charge_int, max_t, max_adc, min_t, min_adc in zip(h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc):
-       h = dc.hits(view, daq_chan, start, stop, charge_int, max_t, max_adc, min_t, min_adc)
-       ll.append(h)
-       if(len(ll) == h_num): break
+        if(n==0 and np.mean(data) > thr1):
+            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2)
+            print("Looked at a collection-type hit anyway in ",view, dc.chmap[daq_chan].vchan, start, ' --> Found ', n, ' hits!')
 
+            for i in range(n):
+                ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
+                return ll
+
+        
     return ll 
 
-@nb.njit('Tuple((int64,int16[:],int16[:],float64[:],int16[:],float64[:],int16[:],float64[:]))(float64[:],int64,int64,int64,int64,float64)')
+@nb.njit('Tuple((int64,int16[:],int16[:],int16[:],float64[:],int16[:],float64[:],int16[:]))(float64[:],int64,int64,int64,int64,float64)')
 def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
     """ very basic induction-like hit finder """
     """ WARNING : CANNOT FIND OVERLAPPING HITS """
@@ -37,11 +49,11 @@ def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
     # list of hits parameters to be returned by this numba function (see dc.hits)
     h_start     = np.zeros(npts,dtype=np.int16)
     h_stop      = np.zeros(npts,dtype=np.int16)
-    h_charge_int= np.zeros(npts)
     h_max_t     = np.zeros(npts,dtype=np.int16)
     h_max_adc   = np.zeros(npts)
     h_min_t     = np.zeros(npts,dtype=np.int16)
     h_min_adc   = np.zeros(npts)
+    h_zero_t    = np.zeros(npts,dtype=np.int16)
 
     hitPosFlag = False
     hitNegFlag = False
@@ -70,19 +82,17 @@ def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
                 hitPosFlag = True
 
                 h_start[h_num] = it
-
                 h_max_t[h_num] = it
                 h_max_adc[h_num] = val
-                
+                h_zero_t[h_num]  = it
                 
             """ update the maximum case """
             if(val > h_max_adc[h_num]):
                 h_max_t[h_num] = it
                 h_max_adc[h_num] = val                
-                    
-            if(hitPosFlag):
-                h_charge_int[h_num] += val
-                
+            
+            
+
             i+=1
 
         if(posSamp < dt_min):
@@ -90,10 +100,16 @@ def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
             posSamp = 0
 
         val = data[i]
-        while(i < npts and hitPosFlag and hitNegFlag == False and np.fabs(val) < thr):
-            h_charge_int[h_num] += np.fabs(val)
+
+        h_zero_t[h_num] = i+start
+
+        """ in between the two polarities """
+        while(i < npts and hitPosFlag and hitNegFlag == False and val >= -1.*thr):            
             i += 1
             val = data[i]
+            if(val >= 0):
+                h_zero_t[h_num] = i+start
+            
         """ now the negative part """
 
         val = data[i]
@@ -115,8 +131,6 @@ def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
                 h_min_t[h_num] = it
                 h_min_adc[h_num] = val                
                     
-            if(hitNegFlag):
-                h_charge_int[h_num] += -1.*val
 
             h_stop[h_num] = it
             i+=1
@@ -130,9 +144,9 @@ def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
             break
 
 
-    return h_num, h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc
+    return h_num, h_start, h_stop, h_max_t, h_max_adc, h_min_t, h_min_adc, h_zero_t
 
-@nb.njit('Tuple((int64,int16[:],int16[:],float64[:],int16[:],float64[:],int16[:],float64[:]))(float64[:],int64,int64,int64,int64,float64,float64)')
+@nb.njit('Tuple((int64,int16[:],int16[:],int16[:],float64[:]))(float64[:],int64,int64,int64,int64,float64,float64)')
 def hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2):
     """search hit-shape in a list of points"""
     """algorithm from qscan"""
@@ -145,8 +159,6 @@ def hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2):
     h_charge_int= np.zeros(npts)
     h_max_t     = np.zeros(npts,dtype=np.int16)
     h_max_adc   = np.zeros(npts)
-    h_min_t     = np.zeros(npts,dtype=np.int16)
-    h_min_adc   = np.zeros(npts)
  
     hitFlag = False
 
@@ -166,13 +178,8 @@ def hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2):
                 
                 h_start[h_num]     = it
                 h_stop[h_num]      = 0
-                h_charge_int[h_num]= 0.
                 h_max_t[h_num]     = it
                 h_max_adc[h_num]   = val
-                h_min_t[h_num]     = 0.
-                h_min_adc[h_num]   = 0.
-
-                #h = dc.hits(view,daq_chan,it,0,0.,it,val, 0., 0.)
                 minSamp = -1
                 
             if(it > h_max_t[h_num] and val < h_max_adc[h_num] - thr2 and (minSamp==-1 or minimum >= val)):
@@ -188,11 +195,8 @@ def hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2):
 
                 h_start[h_num]     = minSamp
                 h_stop[h_num]      = 0
-                h_charge_int[h_num]= 0.
                 h_max_t[h_num]     = it
                 h_max_adc[h_num]   = val
-                h_min_t[h_num]     = 0.
-                h_min_adc[h_num]   = 0.
 
                 minSamp = -1
 
@@ -204,7 +208,6 @@ def hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2):
                     minSamp = -1
                     minimum = val
                     
-            h_charge_int[h_num] += val
             i+=1
         if(hitFlag == True):
             hitFlag = False
@@ -215,18 +218,37 @@ def hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2):
                 h_num += 1 
 
         i+=1
-    return h_num, h_start, h_stop, h_charge_int, h_max_t, h_max_adc, h_min_t, h_min_adc
+    return h_num, h_start, h_stop, h_max_t, h_max_adc
 
 
 def recompute_hit_charge(hit):
-    daq_ch, start, stop = hit.daq_channel, hit.start, hit.stop
+    view, daq_ch, start, stop, zero, sig = hit.view, hit.daq_channel, hit.start, hit.stop, hit.zero_t, hit.signal
+
     val = 0.
     mean = dc.evt_list[-1].noise_filt.ped_mean[daq_ch]
 
-    for t in range(start, stop):
-        val += np.fabs(dc.data_daq[daq_ch, t] - mean)
+    if(sig == "Collection"):
+        for t in range(start, stop):
+            val += dc.data_daq[daq_ch, t] - mean
 
-    hit.charge_int = val
+        hit.charge_pos = val
+        hit.charge_neg = -0.
+
+    elif(sig == "Induction"):
+        for t in range(start, zero):
+            val += dc.data_daq[daq_ch, t] - mean
+        hit.charge_pos = val
+
+        val = 0
+        for t in range(zero, stop):
+            val += dc.data_daq[daq_ch, t] + mean
+        hit.charge_neg = val
+
+    else:
+        print('type of view not recognized ... ')
+        sys.exit()
+
+        
 def find_hits(pad_left, pad_right, dt_min, n_sig_coll_1, n_sig_coll_2, n_sig_ind): 
 
     """ get boolean roi based on mask and alive channels """
@@ -251,7 +273,6 @@ def find_hits(pad_left, pad_right, dt_min, n_sig_coll_1, n_sig_coll_2, n_sig_ind
         if(gpe[g]):
 
             """ make sure starts and ends of hit group are in the same channel """
-
             assert start[0][g] == end[0][g], "Hit Mismatch"
 
             daq_chan = start[0][g]

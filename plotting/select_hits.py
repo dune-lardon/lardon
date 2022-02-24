@@ -19,7 +19,7 @@ def get_hits_charge(view, selection="True"):
     return [x.charge for x in dc.hits_list if x.view == view and eval(selection)]
 
 def get_hits_adc(view, selection="True"):
-    return [x.adc for x in dc.hits_list if x.view == view and eval(selection)]
+    return [x.max_adc for x in dc.hits_list if x.view == view and eval(selection)]
 
 
 def get_2dtracks_pos(view, selection="True"):

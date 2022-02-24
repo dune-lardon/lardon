@@ -17,11 +17,13 @@ def configure(detector, period, elec, run):
         cf.n_tot_channels = int(data[elec]['n_tot_channels'])
         cf.n_sample = int(data[elec]['n_sample'])
         cf.sampling = float(data[elec]['sampling'])
+        cf.e_per_ADCtick = float(data[elec]['e_per_ADCtick'])
         cf.ADC_per_fC = float(data[elec]['ADC_per_fC'])
         cf.data_path += "/" + data[elec]['sub_path']
         cf.view_offset = [float(x) for x in data[elec]['view_offset']]
         cf.view_chan_repet  = [int(x) for x in data['view_chan_repet']]
-
+        cf.view_z_offset = [float(x) for x in data['view_z_offset']]
+        
         cf.drift_length = float(data['drift_length'])
 
         cf.anode_z = cf.drift_length/2.
@@ -42,6 +44,7 @@ def configure(detector, period, elec, run):
                 break
 
 
+        cf.e_drift = float(data[run_key_set]["e_drift"])
         cf.channel_map = cf.lardon_path+"/settings/chmap/"+data[run_key_set]["chmap"]
 
         cf.signal_is_inverted = bool(int(data[run_key_set]["signal_is_inverted"]))
@@ -49,5 +52,8 @@ def configure(detector, period, elec, run):
         try:
             cf.broken_channels = data[run_key_set]["broken_channels"]
         except KeyError:
-            print("WARNING: No information available on broken channels.")
-
+            print("No broken channels !")
+        try : 
+            cf.channel_calib = cf.lardon_path+"/settings/calib/"+data[run_key_set]['channel_calib']
+        except KeyError:
+            print('No Channel Calibration available - Constant value will be used')
