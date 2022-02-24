@@ -170,11 +170,11 @@ def create_tables(h5file):
     table = h5file.create_table("/", 'tracks2d', Tracks2D, 'Tracks2D')
     for i in range(cf.n_view):
 
-        t = h5file.create_vlarray("/", 'trk2d_v'+str(i), Float32Atom(shape=(4)), "2D Path V"+str(i)+" (x, z, q, ID)")
+        t = h5file.create_vlarray("/", 'trk2d_v'+str(i), Float64Atom(shape=(4)), "2D Path V"+str(i)+" (x, z, q, ID)")
 
     table = h5file.create_table("/", 'tracks3d', Tracks3D, 'Tracks3D')
     for i in range(cf.n_view):
-        t = h5file.create_vlarray("/", 'trk3d_v'+str(i), Float32Atom(shape=(6)), "3D Path V"+str(i)+" (x, y, z, dq, ds, ID)")
+        t = h5file.create_vlarray("/", 'trk3d_v'+str(i), Float64Atom(shape=(6)), "3D Path V"+str(i)+" (x, y, z, dq, ds, ID)")
 
 
 
