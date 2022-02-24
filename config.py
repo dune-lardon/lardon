@@ -1,7 +1,7 @@
 data_path = "/eos/experiment/neutplatform/protodune/rawdata/"
 
 """ User's specific """
-lardon_path = "/eos/user/l/lzambell/analysis/coldbox/lardon/"
+lardon_path = "."
 store_path = lardon_path+"/reco"
 plot_path  = lardon_path+"/results"
 
