@@ -187,7 +187,6 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
 
         """ draw rois """
         ROI = np.r_['-1',0,np.array(~dc.mask_daq[daq_ch], dtype=int),0]
-        print(ROI.shape)
         d = np.diff(ROI)
 
         """ a change from false to true in difference is = 1 """
@@ -195,8 +194,6 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
         """ a change from true to false in difference is = -1 """
         end   = np.where(d==-1)[0]
 
-        print(start)
-        print(end)
         for ir in range(len(start)):
 
             tdc_start = start[ir]
@@ -211,14 +208,15 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
                 t_start, t_stop = ih.start,ih.stop
                 ax[i].fill_between(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], ped_mean, step='mid',color='r', alpha=0.25,zorder=200)
                 ax[i].step(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], linewidth=1, c='r',zorder=250,where='mid')
+
                 ax[i].axvline(t_start, ls='dashed',c='r',lw=.5,zorder=300)
                 ax[i].axvline(t_stop, ls='dotted',c='r',lw=.5,zorder=300)
 
             for j in range(1,6):
-                ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
+                ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.1)
                 if(cf.view_type[view] == "Induction"):
-                    ax[i].axhline(ped_mean-j*ped_rms, ls='dashdot',c='orange',lw=.5)
-            ax[i].axhline(ped_mean, ls='solid',c='orange',lw=.5)
+                    ax[i].axhline(ped_mean-j*ped_rms, ls='dashdot',c='orange',lw=.1)
+            ax[i].axhline(ped_mean, ls='solid',c='orange',lw=1)
 
         ax[i].set_xlim([tmin, tmax])
         ax[i].set_ylim([ymin, ymax])
