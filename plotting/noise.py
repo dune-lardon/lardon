@@ -111,7 +111,7 @@ def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False,
 
 
     save_with_details(fig, option, 'ped_'+noise_type+'_rms_globch')
-    plt.savefig(cf.plot_path+'/ped_'+noise_type+'_rms_globch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
 
 
     if(to_be_shown):
@@ -142,7 +142,7 @@ def plot_noise_vch(noise_type, vrange=[0,10], option=None, to_be_shown=False, ca
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
         calib = 1.
         if(calibrated==True):
-            calib = 1e-3*dc.chmap[i].gain
+            calib = 1e-3*dc.chmap[i].gain/1.602e-4
         if(view >= cf.n_view or view < 0):
             continue
         if(noise_type=='filt'):
