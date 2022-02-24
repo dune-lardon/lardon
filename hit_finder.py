@@ -18,22 +18,26 @@ def hit_search(data, view, daq_chan, start, dt_min, thr1, thr2, thr3):
 
         for i in range(n):
             ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
-            return ll
+        return ll
+
 
     elif(cf.view_type[view] == "Induction"):
         n, h_start, h_stop, h_max_t, h_max_adc, h_min_t, h_min_adc, h_zero_t = hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr3)
 
-        for i in range(n):
-            ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], h_min_t[i], h_min_adc[i], h_zero_t[i], "Induction"))
-            return ll
-
         if(n==0 and np.mean(data) > thr1):
             n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2)
-            print("Looked at a collection-type hit anyway in ",view, dc.chmap[daq_chan].vchan, start, ' --> Found ', n, ' hits!')
+        
+            #print("Looked at a collection-type hit anyway in ",view, dc.chmap[daq_chan].vchan, start, ' --> Found ', n, ' hits!')
 
             for i in range(n):
                 ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
-                return ll
+            return ll
+
+
+        for i in range(n):
+            ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], h_min_t[i], h_min_adc[i], h_zero_t[i], "Induction"))
+        return ll
+
 
         
     return ll 
@@ -324,7 +328,8 @@ def find_hits(pad_left, pad_right, dt_min, n_sig_coll_1, n_sig_coll_2, n_sig_ind
 
 
             hh = hit_search(adc, view, daq_chan, tdc_start, dt_min, thr1, thr2, thr3)
-                                        
+
+            
             """add padding to found hits"""
             for i in range(len(hh)): 
                 """ to the left """
