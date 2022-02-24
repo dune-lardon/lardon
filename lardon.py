@@ -123,7 +123,7 @@ for ievent in range(nevent):
     reader.read_evt(ievent)
     print('time to read %.3f'%(time.time()-t0))
 
-
+    print('n_tot_hits = ', dc.n_tot_hits)
     """ mask the unused channels """
     dc.mask_daq = dc.alive_chan
 
@@ -201,7 +201,6 @@ for ievent in range(nevent):
     print("hit %.2f s"%(time.time()-th))
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
 
-
     #plot.event_display_per_view_hits_found([-40,40],[-10, 150],option='hits', to_be_shown=True)
 
     # plot.plot_2dview_hits(to_be_shown=True)
@@ -234,7 +233,7 @@ for ievent in range(nevent):
                             pars.trk3D_dz_tol)
 
 
-    # plot.plot_3d(to_be_shown=True)
+    #plot.plot_3d(to_be_shown=True)
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
 
     print('  %.2f s to process '%(time.time()-t0))
@@ -244,6 +243,7 @@ for ievent in range(nevent):
     store.store_hits(output)
     store.store_tracks2D(output)
     store.store_tracks3D(output)
+    dc.n_tot_hits += sum(dc.evt_list[-1].n_hits)
 
 if(is_pulse==True):
     store.store_avf_wvf(output)
