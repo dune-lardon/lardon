@@ -61,7 +61,6 @@ def compute_pedestal(noise_type='None', pars=None):
         dc.evt_list[-1].set_noise_raw(ped)
 
         if(cf.signal_is_inverted==True):
-            print("signal is inverted !!!!!")
             dc.data_daq = mean[:,None] - dc.data_daq
         else:
             dc.data_daq -= mean[:,None]
@@ -74,23 +73,22 @@ def compute_pedestal(noise_type='None', pars=None):
     else:
       print('ERROR: You must set a noise type for pedestal setting')
       sys.exit()
-        
-    print('compute ped took ', time.time()-t0)
+
 
 def update_mask(thresh):
     dc.mask_daq = ne.evaluate( "where((abs(data) > thresh*rms), 0, 1)", global_dict={'data':dc.data_daq, 'rms':dc.evt_list[-1].noise_filt.ped_rms[:,None]}).astype(bool)
     np.logical_and(dc.mask_daq, dc.alive_chan)
+
 
 def update_mask_inputs(thresh, mean, rms):
     dc.mask_daq = ne.evaluate( "where((abs(data-baseline) >  thresh*std) , 0, 1)", global_dict={'data':dc.data_daq, 'baseline':mean[:,None],'std':rms[:,None]}).astype(bool)
     np.logical_and(dc.mask_daq, dc.alive_chan)
 
 
-def refine_mask(pars, n_pass = 1, debug=False):
+def refine_mask(pars, n_pass = 1, debug=False, test=False):
     if(debug == True): import matplotlib.pyplot as plt
     t0 = time.time()
 
-    print('refine_mask is being called!')
 
     for ch in range(cf.n_tot_channels):
 
@@ -105,41 +103,39 @@ def refine_mask(pars, n_pass = 1, debug=False):
         rms  = dc.evt_list[-1].noise_filt.ped_rms[ch]
 
         if(cf.view_type[view] == "Collection"): 
-            #dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft):
-            if(n_pass > 1):
-                mask_collection_signal_me(dc.mask_daq[ch], dc.data_daq[ch],
-                                          15, 3*rms, 5*rms, 3, 10, 10, 15)
-
+            """ in testing phase """ 
+            if(test==True):
+                lo, hi = 2., 5.
+                if(n_pass > 1):
+                    lo, hi = 3., 4.
+                mask_collection_signal_test(dc.mask_daq[ch], dc.data_daq[ch],
+                                            15, lo*rms, hi*rms, 3, 10, 10, 15)
+                
+            else:            
+                mask_collection_signal(dc.mask_daq[ch], dc.data_daq[ch],
+                                       pars.ped_rise_thr[view],
+                                       pars.ped_ramp_thr[view],
+                                       rms*pars.ped_amp_thr[view],
+                                       pars.ped_dt_thr)
+                
+        else:
+            if(test==True):
+                lo, hi = 1.8, 2.5
+                if(n_pass>1):
+                    lo, hi = 2, 3.5
+                mask_induction_signal_test(dc.mask_daq[ch], dc.data_daq[ch],
+                                           20, 10, lo*rms, hi*rms, 3, 3, 
+                                           10, -lo*rms, -hi*rms, 3, 3, 10,15)
+                
             else:
-                mask_collection_signal_me(dc.mask_daq[ch], dc.data_daq[ch],
-                                          15, 2*rms, 4*rms, 3, 10, 10, 15)                
-
-            """
+                mask_induction_signal(dc.mask_daq[ch], dc.data_daq[ch],
                                       pars.ped_rise_thr[view],
                                       pars.ped_ramp_thr[view],
                                       rms*pars.ped_amp_thr[view],
-                                      pars.ped_dt_thr)
-            """
-        else:          
-            #(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, high_pos_thr, rise_pos_thr, fall_pos_thr, dt_neg_thr, low_neg_thr, high_neg_thr, rise_neg_thr, fall_neg_thr, pad_bef, pad_aft):
+                                      pars.ped_dt_thr,
+                                      pars.ped_zero_cross_thr)  
 
-            if(n_pass>1):
-                mask_induction_signal_me(dc.mask_daq[ch], dc.data_daq[ch],
-                                         20, 10, 2.*rms, 3.5*rms, 3, 3, 
-                                         10, -2.*rms, -3.5*rms, 3, 3, 10,15)
-            
-            else:
-                mask_induction_signal_me(dc.mask_daq[ch], dc.data_daq[ch],
-                                         20, 10, 1.8*rms, 2.5*rms, 3, 3, 
-                                         10, -1.8*rms, -2.5*rms, 3, 3, 10,15)
-            """
-            mask_induction_signal(dc.mask_daq[ch], dc.data_daq[ch],
-                                  pars.ped_rise_thr[view],
-                                  pars.ped_ramp_thr[view],
-                                  rms*pars.ped_amp_thr[view],
-                                  pars.ped_dt_thr,
-                                  pars.ped_zero_cross_thr)  
-            """
+
         if(debug==True and ch > 1 and (ch % 50) == 0):
            nrows, ncols = 10, 5
            fig = plt.figure()
@@ -157,10 +153,10 @@ def refine_mask(pars, n_pass = 1, debug=False):
            plt.subplots_adjust(left=0.01, bottom=0.01, right=0.99, top=0.95, wspace=0.05, hspace=1)
            plt.show()
 
-    print('refine_mask is done ', time.time()-t0)
+
 
 @nb.jit('(boolean[:],float64[:],int64,float64,float64,int64,int64,int64,int64)',nopython = True)
-def mask_collection_signal_me(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft):
+def mask_collection_signal_test(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft):
     mask[:]=1
 
     start, stop, t_max, val_max, dt = -1, -1, -1, -1, 0
@@ -193,7 +189,8 @@ def mask_collection_signal_me(mask, data, dt_thr, low_thr, high_thr, rise_thr, f
 
 
 @nb.jit('(boolean[:],float64[:],int64,int64,float64,float64,int64,int64,int64,float64,float64,int64,int64,int64,int64)',nopython = True)
-def mask_induction_signal_me(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, high_pos_thr, rise_pos_thr, fall_pos_thr, dt_neg_thr, low_neg_thr, high_neg_thr, rise_neg_thr, fall_neg_thr, pad_bef, pad_aft):
+def mask_induction_signal_test(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, high_pos_thr, rise_pos_thr, fall_pos_thr, dt_neg_thr, low_neg_thr, high_neg_thr, rise_neg_thr, fall_neg_thr, pad_bef, pad_aft):
+
 
     mask[:]=1
 
