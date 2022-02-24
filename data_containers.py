@@ -34,7 +34,7 @@ mask = np.ones((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=bool)
 
 
 
-
+n_tot_hits = 0
 def reset_event():
     mask_daq[:,:] = True
     data_daq[:,:] = 0.
@@ -162,7 +162,7 @@ class hits:
         return (self.Z > other.Z) or (self.Z == other.Z and self.X < other.X)
 
     def set_index(self, idx):
-        self.ID = idx
+        self.ID = idx + n_tot_hits
 
     def hit_positions(self, v):
         self.t = self.max_t
@@ -227,7 +227,7 @@ class hits:
 
 
 class trk2D:
-    def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, chi2, hit_ID, cluster):
+    def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, hit_ID, chi2, cluster):
         self.trackID = ID
         self.view    = view
 
@@ -239,7 +239,7 @@ class trk2D:
         self.n_hits      = 1
         self.n_hits_dray = 0
         self.hits_ID = [hit_ID]
-
+ 
         self.path    = [(x0,y0)]
         self.dQ      = [q0]
 
@@ -290,19 +290,19 @@ class trk2D:
             print("?! cannot remove hit ", x, " ", y, " ", q, " pos ", pos)
 
 
-    def add_hit(self, x, y, q, t, id):
+    def add_hit(self, x, y, q, t, hID):
         self.n_hits += 1
 
         self.len_path += math.sqrt( pow(self.path[-1][0]-x, 2) + pow(self.path[-1][1]-y,2) )
         #beware to append (x,y) after !
         self.path.append((x,y))
         self.dQ.append(q)
-        self.hits_ID.append(id)
+        self.hits_ID.append(hID)
         self.tot_charge += q
         self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
         self.end_time = t
 
-    def add_hit_update(self, slope, slope_err, x, y, t, q, id, chi2):
+    def add_hit_update(self, slope, slope_err, x, y, t, q, hID, chi2):
         self.end_slope = slope
         self.end_slope_err = slope_err
         self.n_hits += 1
@@ -311,7 +311,7 @@ class trk2D:
         #beware to append (x,y) after !
         self.path.append((x,y))
         self.dQ.append(q)
-        self.hits_ID.append(id)
+        self.hits_ID.append(hID)
         self.chi2 = chi2
         self.tot_charge += q
         self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
@@ -461,6 +461,7 @@ class trk2D:
 
     def mini_dump(self):
         print("view : ", self.view, " from (%.1f,%.1f)"%(self.path[0][0], self.path[0][1]), " to (%.1f, %.1f)"%(self.path[-1][0], self.path[-1][1]), " N = ", self.n_hits, " L = %.1f/%.1f"%(self.len_straight, self.len_path), " Q = ", self.tot_charge, " Dray N = ", self.n_hits_dray, " Qdray ", self.dray_charge)
+        #print('track hits ID ', self.hits_ID)
 
 
 
