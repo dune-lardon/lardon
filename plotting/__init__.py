@@ -6,3 +6,4 @@ from .noise import *
 from .reco_2d import *
 from .reco_3d import *
 from .save_plot import *
+from .hits import *
