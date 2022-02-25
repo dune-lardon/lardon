@@ -158,7 +158,7 @@ for ievent in range(nevent):
     for n_iter in range(2):
         ped.compute_pedestal(noise_type='filt')
         #ped.update_mask(pars.ped_amp_sig_oth)
-        ped.refine_mask(pars, n_pass=1, test=True)
+        ped.refine_mask(pars)#, n_pass=1, test=True)
 
 
 
@@ -177,7 +177,7 @@ for ievent in range(nevent):
 
 
     ped.compute_pedestal(noise_type='filt')
-    ped.refine_mask(pars, n_pass=2, test=True)
+    ped.refine_mask(pars)#, n_pass=2, test=True)
     #ped.update_mask(pars.ped_amp_sig_oth)
     ped.compute_pedestal(noise_type='filt')
 
@@ -200,6 +200,9 @@ for ievent in range(nevent):
 
     print("hit %.2f s"%(time.time()-th))
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
+
+
+    #plot.plot_hit_fromID(20,to_be_shown=True)
 
     #plot.event_display_per_view_hits_found([-40,40],[-10, 150],option='hits', to_be_shown=True)
 
