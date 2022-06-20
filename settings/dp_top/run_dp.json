@@ -1,0 +1,26 @@
+{
+    "top":{
+	"1256":{
+	    "chmap":"dp_chmap.txt",
+	    "signal_is_inverted":["1","1","0","1"],
+	    "module_used":["1","1","0","1"],
+	    "e_drift":"0.166",
+	    "drift_length":"120"
+				  
+	},
+	"1748":{
+	    "chmap":"dp_chmap.txt",
+	    "signal_is_inverted":["0","0","0","1"],
+	    "e_drift":"0.166",
+	    "module_used":["1","1","0","1"],
+	    "drift_length":"120"
+	},
+	"99999":{
+	    "chmap":"dp_chmap.txt",	    	    
+	    "signal_is_inverted":["0","0","0","1"],
+	    "module_used":["0","0","0","1"],
+	    "e_drift":"0.5",
+	    "drift_length":"600"
+	}
+    }
+}

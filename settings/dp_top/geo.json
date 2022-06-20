@@ -1,0 +1,42 @@
+{
+    "default":
+    {
+	"n_view":"2",
+	"n_module":"4",
+	"view_name":["0","1"],
+	"view_type":["Collection", "Collection"],
+	"view_angle":["90", "0"],
+	"view_pitch":["0.3125", "0.3125"],
+	"view_capa":["1.0","1.0"],
+	"view_nchan":["960", "960"],
+	"view_chan_repet":["960","960"],
+	"view_length":["300","300"],
+	"strips_length":"whatever.txt",
+	"view_z_offset":["0","0"],
+	"sub_path":"np02/rawdata",
+	"n_tot_channels":"7680",
+	"sampling":"2.5",
+	"n_sample":"10000",
+	"e_per_ADCtick":"34",
+	"ADC_per_fC":"73.435",
+	"view_offset":[["-300","0"],["0","0"],["-300","-300"],["0","-300"]],
+	"x_boundaries":[["0","300"],["-300","0"],["-300","0"],["0","100"]],
+	"y_boundaries":[["0","300"],["0","300"],["-300","0"],["-100","0"]],
+	"anode_z":"300.0",
+	"drift_length":"120.0",
+	"module_used":["1","1","0","1"],
+	"e_drift":"0.166",
+	"signal_is_inverted":["0","0","0","1"],
+	"chmap":"dp_chmap.txt"
+    },
+    "0-1256":
+    {
+	"signal_is_inverted":["1","1","0","1"]
+    },
+    "1748-99999":
+    {
+	"module_used":["0","0","0","1"],
+	"e_drift":"0.5",
+	"drift_length":"600.0"
+    }
+}
