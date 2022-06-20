@@ -11,16 +11,14 @@ print("\nWelcome to LARDON !\n")
 tstart = time.time()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-elec', help='Which electronics are used [tde, top, bde, bot]', required=True, choices=["bot", "bde", "top", "tde"])
+parser.add_argument('-elec', help='Which electronics are used [tde, top, bde, bot]',default="top", choices=["bot", "bde", "top", "tde"])#, required=True
 parser.add_argument('-run', help='Run number to be processed', required=True)
-parser.add_argument('-sub', help='Subfile to read', type=int, required=True)
+parser.add_argument('-sub', help='Subfile to read', type=str, required=True)
 parser.add_argument('-n', '--nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
-parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='coldbox', choices=['coldbox',])
-parser.add_argument('-period', help='which detector period is looked at [default is 1]', default='1')
+parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='cb1', choices=['cb1','dp'])
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
 parser.add_argument('-f', '--file', help="Override derived filename")
-parser.add_argument('-conf','--config',dest='conf', help='Analysis configuration ID', default='1')
 parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used for pulsing data')
 
 args = parser.parse_args()
@@ -29,15 +27,20 @@ if(args.elec == 'top' or args.elec == 'tde'):
     elec = 'top'
 elif(args.elec == 'bot' or args.elec == 'bde'):
     elec = 'bot'
+print('Looking at ',args.detector, ' data with ', args.elec, ' electronics')
+
+if(args.detector == 'dp' and args.elec == 'bot'):
+    print(' ... this is not possible!')
+    sys.exit()
+
 
 run = args.run
 sub = args.sub
 nevent = args.nevent
 detector = args.detector
-period = args.period
 outname_option = args.outname
 evt_skip = args.evt_skip
-det.configure(detector, period, elec, run)
+det.configure(detector, elec, run)
 
 is_pulse = args.is_pulse
 
@@ -52,7 +55,7 @@ import noise_filter as noise
 import store as store
 import hit_finder as hf
 import track_2d as trk2d
-import analysis_parameters as params
+import reconstruction_parameters as params
 import track_3d as trk3d
 
 
@@ -79,19 +82,23 @@ else:
 
 
 """ set analysis parameters """
-pars = params.params()
-pars.read(config=args.conf,elec=elec)
-pars.dump()
+params.build_default_reco()
+params.configure(detector, elec)
+params.dump()
+
 
 """ set the channel mapping """
-
-cmap.get_mapping(elec)
+cmap.get_mapping(detector, elec)
 cmap.set_unused_channels()
 
 
 
 """ setup the decoder """
-reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file)
+if(detector=="dp"):
+    reader = read.dp_decoder(run, str(sub), args.file)
+else:
+    reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file)
+
 reader.open_file()
 nb_evt = reader.read_run_header()
 
@@ -102,7 +109,7 @@ if(nevent > nb_evt or nevent < 0):
 print(f" --->> Will process {nevent - evt_skip} events [out of {nb_evt}] of run {run}")
 
 """ store basic informations """
-store.store_run_infos(output, int(run), int(sub), elec, nevent, time.time())
+store.store_run_infos(output, int(run), str(sub), elec, nevent, time.time())
 store.store_chan_map(output)
 
 
@@ -121,19 +128,22 @@ for ievent in range(nevent):
 
 
     reader.read_evt(ievent)
-    print('time to read %.3f'%(time.time()-t0))
 
-    print('n_tot_hits = ', dc.n_tot_hits)
+
     """ mask the unused channels """
     dc.mask_daq = dc.alive_chan
 
     """ compute the raw pedestal """
     """ produces a rough mask estimate """
-    ped.compute_pedestal(noise_type='raw', pars=pars)
+    ped.compute_pedestal(noise_type='raw')
 
     """ update the pedestal """
     ped.compute_pedestal(noise_type='filt')
 
+    #plot.event_display_per_view(adc_ind=[-40,40],adc_coll=[-10, 150], option='raw', to_be_shown=True)
+  
+    #plot.plot_noise_daqch(noise_type='raw', vrange=[0,10],to_be_shown=True)
+    #plot.plot_wvf_current_vch([(2,29),(2,50),(2,66),(2,79)],option='test',to_be_shown=True)
 
     if(is_pulse==True):
         """ pulse analysis does not need noise filtering """
@@ -145,9 +155,11 @@ for ievent in range(nevent):
         store.store_pulse(output)
         continue
 
+
+
     """ low pass FFT cut """
     tf = time.time()
-    ps = noise.FFT_low_pass(pars.noise_fft_lcut,pars.noise_fft_freq)
+    ps = noise.FFT_low_pass()
 
 
     """ WARNING : DO NOT STORE ALL FFT PS !! """
@@ -155,10 +167,16 @@ for ievent in range(nevent):
     #plot.plot_FFT_vch(ps, to_be_shown=True)
 
 
+    if(dc.data_daq.shape[-1] != cf.n_sample):
+        """ when the nb of sample is odd, the FFT returns an even nb of sample. Need to append an extra value (0) at the end of each waveform to make it work """
+        #SHOULD MAKE SURE THIS BUG-FIX IS FINE
+        dc.data_daq = np.insert(dc.data_daq, dc.data_daq.shape[-1], 0, axis=-1)
+
+
+
     for n_iter in range(2):
         ped.compute_pedestal(noise_type='filt')
-        #ped.update_mask(pars.ped_amp_sig_oth)
-        ped.refine_mask(pars)#, n_pass=1, test=True)
+        ped.refine_mask(n_pass=1, test=True)
 
 
 
@@ -167,48 +185,36 @@ for ievent in range(nevent):
 
 
     """ CNR """
-    tcoh = time.time()
-    if(pars.noise_coh_per_view):
-        noise.coherent_noise_per_view(pars.noise_coh_group, pars.noise_coh_capa_weight, pars.noise_coh_calibrated)
-    else :
-        noise.coherent_noise(pars.noise_coh_group)
+    noise.coherent_noise()
 
-    print("coherent noise : ", time.time()-tcoh)
+
 
 
     ped.compute_pedestal(noise_type='filt')
-    ped.refine_mask(pars)#, n_pass=2, test=True)
-    #ped.update_mask(pars.ped_amp_sig_oth)
+    ped.refine_mask(n_pass=2, test=True)
     ped.compute_pedestal(noise_type='filt')
 
 
     #plot.plot_noise_vch(noise_type='filt', vrange=[0,20],to_be_shown=True)
-    #plot.plot_wvf_current_vch([(0,188),(1,466),(2,291)], to_be_shown=True)
+    #plot.event_display_per_view_roi(adc_coll=[-5, 50], option='roi', to_be_shown=True)
 
 
-    #plot.event_display_per_view_roi([-40,40],[-10, 150], option='roi', to_be_shown=True)
-
-    
 
     th = time.time()
-    hf.find_hits(pars.hit_pad_left,
-                 pars.hit_pad_right,
-                 pars.hit_dt_min[0],
-                 pars.hit_amp_sig[0],
-                 pars.hit_amp_sig[1],
-                 pars.hit_amp_sig[2])
+    hf.find_hits()
 
     print("hit %.2f s"%(time.time()-th))
     print("Number Of Hits found : ", dc.evt_list[-1].n_hits)
 
 
     #plot.plot_hit_fromID(20,to_be_shown=True)
-
     #plot.event_display_per_view_hits_found([-40,40],[-10, 150],option='hits', to_be_shown=True)
+    #plot.event_display_per_view_noise([-40,40],[-10, 150],option='noise', to_be_shown=True)
+    #plot.event_display_per_view_roi(adc_coll=[-5,50],option='roi',to_be_shown=True)
+
+
 
     # plot.plot_2dview_hits(to_be_shown=True)
-
-    #plot.plot_wvf_current_hits_roi_vch([(0,212),(0,211),(0,210),(0,209)],to_be_shown=True)
 
     #plot.plot_track_wvf_vch([[(0,x) for x in range(30,63)],[(1,x) for x in range(30,70)],[(2,x) for x in range(35,80)]], tmin=1200, tmax=2000, to_be_shown=True, option='1')    
     
@@ -216,25 +222,33 @@ for ievent in range(nevent):
                 
     
 
-    trk2d.find_tracks_rtree(pars.trk2D_nhits,
-                            pars.trk2D_rcut,
-                            pars.trk2D_chi2cut,
-                            pars.trk2D_yerr,
-                            pars.trk2D_slope_err,
-                            pars.trk2D_pbeta)
+    trk2d.find_tracks_rtree()
+    """
+    pars.trk2D_nhits,
+    pars.trk2D_rcut,
+    pars.trk2D_chi2cut,
+    pars.trk2D_yerr,
+    pars.trk2D_slope_err,
+    pars.trk2D_pbeta)
+    """
+
 
     #[t.mini_dump() for t in dc.tracks2D_list]
 
     # plot.plot_2dview_2dtracks(to_be_shown=True)
 
 
-    trk3d.find_tracks_rtree(pars.trk3D_ztol,
-                            pars.trk3D_qfrac,
-                            pars.trk3D_len_min,
-                            pars.trk3D_dx_tol, 
-                            pars.trk3D_dy_tol,
-                            pars.trk3D_dz_tol)
+    trk3d.find_tracks_rtree()
+    """
+    pars.trk3D_ztol,
+    pars.trk3D_qfrac,
+    pars.trk3D_len_min,
+    pars.trk3D_dx_tol, 
+    pars.trk3D_dy_tol,
+    pars.trk3D_dz_tol)
+    """
 
+    [t.dump() for t in dc.tracks3D_list]
 
     #plot.plot_3d(to_be_shown=True)
     print("Number of 3D tracks found : ", len(dc.tracks3D_list))
