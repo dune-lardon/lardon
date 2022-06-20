@@ -21,7 +21,7 @@ def draw_current_waveform(daqch, view, ch, ax=None, **kwargs):
     if(daqch >= 0):
         ax.step(np.linspace(0,cf.n_sample-1,cf.n_sample), dc.data_daq[daqch, :], where='mid',**kwargs)
     else:
-        ax.step(np.linspace(0,cf.n_sample-1,cf.n_sample), dc.data[view, ch, :], where='mid',**kwargs)
+        ax.step(np.linspace(0,cf.n_sample-1,cf.n_sample), dc.data[0,view, ch, :], where='mid',**kwargs)
     return ax
 
 
