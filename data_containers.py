@@ -27,10 +27,11 @@ False : broken
 alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
 
 
+#reco = {}
 
-# Maybe these two containers are completely useless ?
-data = np.zeros((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
-mask = np.ones((cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=bool)
+data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
+#mask might be useless
+#mask = np.ones((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=bool)
 
 
 
@@ -39,8 +40,8 @@ def reset_event():
     mask_daq[:,:] = True
     data_daq[:,:] = 0.
 
-    data[:,:,:] = 0.
-    mask[:,:,:] = True
+    data[:,:,:,:] = 0.
+    #mask[:,:,:,:] = True
 
     hits_list.clear()
     tracks2D_list.clear()
@@ -49,21 +50,19 @@ def reset_event():
     
     pulse_fit_res.clear()
 
-
 class channel:
-    def __init__(self, daqch, globch, view, vchan, length, capa, tot_length, tot_capa, gain):
+    def __init__(self, daqch, globch, module, view, vchan, length, capa, gain, pos):
         self.daqch = daqch
         self.globch = globch
+        self.module = module
         self.view = view
         self.vchan = vchan
         self.length = length
-        self.tot_length = tot_length
         self.capa   = capa
-        self.tot_capa   = tot_capa
         self.gain = gain
-
+        self.pos  = pos
     def get_ana_chan(self):
-        return self.view, self.vchan
+        return self.module, self.view, self.vchan
 
     def get_daqch(self):
         return self.daqch
@@ -91,7 +90,8 @@ class noise:
         self.ped_rms  = rms
 
 class event:
-    def __init__(self, elec, run, sub, evt, trigger, t_s, t_ns):
+    def __init__(self, det, elec, run, sub, evt, trigger, t_s, t_ns):
+        self.det = det
         self.elec = elec
         self.run_nb  = run
         self.sub  = sub
@@ -118,8 +118,9 @@ class event:
 
 
 class hits:
-    def __init__(self, view, daq_channel, start, stop, max_t, max_adc, min_t, min_adc, zero_t, signal):
+    def __init__(self, module, view, daq_channel, start, stop, max_t, max_adc, min_t, min_adc, zero_t, signal):
         self.view    = view
+        self.module  = module
 
         """Each hit should have a unique ID per event"""
         self.ID = -1
@@ -150,7 +151,7 @@ class hits:
         self.min_fC = self.min_adc*chmap[self.daq_channel].gain
 
         self.cluster = -1
-        self.X       = -1
+        self.X       = chmap[self.daq_channel].pos
         self.Z       = -1
         self.matched = -9999
 
@@ -167,8 +168,8 @@ class hits:
     def hit_positions(self, v):
         self.t = self.max_t
 
-        """ trick because view Y is separated into 2 sub-volumes in CB1 """
-        self.X = self.channel%cf.view_chan_repet[self.view] * cf.view_pitch[self.view] + cf.view_offset[self.view] +  cf.view_pitch[self.view]/2.
+        #""" trick because view Y is separated into 2 sub-volumes in CB1 """
+        #self.X = self.channel%cf.view_chan_repet[self.view] * cf.view_pitch[self.view] + cf.view_offset[self.view] +  cf.view_pitch[self.view]/2.
         
 
         """ transforms time bins into distance from the anode """
@@ -230,6 +231,8 @@ class trk2D:
     def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, hit_ID, chi2, cluster):
         self.trackID = ID
         self.view    = view
+        self.module_ini = -1
+        self.module_end  = -1
 
         self.ini_slope       = ini_slope
         self.ini_slope_err   = ini_slope_err
@@ -356,7 +359,10 @@ class trk2D:
         self.len_path = 0.
         for i in range(self.n_hits-1):
             self.len_path +=  math.sqrt( pow(self.path[i][0]-self.path[i+1][0], 2) + pow(self.path[i][1]-self.path[i+1][1],2) )
+        
 
+        self.module_ini = hits_list[self.hits_ID[0]-n_tot_hits].module
+        self.module_end = hits_list[self.hits_ID[-1]-n_tot_hits].module
 
 
     def dist(self, other, i=-1, j=0):
@@ -503,6 +509,8 @@ class trk3D:
 
         self.ds = [[] for x in range(cf.n_view)]
 
+        self.module_ini = -1
+        self.module_end = -1
 
     def set_view(self, trk, path, dq, ds, hits_id, isFake=False):
         view = trk.view
@@ -540,6 +548,10 @@ class trk3D:
                 self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.],[-1, -1], isFake=True)
                 n_fake += 1
         return n_fake
+
+    def set_modules(self, ini, end):
+        self.module_ini = ini
+        self.module_end = end
 
     def boundaries(self):
         ''' begining '''
