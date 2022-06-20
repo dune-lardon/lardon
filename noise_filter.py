@@ -11,7 +11,10 @@ def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
 
-def FFT_low_pass(lowpass_cut, freq_cut=-1):
+def FFT_low_pass(save_ps=False):
+    lowpass_cut = dc.reco['noise']['fft']['low_cut']
+    freq_cut    = dc.reco['noise']['fft']['freq']
+
     n    = int(cf.n_sample/2) + 1
     rate = cf.sampling #in MHz
 
@@ -30,8 +33,9 @@ def FFT_low_pass(lowpass_cut, freq_cut=-1):
     fdata = np.fft.rfft(dc.data_daq)
 
     """get power spectrum (before cut)"""
-    ps = 1/cf.n_sample * np.abs(fdata)
-    #ps = 10.*np.log10(np.abs(fdata)+1e-1) 
+    if(save_ps==True):
+        ps = 1/cf.n_sample * np.abs(fdata)
+        #ps = 10.*np.log10(np.abs(fdata)+1e-1) 
 
     
     """Apply filter"""
@@ -41,19 +45,29 @@ def FFT_low_pass(lowpass_cut, freq_cut=-1):
     dc.data_daq = np.fft.irfft(fdata)
 
 
-    """get power spectrum after cut"""
-    #ps = 1/cf.n_sample * np.abs(fdata)
-    #ps = 10.*np.log10(np.abs(fdata)+1e-1) 
-    return ps
+    if(save_ps==True):
+        """get power spectrum after cut"""
+        #ps = 1/cf.n_sample * np.abs(fdata)
+        #ps = 10.*np.log10(np.abs(fdata)+1e-1) 
+
+        return ps
 
 
 
-def coherent_noise(groupings):
+def coherent_noise():
+    if(dc.reco['noise']['coherent']['per_view'] ==1):
+        return coherent_noise_per_view()
+    else :
+        return regular_coherent_noise()
+
+
+def regular_coherent_noise():#groupings):
     """
     1. Computes the mean along group of channels for non ROI points
     2. Subtract mean to all points
     """
-
+    groupings = dc.reco['noise']['coherent']['groupings']
+    
     for group in groupings:
         if( (cf.n_tot_channels % group) > 0):
             print(" Coherent Noise Filter in groups of ", group, " is not a possible ! ")
@@ -82,12 +96,16 @@ def coherent_noise(groupings):
         dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
 
 
-def coherent_noise_per_view(groupings, capa_weight, calibrated):
+def coherent_noise_per_view():#groupings, capa_weight, calibrated):
     """
     1. Get which daq channels is which view 
     2. Computes the mean along this group of channels and this view for non ROI points
     3. Subtract mean to all points
     """
+
+    groupings = dc.reco['noise']['coherent']['groupings']
+    capa_weight = bool(dc.reco['noise']['coherent']['capa_weight'])
+    calibrated  = bool(dc.reco['noise']['coherent']['calibrated'])
 
 
 
@@ -103,7 +121,7 @@ def coherent_noise_per_view(groupings, capa_weight, calibrated):
 
         v_daq[i,:] = view
         if(capa_weight):
-            capa[i] = dc.chmap[i].tot_capa
+            capa[i] = dc.chmap[i].capa
         if(calibrated):
             calib[i] = dc.chmap[i].gain
 
