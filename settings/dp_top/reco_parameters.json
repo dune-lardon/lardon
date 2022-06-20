@@ -1,0 +1,89 @@
+{
+  "default":{
+      "pedestal":{ 
+          "first_pass_thrs": 3,
+          "other_pass_thrs": 4,
+          "rise_thr": [30,30],
+          "ramp_thr": [2,2],
+          "amp_thr": [3,3],
+          "dt_thr": 100,
+          "zero_cross_thr": 15
+      },
+	 
+      "mask":{
+	  "coll":{
+	      "min_dt":15,
+	      "low_thr":[2.0,2.5],
+	      "high_thr":[3.0,4.0],
+	      "min_rise":3,
+	      "min_fall":10,
+	      "pad_bef":10,
+	      "pad_aft":15
+	  }	  	
+         },
+	 
+      "noise":{
+          "coherent":{
+              "groupings":[320,64],
+	      "per_view":0,
+	      "capa_weight":0,
+	      "calibrated":0
+          },
+	  
+          "fft":{
+              "freq":-1,
+              "low_cut":0.6
+          }
+      },
+
+      "hit_finder":{
+          "coll":{
+              "amp_sig": [3,6],
+              "dt_min": 10
+          },
+          "ind":{
+              "amp_sig": [2,3],
+              "dt_min": 10
+          },
+          "pad":{
+              "left": 6,
+              "right": 10
+          }
+      },
+      
+      "track_2d":{
+	  "min_nb_hits": 5,
+	  "rcut": 5.0,
+	  "chi2cut": 4.0,
+	  "y_error": 0.3125,
+	  "slope_error": 1.0,
+	  "pbeta":3.0
+      },
+      
+      "track_3d":{
+	  "ztol":3.0,
+	  "qfrac":0.25, 
+	  "len_min":20.0, 
+	  "dx_tol": [2.0,2.0],
+	  "dy_tol": [2.0,2.0],
+	  "dz_tol": 2.0
+      },
+      
+      "plot":{
+          "noise":{
+              "show": 0,
+              "zrange": [0,15]
+          },
+          "evt_display":{
+              "daqch":{
+                  "show":0,
+                  "zrange":[-50,50]
+              },
+              "viewch":{
+                  "show":0,
+                  "col_zrange":[-50,50]
+              }
+          }
+      }            
+  }
+}
