@@ -12,10 +12,14 @@ def details(fig, is3D):
     sub_nb = str(dc.evt_list[-1].sub)
     evt_nb = str(dc.evt_list[-1].evt_nb)
     trig_nb = str(dc.evt_list[-1].trigger_nb)
+    det    = dc.evt_list[-1].det
     elec   = dc.evt_list[-1].elec
     evt_time = dc.evt_list[-1].time_s
 
-    infos = '['+elec+r'] \textbf{Run '+run_nb+'-'+sub_nb+' event '+evt_nb+' (trigger '+trig_nb+')}'
+    sub_nb = sub_nb.replace('_','')
+
+    infos = '['+det+elec+r'] \textbf{Run '+run_nb+'-'+sub_nb+' event '+evt_nb+' (trigger '+trig_nb+')}'
+
     infos += '\n'
     infos += r'\textit{'+time.ctime(evt_time)+'}'
 
@@ -28,18 +32,18 @@ def details(fig, is3D):
 
 
 def save(fig, option, out):
+
     run_nb = str(dc.evt_list[-1].run_nb)
     evt_nb = str(dc.evt_list[-1].trigger_nb)
     elec   = dc.evt_list[-1].elec
-
+    det    = dc.evt_list[-1].det
 
     if(option):
         option = "_"+option
     else:
         option = ""
 
-
-    fig.savefig(cf.plot_path+'/'+out+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png', dpi=200)
+    fig.savefig(cf.plot_path+'/'+out+option+'_'+det+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png', dpi=200)
 
 
 def save_with_details(fig, option, out, is3D=False):

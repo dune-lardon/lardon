@@ -9,3 +9,4 @@ def set_style():
               'ytick.labelsize':'x-large'}
               
     mpl.rcParams.update(params)
+    
