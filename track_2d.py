@@ -330,7 +330,14 @@ def stitch_tracks(dist_min, slope_err_tol, r_extrapol_min, y_err, slope_err, pbe
 
 
 
-def find_tracks_rtree(min_hits, rcut, chicut, y_err, slope_err, pbeta):
+def find_tracks_rtree():
+
+    min_hits = dc.reco['track_2d']['min_nb_hits']
+    rcut = dc.reco['track_2d']['rcut']
+    chicut = dc.reco['track_2d']['chi2cut']
+    y_err = dc.reco['track_2d']['y_error']
+    slope_err = dc.reco['track_2d']['slope_error']
+    pbeta = dc.reco['track_2d']['pbeta']
 
     """error on y axis, error on slope, pbeta hyp"""
     filt = pf.PFilter(y_err, slope_err, pbeta)

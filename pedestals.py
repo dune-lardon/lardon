@@ -41,7 +41,7 @@ def compute_pedestal_nb(data, mask):
 
     return mean, res
 
-def compute_pedestal(noise_type='None', pars=None):
+def compute_pedestal(noise_type='None'):
     t0 = time.time()
     mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq)
 
@@ -52,7 +52,7 @@ def compute_pedestal(noise_type='None', pars=None):
         ''' this is still not ideal '''
 
 
-        thresh = pars.ped_amp_sig_fst
+        thresh = dc.reco['pedestal']['first_pass_thrs']
         for i in range(2):
             update_mask_inputs(thresh, mean, std)
             mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq)
@@ -60,11 +60,16 @@ def compute_pedestal(noise_type='None', pars=None):
         ped = dc.noise( mean, std )
         dc.evt_list[-1].set_noise_raw(ped)
 
+        inv = np.array([-1 if cf.signal_is_inverted[x.module]==True else 1 for x in dc.chmap])
+
+        dc.data_daq = dc.data_daq*inv[:,None] + mean[:,None]*inv[:,None]
+
+        """
         if(cf.signal_is_inverted==True):
             dc.data_daq = mean[:,None] - dc.data_daq
         else:
             dc.data_daq -= mean[:,None]
-
+        """
 
     elif(noise_type=='filt'): 
         ped = dc.noise( mean, std )
@@ -85,7 +90,7 @@ def update_mask_inputs(thresh, mean, rms):
     np.logical_and(dc.mask_daq, dc.alive_chan)
 
 
-def refine_mask(pars, n_pass = 1, debug=False, test=False):
+def refine_mask(n_pass = 1, debug=False, test=False):
     if(debug == True): import matplotlib.pyplot as plt
     t0 = time.time()
 
@@ -105,35 +110,45 @@ def refine_mask(pars, n_pass = 1, debug=False, test=False):
         if(cf.view_type[view] == "Collection"): 
             """ in testing phase """ 
             if(test==True):
-                lo, hi = 2., 5.
-                if(n_pass > 1):
-                    lo, hi = 3., 4.
                 mask_collection_signal_test(dc.mask_daq[ch], dc.data_daq[ch],
-                                            15, lo*rms, hi*rms, 3, 10, 10, 15)
-                
+                                            dc.reco['mask']['coll']['min_dt'],
+                                            dc.reco['mask']['coll']['low_thr'][n_pass-1]*rms,
+                                            dc.reco['mask']['coll']['high_thr'][n_pass-1]*rms,
+                                            dc.reco['mask']['coll']['min_rise'],
+                                            dc.reco['mask']['coll']['min_fall'],
+                                            dc.reco['mask']['coll']['pad_bef'],
+                                            dc.reco['mask']['coll']['pad_aft'])
+
             else:            
                 mask_collection_signal(dc.mask_daq[ch], dc.data_daq[ch],
-                                       pars.ped_rise_thr[view],
-                                       pars.ped_ramp_thr[view],
-                                       rms*pars.ped_amp_thr[view],
-                                       pars.ped_dt_thr)
-                
+                                       dc.reco['pedestal']['rise_thr'][view],
+                                       dc.reco['pedestal']['ramp_thr'][view],
+                                       dc.reco['pedestal']['amp_thr'][view]*rms,
+                                       dc.reco['pedestal']['dt_thr'])                
         else:
             if(test==True):
-                lo, hi = 1.8, 2.5
-                if(n_pass>1):
-                    lo, hi = 2, 3.5
+
                 mask_induction_signal_test(dc.mask_daq[ch], dc.data_daq[ch],
-                                           20, 10, lo*rms, hi*rms, 3, 3, 
-                                           10, -lo*rms, -hi*rms, 3, 3, 10,15)
-                
+                                           dc.reco['mask']['ind']['max_dt_pos_neg'],
+                                           dc.reco['mask']['ind']['pos']['min_dt'],
+                                           dc.reco['mask']['ind']['pos']['low_thr'][n_pass-1]*rms,
+                                           dc.reco['mask']['ind']['pos']['high_thr'][n_pass-1]*rms,
+                                           dc.reco['mask']['ind']['pos']['min_rise'],
+                                           dc.reco['mask']['ind']['pos']['min_fall'],
+                                           dc.reco['mask']['ind']['neg']['min_dt'],
+                                           dc.reco['mask']['ind']['neg']['low_thr'][n_pass-1]*rms,
+                                           dc.reco['mask']['ind']['neg']['high_thr'][n_pass-1]*rms,
+                                           dc.reco['mask']['ind']['neg']['min_rise'],
+                                           dc.reco['mask']['ind']['neg']['min_fall'],
+                                           dc.reco['mask']['ind']['pad_bef'],
+                                           dc.reco['mask']['ind']['pad_aft'])
             else:
                 mask_induction_signal(dc.mask_daq[ch], dc.data_daq[ch],
-                                      pars.ped_rise_thr[view],
-                                      pars.ped_ramp_thr[view],
-                                      rms*pars.ped_amp_thr[view],
-                                      pars.ped_dt_thr,
-                                      pars.ped_zero_cross_thr)  
+                                      dc.reco['pedestal']['rise_thr'][view],
+                                      dc.reco['pedestal']['ramp_thr'][view],
+                                      dc.reco['pedestal']['amp_thr'][view]*rms,
+                                      dc.reco['pedestal']['dt_thr'],
+                                      dc.reco['pedestal']['zero_cross_thr'])
 
 
         if(debug==True and ch > 1 and (ch % 50) == 0):
@@ -144,9 +159,9 @@ def refine_mask(pars, n_pass = 1, debug=False, test=False):
                   ax = fig.add_subplot(nrows, ncols, it+1)
                   ax.set_title(title)
                   ax.plot(dc.data_daq[channel],'o',markersize=0.2)
-                  ax.axhline(y=dc.evt_list[-1].noise_filt.ped_rms[channel]*pars.ped_amp_thr[dc.chmap[channel].view], color='gray')
+                  ax.axhline(y=dc.evt_list[-1].noise_filt.ped_rms[channel]*dc.reco['pedestal']['amp_thr'][dc.chmap[channel].view], color='gray')
                   ax.axhline(y=0, color='lightgray')
-                  ax.axhline(y=-dc.evt_list[-1].noise_filt.ped_rms[channel]*pars.ped_amp_thr[dc.chmap[channel].view], color='gray')
+                  ax.axhline(y=-dc.evt_list[-1].noise_filt.ped_rms[channel]*dc.reco['pedestal']['amp_thr'][dc.chmap[channel].view], color='gray')
                   ax.plot(np.max(dc.data_daq[channel, :])*dc.mask_daq[channel,:],linestyle='-',linewidth=1,color='r')
                   ax.set(xlabel=None,ylabel=None)
                   ax.axis('off')
