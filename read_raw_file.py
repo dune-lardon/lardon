@@ -7,7 +7,7 @@ import glob as glob
 import sys
 import tables as tab
 from abc import ABC, abstractmethod
-
+import importlib
 
 
 @nb.jit
@@ -190,7 +190,7 @@ class top_decoder(decoder):
         self.lro = head['lro'][0]
         self.cro = head['cro'][0]
         
-        dc.evt_list.append( dc.event("top", head['run_num'][0], self.sub, ievt, head['trig_num'][0], head['time_s'][0], head['time_ns'][0]) )
+        dc.evt_list.append( dc.event("cb","top", head['run_num'][0], self.sub, ievt, head['trig_num'][0], head['time_s'][0], head['time_ns'][0]) )
 
     def read_evt(self, ievt):
         if(self.lro < 0 or self.cro < 0):
@@ -318,10 +318,12 @@ class bot_decoder(decoder):
         for i in range(0,8,2):
             run_path += long_run[i:i+2]+"/"
         path = cf.data_path + "/" + run_path
-        
+        print(path)
+
         s = int(self.sub)
         long_sub = f'{s:04d}'
         sub_name = 'run'+str(f'{r:06d}')+'_'+long_sub
+        print(sub_name)
         
         fl = glob.glob(path+"*"+sub_name+"*hdf5")
 
@@ -337,7 +339,7 @@ class bot_decoder(decoder):
         f = self.filename if self.filename else self.get_filename()
         print('Reconstructing ', f)
         self.f_in = tab.open_file(f,"r")
-        
+
 
     def read_run_header(self):
 
@@ -377,21 +379,40 @@ class bot_decoder(decoder):
 
         t_s = int(t_unix)
         t_ns = (t_unix - t_s) * 1e9
-        dc.evt_list.append( dc.event("bot", head['run_nb'][0], self.sub, ievt, head['trig_num'][0], t_s, t_ns) )
+        dc.evt_list.append( dc.event("cb","bot", head['run_nb'][0], self.sub, ievt, head['trig_num'][0], t_s, t_ns) )
 
 
     def read_evt(self, ievt):
-        
+        print('there is ', self.nlinks, ' each link has ', self.n_chan_per_link)
         for ilink in range(self.nlinks):
             name = f'{ilink:02d}'
 
-            link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/TPC/CRP004", name='Link'+name,classname='Array').read()
+            """ to be improved !"""
+            try :
+                link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/TPC/CRP004", name='Link'+name,classname='Array').read()
+            except tab.NoSuchNodeError:
+                #print('no link number ', ilink, 'with name CRP004')
+                try :
+                    link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/TPC/APA004", name='Link'+name,classname='Array').read()
+                except tab.NoSuchNodeError:
+                    print('no link number ', ilink, 'with name APA004 nor CRP004')
+                    continue
+
             frag_head = np.frombuffer(link_data[:self.fragment_header_size], dtype = self.fragment_header_type)
 
             n_frames = int((len(link_data)-self.fragment_header_size)/self.wib_frame_size)
             if(n_frames != cf.n_sample):
                 print(" the link has ", n_frames, " frames ... but ", cf.n_sample, ' are expected !')
-     
+                    
+                cf.n_sample = n_frames
+
+                """ reshape the dc arrays accordingly """
+                dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
+                dc.data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
+                dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                dc.mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                    
+
             wib_head = np.frombuffer(link_data[self.fragment_header_size:self.fragment_header_size+self.wib_header_size], dtype = self.wib_header_type)
             
             _, fiber = decode_8_to_5_3(wib_head['ver_fib'][0])
@@ -420,16 +441,16 @@ class bot_decoder(decoder):
             ''' some groups of channels have to swapped to read them in the correct order '''
             ''' should be changed to non-hardcoded values '''
             
-            ''' I'm not sure I can explain how I did that '''
-            ''' LZ : I'll make it non-hardcoded '''
-            out = np.reshape(out, (16,4,32768)) #=8192*4
+            ''' NB : I'm not sure I can explain how I did that '''
+            out = np.reshape(out, (16,4,4*cf.n_sample)) #=8192*4
             out[:,[1,2],:] = out[:,[2,1],:]
             out = np.reshape(out, (self.n_chan_per_link,cf.n_sample))
-
+            
             out = out.astype(np.float32)
 
 
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
+
         self.nlinks = 0
         self.links = []
 
@@ -438,3 +459,137 @@ class bot_decoder(decoder):
     def close_file(self):
         self.f_in.close()
         print('good bye!')
+
+
+
+
+class dp_decoder(decoder):
+    def __init__(self, run, sub, filename=None):
+        self.run = run
+        self.sub = sub
+        self.filename = filename
+        print(' -- reading a top drift electronics file')
+        
+        """ some TDE specific parameters """
+        self.evskey = 0xFF
+        self.endkey = 0xF0
+        self.evdcard0 = 0x19 #default number of cards disconnected
+
+        self.header_type = np.dtype([
+            ('k0','B'),
+            ('k1','B'),
+            ('run_num', '<u4'), 
+            ('run_flag', 'c'),
+            ('trig_type', '<B'),
+            ('padding', '<3c'),
+            ('trig_num', '<u4'),
+            ('time_s', '<i8'),
+            ('time_ns', '<i8'), 
+            ('evt_flag', '<B'), 
+            ('evt_num', '<u4'),
+            ('lro', '<u4'),
+            ('cro', '<u4')
+        ])
+
+        self.header_size = self.header_type.itemsize
+
+
+    def get_filename(self):
+        path = f"{cf.data_path}/{self.run}/{self.run}_{self.sub}"
+        fl = glob.glob(path+".*")
+        if(len(fl) != 1):
+            print('none or more than one file matches ... : ', fl)
+            sys.exit()
+        f = fl[0]
+        return f
+
+
+    def open_file(self):
+        f = self.filename if self.filename else self.get_filename()
+        print('Reconstructing ', f)
+
+        f_type = f[f.rfind('.')+1:]
+        print(' NB : file type is ', f_type)
+        self.f_in = open(f,'rb')
+        
+
+
+    def read_run_header(self):
+        run_nb, nb_evt = np.fromfile(self.f_in, dtype='<u4', count=2)
+        print('run: ', run_nb, ' nb of events ', nb_evt)
+
+        """ Read the run header of the binary data file """
+        self.sequence = []
+        for i in range(nb_evt):
+            seq  = np.fromfile( self.f_in, dtype='<u4', count=4)
+            """4 uint of [event number - event total size with header- event data size - 0]"""
+            self.sequence.append(seq[1])
+            
+
+        self.event_pos = []
+        self.event_pos.append( self.f_in.tell() )
+        for i in range(nb_evt-1):
+            self.f_in.seek(self.sequence[i], 1)
+            """ get the byte position of each event """
+            self.event_pos.append( self.f_in.tell() ) 
+            """ End of run header reading part """
+
+        return nb_evt
+
+
+    def read_evt_header(self, ievt):
+        self.f_in.seek(self.event_pos[ievt],0)
+
+        head = np.frombuffer(self.f_in.read(self.header_size), dtype=self.header_type)
+
+
+        if( not((head['k0'][0] & 0xFF)==self.evskey and (head['k1'][0] & 0xFF)==self.evskey)):
+            print(" problem in the event header ")
+        good_evt = (head['evt_flag'][0] & 0x3F) == self.evdcard0
+
+        if(not good_evt):
+            print(" problem, the event has ", head['evt_flag'][0] & 0x3F, ' cards disconnected instead of ', self.evdcard0)
+
+        self.lro = head['lro'][0]
+        self.cro = head['cro'][0]
+
+        if(len(dc.evt_list)==0):
+            dc.evt_list.append( dc.event("dp","top", head['run_num'][0], self.sub, ievt, head['trig_num'][0], head['time_s'][0], head['time_ns'][0]) )
+        else:
+            print(head['run_num'][0], self.sub, ievt, head['trig_num'][0], head['time_s'][0], head['time_ns'][0])
+
+    def read_evt(self, ievt):
+        if(self.lro < 0 or self.cro < 0):
+            print(' please read the event header first! ')
+            sys.exit()
+
+
+        idx = self.event_pos[ievt] + self.header_size
+        self.f_in.seek(idx,0)
+        out = read_evt_uint12_nb( self.f_in.read(self.cro) )
+
+
+        self.f_in.read(1) #The bruno byte :-)
+
+        """ read second header"""
+        head = np.frombuffer(self.f_in.read(self.header_size), dtype=self.header_type)
+        self.cro = head['cro'][0]
+        out = np.append(out,read_evt_uint12_nb( self.f_in.read(self.cro) ))
+
+
+
+        if(len(out)/cf.n_sample != cf.n_tot_channels):
+            print(' The event is incomplete ... ')
+            sys.exit()
+
+        out = out.astype(np.float32)
+        dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
+
+        self.lro = -1
+        self.cro = -1
+
+
+    def close_file(self):
+        self.f_in.close()
+        print('file closed!')
+
