@@ -7,7 +7,7 @@ import data_containers as dc
 
 class Infos(IsDescription):
     run          = UInt16Col()
-    sub          = UInt16Col()
+    sub          = StringCol(6)
     elec         = StringCol(3)
     n_evt        = UInt8Col()
     process_date = UInt32Col()
