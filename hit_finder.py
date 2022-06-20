@@ -6,7 +6,7 @@ import numpy as np
 import numba as nb
 
 
-def hit_search(data, view, daq_chan, start, dt_min, thr1, thr2, thr3):
+def hit_search(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3):
 
     ll = []
     if(cf.view_type[view] != "Collection" and cf.view_type[view] != "Induction"): 
@@ -14,36 +14,36 @@ def hit_search(data, view, daq_chan, start, dt_min, thr1, thr2, thr3):
         sys.exit()
 
     elif(cf.view_type[view] == "Collection"):
-        n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2)
+        n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data,start, dt_min, thr1, thr2)
 
         for i in range(n):
-            ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
+            ll.append(dc.hits(module, view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
         return ll
 
 
     elif(cf.view_type[view] == "Induction"):
-        n, h_start, h_stop, h_max_t, h_max_adc, h_min_t, h_min_adc, h_zero_t = hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr3)
+        n, h_start, h_stop, h_max_t, h_max_adc, h_min_t, h_min_adc, h_zero_t = hit_search_induction_nb(data, start, dt_min, thr3)
 
         if(n==0 and np.mean(data) > thr1):
-            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2)
+            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, start, dt_min, thr1, thr2)
         
             #print("Looked at a collection-type hit anyway in ",view, dc.chmap[daq_chan].vchan, start, ' --> Found ', n, ' hits!')
 
             for i in range(n):
-                ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
+                ll.append(dc.hits(module, view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
             return ll
 
 
         for i in range(n):
-            ll.append(dc.hits(view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], h_min_t[i], h_min_adc[i], h_zero_t[i], "Induction"))
+            ll.append(dc.hits(module, view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], h_min_t[i], h_min_adc[i], h_zero_t[i], "Induction"))
         return ll
 
 
         
     return ll 
 
-@nb.njit('Tuple((int64,int16[:],int16[:],int16[:],float64[:],int16[:],float64[:],int16[:]))(float64[:],int64,int64,int64,int64,float64)')
-def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
+@nb.njit('Tuple((int64,int16[:],int16[:],int16[:],float64[:],int16[:],float64[:],int16[:]))(float64[:],int64,int64,float64)')
+def hit_search_induction_nb(data, start, dt_min, thr):
     """ very basic induction-like hit finder """
     """ WARNING : CANNOT FIND OVERLAPPING HITS """
     
@@ -150,8 +150,8 @@ def hit_search_induction_nb(data, view, daq_chan, start, dt_min, thr):
 
     return h_num, h_start, h_stop, h_max_t, h_max_adc, h_min_t, h_min_adc, h_zero_t
 
-@nb.njit('Tuple((int64,int16[:],int16[:],int16[:],float64[:]))(float64[:],int64,int64,int64,int64,float64,float64)')
-def hit_search_collection_nb(data, view, daq_chan, start, dt_min, thr1, thr2):
+@nb.njit('Tuple((int64,int16[:],int16[:],int16[:],float64[:]))(float64[:],int64,int64,float64,float64)')
+def hit_search_collection_nb(data, start, dt_min, thr1, thr2):
     """search hit-shape in a list of points"""
     """algorithm from qscan"""
     npts = len(data)
@@ -253,8 +253,17 @@ def recompute_hit_charge(hit):
         sys.exit()
 
         
-def find_hits(pad_left, pad_right, dt_min, n_sig_coll_1, n_sig_coll_2, n_sig_ind): 
+def find_hits():
 
+    pad_left = dc.reco['hit_finder']['pad']['left']
+    pad_right = dc.reco['hit_finder']['pad']['left']
+    dt_min = dc.reco['hit_finder']['coll']['dt_min']
+    n_sig_coll_1 = dc.reco['hit_finder']['coll']['amp_sig'][0]
+    n_sig_coll_2 = dc.reco['hit_finder']['coll']['amp_sig'][1]
+    n_sig_ind  = dc.reco['hit_finder']['ind']['amp_sig'][0]
+    
+
+    
     """ get boolean roi based on mask and alive channels """
     ROI = np.array(~dc.mask_daq & dc.alive_chan, dtype=bool)
 
@@ -281,7 +290,7 @@ def find_hits(pad_left, pad_right, dt_min, n_sig_coll_1, n_sig_coll_2, n_sig_ind
 
             daq_chan = start[0][g]
             
-            view, channel = dc.chmap[daq_chan].view, dc.chmap[daq_chan].vchan
+            module, view, channel = dc.chmap[daq_chan].get_ana_chan()
             if(view < 0 or view >= cf.n_view):
                 continue
 
@@ -327,7 +336,7 @@ def find_hits(pad_left, pad_right, dt_min, n_sig_coll_1, n_sig_coll_2, n_sig_ind
 
 
 
-            hh = hit_search(adc, view, daq_chan, tdc_start, dt_min, thr1, thr2, thr3)
+            hh = hit_search(adc, module, view, daq_chan, tdc_start, dt_min, thr1, thr2, thr3)
 
             
             """add padding to found hits"""
