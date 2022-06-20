@@ -4,46 +4,53 @@
 	    "chmap":"cb_tde_chmap_v1.txt",	    	    
             "broken_channels":[761,764],
 	    "signal_is_inverted":"1",
-	    "e_drift":"0.404"
+	    "e_drift":"0.404",
+	    "drift_length":"23."
 	},
 	"99999":{
 	    "chmap":"cb_tde_chmap_v1.txt",	    	    
             "broken_channels":[761,764],
 	    "signal_is_inverted":"1",
-	    "e_drift":"0.415"
+	    "e_drift":"0.415",
+	    "drift_length":"22.6"
 	}
     },
     "bot":{
 	"12064":{
 	    "chmap":"cb_bde_chmap_v19.txt",
 	    "signal_is_inverted":"0",
-	    "e_drift":"0.404"
+	    "e_drift":"0.404",
+	    "drift_length":"23."
 	},
 	"12301":{
 	    "channel_calib":"bde_calib_area_2021.txt",
 	    "chmap":"cb_bde_chmap_v24.txt",
 	    "signal_is_inverted":"0",
 	    "broken_channels":[185,167,462,460,870,172,171,335,463,461,458,457,456,1364,719,1327,1330,1583,1511,1144,1199,871,943, 615, 687, 1127, 1200, 459],
-	    "e_drift":"0.415"
+	    "e_drift":"0.415",
+	    "drift_length":"22.6",
 	},
 	"12330":{
 	    "channel_calib":"bde_calib_area_2021.txt",
 	    "chmap":"cb_bde_chmap_v24.txt",	    
 	    "signal_is_inverted":"0",
 	    "broken_channels":[185, 167, 140, 462, 460, 566, 575, 531, 522, 534, 589, 595, 818, 811, 172, 171, 463, 457, 1364, 739, 1327],
-	    "e_drift":"0.415"
+	    "e_drift":"0.415",
+	    "drift_length":"22.6"
 	},		    
 	"12342":{
 	    "chmap":"cb_bde_chmap_v24.txt",	    
 	    "signal_is_inverted":"0",
-	    "e_drift":"0.415"
+	    "e_drift":"0.415",
+	    "drift_length":"22.6"
 	},
 	"99999":{
 	    "channel_calib":"bde_calib_area_2021.txt",
 	    "chmap":"cb_bde_chmap_v24.txt",	    
 	    "signal_is_inverted":"0",
 	    "broken_channels":[185, 167, 140, 462, 460, 566, 575, 531, 522, 534, 589, 595, 818, 811, 172, 171, 463, 457, 1364, 739, 1327],
-	    "e_drift":"0.415"
+	    "e_drift":"0.415",
+	    "drift_length":"22.6"
 	}		    
     }
 }
