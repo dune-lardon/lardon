@@ -1,0 +1,51 @@
+{
+    "default":
+    {
+	"n_view":"3",
+	"n_module":"1",
+	"view_name":["U","Y","Z"],
+	"view_type":["Induction","Induction", "Collection"],
+	"view_angle":["41.67", "90", "0"],
+	"view_pitch":["0.8695", "0.525", "0.517"],
+	"view_capa":["10.9","8.0","10.0"],
+	"view_nchan":["384", "640", "576"],
+	"view_chan_repet":["384","320","576"],
+	"view_length":["333.388","168.","297.792"],
+	"strips_length":"cb_1_strips_bot.txt",
+	"view_z_offset":["1.17","0.32","0"],
+	"signal_is_inverted":"0",
+	"sub_path":"np04/vd-coldbox-bottom/raw/2021/detector/test/None",
+	"n_tot_channels":"1792",
+	"sampling":"2",
+	"n_sample":"8192",
+	"e_per_ADCtick":"22.95",
+	"ADC_per_fC":"135.996",
+	"view_offset":[["-111.296","0.","-148.896"]],
+	"x_boundaries":[["0", "168."]],
+	"y_boundaries":[["-148.896","148.896"]],
+	"anode_z":"11.5",
+	"chmap":"cb_bde_chmap_v19.txt",
+	"channel_calib":""
+    },
+    "12301-99999":{
+	"channel_calib":"bde_calib_area_2021.txt",
+	"chmap":"cb_bde_chmap_v24.txt",
+	"e_drift":"0.415",
+	"drift_length":"22.6",
+	"broken_channels":[185,167,140,457,459,460,461,462,566,575,531,522,534,589,595,818,811,870,172,171,242,463,458,456,1585,1427,1352,1364,892,871,943,1327,1330]
+    },
+
+    "12330-12342":{
+	"channel_calib":"",
+	"broken_channels":[]
+	
+    },
+    "12398-99999":{
+	"sub_path":"np04/vd-coldbox-bottom/raw/2022/detector/test/None",
+	"chmap":"cb_bde_chmap_v24.txt",
+	"e_drift":"0.452",
+	"drift_length":"23.",
+	"broken_channels":[29, 79, 157, 167, 185, 246, 522, 531, 534, 566, 575, 589, 595, 811, 818, 870, 974, 985, 987, 990, 999, 1208, 8, 88, 119, 171, 172, 183, 212, 287, 345, 346, 455, 1295, 1409, 1442, 1456, 1461, 1469, 1543, 1563, 1573, 1638, 1639, 490, 769, 806, 954, 968, 969, 970, 972, 975, 1164, 1169, 1170]
+	}
+        
+}
