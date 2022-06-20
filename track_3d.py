@@ -35,6 +35,7 @@ def finalize_3d_track(track, npts):
         ty = [x[1] for x in track.path[iv]]
         tz = [x[2] for x in track.path[iv]]
 
+
         """ sort by increasing z for the interpolation """
         z, x, y = (np.asarray(list(t)) for t in zip(*sorted(zip(tz, tx, ty))))
 
@@ -98,12 +99,27 @@ def complete_trajectories(tracks):
     n_trk = len(tracks)
 
     the_track = dc.trk3D()
+    module_ini, module_end = -1, -1
 
     for i in range(n_trk):
         track = tracks[i]
         k = i+1
         if(k == n_trk): k=0
         other = tracks[k]
+        
+        if(module_ini < 0):
+            module_ini = track.module_ini
+        else:
+            if(track.module_ini != module_ini):
+                print('Matching problems, initial modules do not correspond')
+
+        if(module_end < 0):
+            module_end = track.module_end
+        else:
+            if(track.module_end != module_end):
+                print('Matching problems, ending modules do not correspond')
+
+        
 
         v_track = track.view
         ang_track = np.radians(cf.view_angle[v_track])
@@ -240,7 +256,7 @@ def complete_trajectories(tracks):
             t3d_hits_id.append(track.hits_ID[p])
         the_track.set_view(track, trajectory, dQ, ds, t3d_hits_id)
 
-
+    the_track.set_modules(module_ini, module_end)
     return the_track
 
 
@@ -256,13 +272,13 @@ def correct_timing(trk, xtol, ytol, ztol):
     from_top =  (z_top - trk.ini_z) < ztol
     exit_bot = (math.fabs(z_max - trk.end_z)) < ztol
 
-    from_wall_x = np.asarray([ math.fabs(trk.ini_x-s)<t for t, s in zip(xtol,cf.x_boundaries)], dtype=bool)
-    from_wall_y = np.asarray([ math.fabs(trk.ini_y-s)<t for t,s in zip(ytol,cf.y_boundaries)], dtype=bool)
+    from_wall_x = np.asarray([ math.fabs(trk.ini_x-s)<t for t, s in zip(xtol,cf.x_boundaries[trk.module_ini])], dtype=bool)
+    from_wall_y = np.asarray([ math.fabs(trk.ini_y-s)<t for t,s in zip(ytol,cf.y_boundaries[trk.module_ini])], dtype=bool)
 
     from_wall = np.any(np.concatenate((from_wall_x, from_wall_y), axis=None))
 
-    exit_wall_x = np.asarray([ math.fabs(trk.end_x-s)<t for t, s in zip(xtol,cf.x_boundaries)], dtype=bool)
-    exit_wall_y = np.asarray([ math.fabs(trk.end_y-s)<t for t, s in zip(ytol, cf.y_boundaries)], dtype=bool)
+    exit_wall_x = np.asarray([ math.fabs(trk.end_x-s)<t for t, s in zip(xtol,cf.x_boundaries[trk.module_end])], dtype=bool)
+    exit_wall_y = np.asarray([ math.fabs(trk.end_y-s)<t for t, s in zip(ytol, cf.y_boundaries[trk.module_end])], dtype=bool)
     exit_wall = np.any(np.concatenate((exit_wall_x, exit_wall_y), axis=None))
 
     z0 = 9999.
@@ -304,7 +320,15 @@ def correct_timing(trk, xtol, ytol, ztol):
 
 
 
-def find_tracks_rtree(ztol, qfrac, len_min, dx_tol, dy_tol, dz_tol):
+def find_tracks_rtree():
+
+    ztol = dc.reco['track_3d']['ztol']
+    qfrac= dc.reco['track_3d']['qfrac']
+    len_min= dc.reco['track_3d']['len_min']
+    dx_tol= dc.reco['track_3d']['dx_tol']
+    dy_tol= dc.reco['track_3d']['dy_tol']
+    dz_tol = dc.reco['track_3d']['dz_tol']
+    
     if(len(dc.tracks2D_list) < 2):
         return
 
@@ -370,6 +394,11 @@ def find_tracks_rtree(ztol, qfrac, len_min, dx_tol, dy_tol, dz_tol):
             for j_ID in ov:
                 j_idx = ID_to_idx[j_ID]
                 tj = dc.tracks2D_list[j_idx]
+                if(ti.module_ini != tj.module_ini):
+                    continue
+                if(ti.module_end != tj.module_end):
+                    continue
+
                 #print("overlaps with, ", j_ID, ' idx ', j_idx)
                 #tj.mini_dump()
 
@@ -435,7 +464,7 @@ def find_tracks_rtree(ztol, qfrac, len_min, dx_tol, dy_tol, dz_tol):
             correct_timing(t3D, dx_tol, dy_tol, dz_tol)
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
-            dc.tracks3D_list[-1].dump()
+            #dc.tracks3D_list[-1].dump()
             for t in trks:
                 for i in range(cf.n_view):
                     t.matched[i] = -1
