@@ -9,40 +9,52 @@ def set_unused_channels():
     if(len(cf.broken_channels) > 0):
        print(" Removing ",len(cf.broken_channels)," broken channels :")
 
+    print(cf.module_used)
     for i in range(cf.n_tot_channels):
-        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
-        if(view >= cf.n_view or view < 0 or i in cf.broken_channels):
+        module, view, chan = dc.chmap[i].module, dc.chmap[i].view, dc.chmap[i].vchan
+        if(view >= cf.n_view or view < 0 or i in cf.broken_channels or cf.module_used[module]==False):
             dc.alive_chan[i,:] = False
 
             if(i in cf.broken_channels):
-                print(i, ' [v',view,' ch',chan,'], ',sep='',end='')
+                print(i, ' [m',module,' v',view,' ch',chan,'], ',sep='',end='')
     print('\n')
 
 def arange_in_view_channels():
     for i in range(cf.n_tot_channels):
-        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
+        module, view, chan = dc.chmap[i].get_ana_chan()
         if(view >= cf.n_view or view < 0 or i in cf.broken_channels):
             continue
-        dc.data[view, chan] = dc.data_daq[i]
+        dc.data[module, view, chan] = dc.data_daq[i]
 
 
 
-def get_mapping(elec):
-    #print("channel mapping file is ", cf.channel_map)
+def get_mapping(detector, elec):
     if(os.path.exists(cf.channel_map) is False):
         print('the channel mapping file ', fmap, ' does not exists')
         sys.exit()
-    if(elec == "top"):
-        get_top_mapping()
-    elif(elec == "bot"):
-        get_bot_mapping()
-    else : 
-        print("the electronic setting is not recognized")
 
-        
-def get_top_mapping():
+    if(detector == "cb1"):
+        if(elec == "top"):
+            get_cb_top_mapping()
+        elif(elec == "bot"):
+            get_cb_bot_mapping()
+        else : 
+            print("the electronic ",elec, " for ", detector, " is not recognized")
+            sys.exit()
+    elif(detector == "dp" and elec == "top"):
+        get_dp_mapping()
+
+    else :
+        print("the electronic ",elec, " for ", detector, " is not recognized")
+        sys.exit()
+
+def get_cb_top_mapping():
     strip = get_strip_length()
     calib  = get_calibration()
+
+    # TO BE UPDATED IN THE FUTURE
+    module = 0
+
     with open(cf.channel_map, 'r') as f:
         for line in f.readlines()[1:]:
             li = line.split()
@@ -58,16 +70,25 @@ def get_top_mapping():
             globch = int(li[9])
             gain = calib[daqch]
 
+
+
             if(globch >= 0 and view >= 0 and view < cf.n_view):
-                length, capa, tot_length, tot_capa = strip[globch]
+                length, capa = strip[globch]
+                
+                pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset[module][view] +  cf.view_pitch[view]/2.
+
             else:
-                length, capa, tot_length, tot_capa = -1, -1, -1, -1
-            c = dc.channel(daqch, globch, view, channel, length, capa, tot_length, tot_capa, gain)
+                length, capa = -1, -1
+                pos=-9999.
+            c = dc.channel(daqch, globch, module, view, channel, length, capa, gain, pos)
             dc.chmap.append(c)
 
-def get_bot_mapping():
+def get_cb_bot_mapping():
     strip = get_strip_length()
     calib  = get_calibration()
+    # TO BE UPDATED IN THE FUTURE
+    module = 0
+
     with open(cf.channel_map, 'r') as f:
         for line in f.readlines()[1:]:
             li = line.split()
@@ -81,13 +102,43 @@ def get_bot_mapping():
             channel = int(li[7])
             gain = calib[daqch]
 
+
             if(globch >= 0 and view >= 0 and view < cf.n_view):
-                length, capa, tot_length, tot_capa = strip[globch]
+                length, capa = strip[globch]
+                pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset[module][view] +  cf.view_pitch[view]/2.
+
             else:
-                length, capa, tot_length, tot_capa = -1, -1, -1, -1
-            
-            c = dc.channel(daqch, globch, view, channel, length, capa, tot_length, tot_capa, gain)
+                length, capa = -1, -1
+                pos=-9999.            
+            c = dc.channel(daqch, globch, module, view, channel, length, capa, gain, pos)
             dc.chmap.append(c)
+
+
+def get_dp_mapping():
+    calib  = get_calibration()
+    with open(cf.channel_map, 'r') as f:
+        for line in f.readlines()[1:]:
+            li = line.split()
+            daqch =  int(li[0])
+            crp   =  int(li[1])
+            view =  int(li[2])
+            channel =  int(li[3])
+            gain = calib[daqch]
+            
+            globch = 3840*view + 960*crp + channel
+
+            pos = channel*cf.view_pitch[view]
+            if(view == 0):
+                if(crp == 1 or crp == 2):
+                    pos -= 300.
+            else:
+                if(crp == 2 or crp == 3):
+                    pos -= 300.
+
+            length, capa = 300., 1.
+            c = dc.channel(daqch, globch, crp, view, channel, length, capa, gain, pos)
+            dc.chmap.append(c)
+
                 
 
 def get_strip_length():
@@ -99,11 +150,10 @@ def get_strip_length():
             vch  =  int(li[1])
             globch = int(li[2])
             length = float(li[3])
-            tot_length = float(li[4])
 
             capa = length*cf.view_capa[view]
-            tot_capa = tot_length*cf.view_capa[view]
-            strip.append( (length, capa, tot_length, tot_capa) )
+
+            strip.append( (length, capa) )
 
         return strip
 
