@@ -5,13 +5,15 @@ lardon_path = "."
 store_path = lardon_path+"/reco"
 plot_path  = lardon_path+"/results"
 
-""" to add in the json file ?? """
+
 
 LAr_temperature = 87. #K - to check in the slow control 
-e_drift = 0.4  #kV/cm - default but should be overwritten in settings
+e_drift = 0.4  #kV/cm - default, overwritten in settings
 
 """ default values overwritten by the json file """
 n_view = -1
+n_module = 1
+module_used = []
 view_name = []
 view_type = []
 view_angle = []

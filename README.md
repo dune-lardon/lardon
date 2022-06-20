@@ -32,7 +32,7 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 * `-n <nb of events>` how many events to process, default is -1 = all file
 * `-out <output file option>` optional extra name for the output
 * `-skip <nb to skip>` number of events to skip
-* `-det <your_detector>` which detector to reconstruct, default is coldbox
+* `-det <your_detector>` which detector to reconstruct, default is cb1 (coldbox 1st CRP) [one can also look at the np02 data]
 
 
 *e.g.* : To run the first 10 events of top electronics run 455 subfile 5, type :
@@ -79,8 +79,15 @@ Seen in view channel ordering (more natural):<br/>
 `plot.plot_noise_vch(noise_type='noise_type')`<br/>
 where `noise_type` is either `raw` or `filt`<br/>
 
+
+### To check the signal/noise separation on the event display:<br/>
+The signal (ROI) : `plot.event_display_per_view_roi()`<br/>
+The noise : `plot.event_display_per_view_noise()`<br/>
+
 ### To plot hits found :<br/>
 `plot.plot_2dview_hits()`<br/>
+To see the hits found on top of the event display:<br/>
+`plot.event_display_per_view_hits_found()`<br/>
 
 ### To plot 2D tracks (and hits):<br/>
 `plot.plot_2dview_2dtracks()`<br/>
