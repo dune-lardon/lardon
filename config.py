@@ -33,6 +33,7 @@ view_offset = []
 view_z_offset = []
 
 view_chan_repet = []
+view_offset_repet = []
 signal_is_inverted = False
 strips_length = ''
 
