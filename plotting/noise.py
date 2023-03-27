@@ -414,7 +414,7 @@ def plot_sticky_finder_daqch(option='', to_be_shown=False):
     ax     = fig.add_subplot(gs[1, :])
 
 
-    h = np.apply_along_axis(lambda a: np.histogram(a, bins=4096,range=(-0.5,4095.5))[0], 1, dc.data_daq)
+    h = np.apply_along_axis(lambda a: np.histogram(a, bins=16384,range=(-0.5,16383.5))[0], 1, dc.data_daq)
 
 
     ax.imshow(h.transpose(), 
@@ -422,7 +422,7 @@ def plot_sticky_finder_daqch(option='', to_be_shown=False):
               aspect = 'auto', 
               interpolation='none',
               cmap   = cmap_ed,
-              extent = (0,cf.n_tot_channels,-.5,4095.5),
+              extent = (0,cf.n_tot_channels,-.5,16383.5),#4095.5),
               vmin = 0,
               vmax = 100)
 
@@ -437,7 +437,7 @@ def plot_sticky_finder_daqch(option='', to_be_shown=False):
     ax.set_xlabel('DAQ Channel Number')
     
     ax.set_ylabel('ADC')
-    ax.set_ylim(-5,4100)
+    ax.set_ylim(-5,16400)#4100)
     ax_col.set_title('ADC appearance frequency')
     cb = fig.colorbar(ax.images[-1], cax=ax_col, orientation='horizontal')
     cb.ax.xaxis.set_ticks_position('top')

@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib import collections  as mc
 from matplotlib.legend_handler import HandlerTuple
+import matplotlib.lines as mlines
 import itertools as itr
 import math
 import colorcet as cc
@@ -18,6 +19,15 @@ import colorcet as cc
 
 cmap_ed = cc.cm.kbc_r
 marker_size = 5
+
+color_noise      = "#c7c7c7"
+color_singlehits = "#ffb77d"
+color_matched1   = "#28568f"
+color_matched2   = "#abdf7f"
+color_track2d    = "#de425b"
+color_track3d    = "#00a9b2"
+color_ghost      = "#bd96d0"
+
 
 def draw_hits(pos, time, z=[], ax=None, **kwargs):
 
@@ -66,9 +76,7 @@ def draw_tracks(pos, time, ax=None, legend="", **kwargs):
 
 
 def draw_all_tracks(axs, sel='True', legend="", **kwargs):
-
-    
-
+        
     for iview in range(cf.n_view):
         axs[iview] = draw_tracks(pos=get_2dtracks_pos(iview,sel), 
                                  time=get_2dtracks_z(iview,sel), 
@@ -82,6 +90,12 @@ def draw_all_tracks(axs, sel='True', legend="", **kwargs):
 
 
 def template_data_view():
+    if(cf.n_module > 1):
+        print('Cannot plot it at the moment ; will be updated soon, sorry')
+        return
+
+
+    mod = 0
 
     fig = plt.figure(figsize=(10,5))
     gs = gridspec.GridSpec(nrows=2, ncols=cf.n_view, 
@@ -98,12 +112,11 @@ def template_data_view():
     axs[0].get_shared_y_axes().join(*axs)
 
     for iv in range(cf.n_view):
+
         axs[iv].set_title('View '+str(iv)+"/"+cf.view_name[iv])
         axs[iv].set_xlabel(cf.view_name[iv]+' [cm]')
-
-        #print('view ', iv, ' from ', cf.view_offset[iv], ' to ', cf.view_offset[iv]+cf.view_length[iv])
-        axs[iv].set_xlim([cf.view_offset[iv], cf.view_offset[iv]+cf.view_length[iv]])
-        axs[iv].set_ylim([cf.anode_z - v*cf.n_sample/cf.sampling, cf.anode_z])
+        axs[iv].set_xlim(cf.view_offset[mod][iv], cf.view_offset[mod][iv]+cf.view_length[iv])
+        axs[iv].set_ylim(cf.anode_z - v*cf.n_sample/cf.sampling, cf.anode_z)
 
 
         if(iv == 0):
@@ -177,3 +190,83 @@ def plot_2dview_2dtracks(option=None, to_be_shown=False):
         plt.show()
     plt.close()
 
+
+def plot_2dview_hits_tracks(draw_2D=True, draw_3D=True, option=None, to_be_shown=False):
+    fig, ax_leg, axs = template_data_view()
+    save="tracks2D_hits_type"
+
+    leg_handle = []
+    leg_label = []
+    """ unmatched hits """
+    sel = 'x.matched == -9999'    
+    axs = draw_all_hits(axs, sel, c=color_noise, s=marker_size, marker='o', label='Noise Hits')
+    leg_handle.append(mlines.Line2D([], [], color=color_noise, marker='o', linestyle='None', markersize=10, label='Noise'))
+
+
+    """ hits attached to track """
+    sel = 'x.matched >= 0'
+    axs = draw_all_hits(axs, sel, c=color_matched1, s=marker_size, marker='o', label='Hits Attached to Track')
+    leg_handle.append(mlines.Line2D([], [], color=color_matched1, marker='o', linestyle='None', markersize=10, label='Track Hits'))
+
+    """ delta_ray hits attached to track """
+    sel = 'x.matched <0 and x.matched > -5555'
+    axs = draw_all_hits(axs, sel, c=color_matched2, s=marker_size, marker='o', label='Delta Rays')
+    leg_handle.append(mlines.Line2D([], [], color=color_matched2, marker='o', linestyle='None', markersize=10, label=r'$\delta_{ray}$'))
+
+
+    """ single hits """
+    sel = 'x.matched == -5555'
+    axs = draw_all_hits(axs, sel, c=color_singlehits, s=marker_size, marker='o', label='Single Hits')    
+    leg_handle.append(mlines.Line2D([], [], color=color_singlehits, marker='o', linestyle='None', markersize=10, label='Single'))  
+
+    if(draw_2D):
+        """ 2D tracks """
+        sel = 't.ghost == False'
+        axs = draw_all_tracks(axs, sel, legend='2D Track', c=color_track2d, linewidth=1)
+
+        leg_handle.append(mlines.Line2D([], [], color=color_track2d, linestyle='solid', lw=3, label='Track 2D'))     
+
+        sel = 't.ghost == True'
+        axs = draw_all_tracks(axs, sel, legend='Ghost', c=color_ghost, linewidth=1)
+
+        leg_handle.append(mlines.Line2D([], [], color=color_ghost, linestyle='solid', lw=3, label='Ghost'))     
+
+    if(draw_3D):
+        """ 3D tracks """
+        sel = 't.match_3D >= 0'
+        axs = draw_all_tracks(axs, sel, c=color_track3d, linewidth=2, legend='3D Track')
+        save="tracks3D_hits_type"
+        leg_handle.append(mlines.Line2D([], [], color=color_track3d, linestyle='solid', lw=3, label='Track 3D'))
+
+    """ legend """
+    ax_leg.axis('off')
+    
+    """ re-arrange the legend (line last), and merge blue and green entries """
+    """ might not work anymore if the plotting order is changed """
+
+
+    if(False):
+        leg = ax_leg.legend([h[1], h[2], (h[3], h[4]), h[0]], [l[1], l[2], 'Hits Attached to Track (1,2)', l[0]], loc='center', ncol=4, markerscale=4, handler_map={tuple: HandlerTuple(ndivide=None)})
+    else:
+        """otherwise this works well """
+        leg = ax_leg.legend(handles=leg_handle, ncol=5 , frameon=False, bbox_to_anchor=(0.0, 0., 1., 1.), loc='center') #int(len(leg_handle)/2)
+
+
+            #*axs[0].get_legend_handles_labels(),loc='center', ncol=5, markerscale=4, markerfirst=True)
+    
+    """ make line in the legend bigger """
+    #for line in leg.get_lines():
+        #line.set_linewidth(3)
+
+    save_with_details(fig, option, save)
+
+    if(to_be_shown):
+        plt.show()
+    plt.close()
+
+
+def plot_2dview_hits_2dtracks(option=None, to_be_shown=False):
+    return plot_2dview_hits_tracks(draw_2D=True, draw_3D=False, option=option, to_be_shown=to_be_shown) 
+
+def plot_2dview_hits_3dtracks(option=None, to_be_shown=False):
+    return plot_2dview_hits_tracks(draw_2D=True, draw_3D=True, option=option, to_be_shown=to_be_shown) 

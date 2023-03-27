@@ -76,7 +76,7 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
 
     irow = 0
     for im, use in enumerate(cf.module_used):
-        print(im, use, irow)
+        #print(im, use, irow)
 
         if(use==False):
             continue            
@@ -101,6 +101,8 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
                         else:
                             color='k'
 
+                        if(h.matched == -5555):
+                            color='orange'
                         r = patches.Rectangle((h.channel-0.5,h.start),1,h.stop-h.start,linewidth=.5,edgecolor=color,facecolor='none')
                         
                         axs[iv][-1].add_patch(r)
