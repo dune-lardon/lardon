@@ -52,7 +52,8 @@ def plot_wvf_current_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sam
         a.tick_params(labelbottom=False)
     ax[-1].set_xlabel('Time')
     
-
+    for a in ax:
+        a.axhline(0, lw=1, ls="dashed", c='r')
     plt.tight_layout()
     plt.subplots_adjust(top=0.95)
 
@@ -90,6 +91,11 @@ def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1, option=None, to_b
             
     for a in ax[:-1]:
         a.tick_params(labelbottom=False)
+
+    for a in ax:
+        a.axhline(0, lw=1, ls="dashed", c='r')
+
+
     ax[-1].set_xlabel('Time')
     
 
