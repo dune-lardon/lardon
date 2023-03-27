@@ -20,6 +20,7 @@
 	"e_per_ADCtick":"34",
 	"ADC_per_fC":"73.435",
 	"view_offset":[["-222.592","-168.0","-148.896"]],
+	"view_offset_repet":[[["-222.592"],["-168.0", "-168.0"],["-148.896"]]],
 	"x_boundaries":[["-168.","0"]],
 	"y_boundaries":[["-148.896","148.896"]],
 	"chmap":"cb_tde_chmap_v1.txt",	    	    
