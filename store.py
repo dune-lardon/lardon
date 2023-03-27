@@ -30,6 +30,8 @@ class Event(IsDescription):
     n_hits        = UInt32Col(shape=(cf.n_view))
     n_tracks2D    = UInt32Col(shape=(cf.n_view))
     n_tracks3D    = UInt32Col()
+    n_single_hits = UInt32Col()
+    n_ghosts      = UInt32Col()
 
 
 class Pedestal(IsDescription):
@@ -37,6 +39,11 @@ class Pedestal(IsDescription):
     raw_rms    = Float32Col(shape=(cf.n_tot_channels))
     filt_mean  = Float32Col(shape=(cf.n_tot_channels))
     filt_rms   = Float32Col(shape=(cf.n_tot_channels))
+
+class NoiseStudy(IsDescription):
+    delta_mean  = Float32Col(shape=(cf.n_tot_channels))
+    rms         = Float32Col(shape=(cf.n_tot_channels))
+
 
 class FFT(IsDescription):
     ps = Float32Col(shape=(cf.n_tot_channels, int(cf.n_sample/2)+1))
@@ -159,13 +166,61 @@ class Tracks3D(IsDescription):
     d_match = Float32Col()
 
 
+
+
+class Ghost(IsDescription):
+
+    event   = UInt32Col()
+    trigger = UInt32Col()
+
+    x_anode   = Float32Col()
+    y_anode   = Float32Col()
+    z_anode   = Float32Col()
+
+    theta = Float32Col()
+
+    phi   = Float32Col()
+
+    n_hits       = UInt16Col()
+    total_ghost_charge = Float32Col()
+    total_track_charge = Float32Col()
+
+    z0_corr = Float64Col()
+    t0_corr = Float32Col()
+
+    d_min = Float32Col()
+
+
+
+
+class SingleHits(IsDescription):
+    event   = UInt32Col()
+    trigger = UInt32Col()
+
+    n_hits = UInt32Col(shape=(cf.n_view))
+    IDs = UInt32Col(shape=(cf.n_view,2))
+    charge_pos = Float32Col(shape=(cf.n_view))
+    charge_neg = Float32Col(shape=(cf.n_view))
+    charge_extend = Float32Col()
+    tdc_max = UInt16Col(shape=(cf.n_view))
+    tdc_min = UInt16Col(shape=(cf.n_view))
+    x = Float64Col()
+    y = Float64Col()
+    z = Float64Col()
+    d_track = Float64Col()
+    veto = BoolCol()
+    
+
 def create_tables(h5file):
     table = h5file.create_table("/", 'infos', Infos, 'Infos')
     table = h5file.create_table("/", 'chmap', ChanMap, "ChanMap")
     table = h5file.create_table("/", 'event', Event, "Event")
     table = h5file.create_table("/", 'pedestals', Pedestal, 'Pedestals')
+    table = h5file.create_table("/", 'noisestudy', NoiseStudy, 'Noise Study')
     table = h5file.create_table("/", 'fft', FFT, 'fft')
     table = h5file.create_table("/", 'hits', Hits, 'Hits')
+    table = h5file.create_table("/", 'single_hits', SingleHits, 'Single Hits')
+    table = h5file.create_table("/", 'ghost', Ghost, 'Ghost Tracks')
 
     table = h5file.create_table("/", 'tracks2d', Tracks2D, 'Tracks2D')
     for i in range(cf.n_view):
@@ -175,6 +230,8 @@ def create_tables(h5file):
     table = h5file.create_table("/", 'tracks3d', Tracks3D, 'Tracks3D')
     for i in range(cf.n_view):
         t = h5file.create_vlarray("/", 'trk3d_v'+str(i), Float64Atom(shape=(6)), "3D Path V"+str(i)+" (x, y, z, dq, ds, ID)")
+
+    t = h5file.create_vlarray("/", 'ghost_tracks', Float64Atom(shape=(6)), "3D Path (x, y, z, dq, ds, ID)")
 
 
 
@@ -188,8 +245,8 @@ def create_tables_pulsing(h5file):
     table = h5file.create_table('/','waveform',Waveform,'Waveform')
 
 
-    t = h5file.create_vlarray("/", 'pos_pulse', Float32Atom(shape=(8)), "Positive Pulses (start, tmax, vmax, A, tau, area, fit_area, chi2)")
-    t = h5file.create_vlarray("/", 'neg_pulse', Float32Atom(shape=(8)), "Negative Pulses (start, tmin, vmin, A, tau, area, fit_area, chi2)")
+    t = h5file.create_vlarray("/", 'pos_pulse', Float32Atom(shape=(10)), "Positive Pulses (start, tmax, vmax, A, Aerr, tau, tauerr, area, fit_area, rchi2)")
+    t = h5file.create_vlarray("/", 'neg_pulse', Float32Atom(shape=(10)), "Negative Pulses (start, tmin, vmin, A, Aerr, tau, tauerr, area, fit_area, rchi2)")
 
 
 def store_run_infos(h5file, run, sub, elec, nevent, time):
@@ -218,13 +275,14 @@ def store_chan_map(h5file):
 
 def store_event(h5file):
     evt = h5file.root.event.row
-    evt['trigger_nb'] = dc.evt_list[-1].trigger_nb
-    evt['time_s']     = dc.evt_list[-1].time_s
-    evt['time_ns']    = dc.evt_list[-1].time_ns
-    evt['n_hits']     = dc.evt_list[-1].n_hits
-    evt['n_tracks2D'] = dc.evt_list[-1].n_tracks2D
-    evt['n_tracks3D'] = dc.evt_list[-1].n_tracks3D
-
+    evt['trigger_nb']    = dc.evt_list[-1].trigger_nb
+    evt['time_s']        = dc.evt_list[-1].time_s
+    evt['time_ns']       = dc.evt_list[-1].time_ns
+    evt['n_hits']        = dc.evt_list[-1].n_hits
+    evt['n_tracks2D']    = dc.evt_list[-1].n_tracks2D
+    evt['n_tracks3D']    = dc.evt_list[-1].n_tracks3D
+    evt['n_single_hits'] = dc.evt_list[-1].n_single_hits
+    evt['n_ghosts']      = dc.evt_list[-1].n_ghosts
     evt.append()
 
 
@@ -234,6 +292,16 @@ def store_pedestals(h5file):
     ped['raw_rms']    = dc.evt_list[-1].noise_raw.ped_rms
     ped['filt_mean']  = dc.evt_list[-1].noise_filt.ped_mean
     ped['filt_rms']   = dc.evt_list[-1].noise_filt.ped_rms
+    ped.append()
+
+def store_noisestudy(h5file):
+    ped = h5file.root.noisestudy.row
+
+    if(dc.evt_list[-1].noise_study==None):
+        return
+
+    ped['delta_mean'] = dc.evt_list[-1].noise_study.ped_mean
+    ped['rms']  = dc.evt_list[-1].noise_study.ped_rms
     ped.append()
 
 def store_fft(h5file, ps):
@@ -247,7 +315,7 @@ def store_hits(h5file):
     hit = h5file.root.hits.row
 
     for ih in dc.hits_list:
-       hit['event'] = dc.evt_list[-1].evt_nb
+       hit['event']   = dc.evt_list[-1].evt_nb
        hit['trigger'] = dc.evt_list[-1].trigger_nb
        hit['ID']= ih.ID
 
@@ -275,8 +343,33 @@ def store_hits(h5file):
 
        hit.append()
 
+def store_single_hits(h5file):
+    sh = h5file.root.single_hits.row
+    
+    for it in dc.single_hits_list:
+        sh['event'] = dc.evt_list[-1].evt_nb
+        sh['trigger'] = dc.evt_list[-1].trigger_nb 
 
+        sh['n_hits'] = it.n_hits
 
+        id_np = np.zeros((cf.n_view,2), dtype=int)
+        id_np.fill(-1)
+        for i,j in enumerate(it.IDs):
+            id_np[i][0:len(j)] = j
+
+        sh['IDs'] = id_np
+        sh['charge_pos'] =  it.charge_pos
+        sh['charge_neg'] =  it.charge_neg
+        sh['tdc_max'] =  it.max_t
+        sh['tdc_min'] =  it.min_t
+        sh['x'] =  it.X
+        sh['y'] =  it.Y
+        sh['z'] =  it.Z
+        sh['d_track'] = it.d_track
+        sh['veto'] = it.veto
+        sh['charge_extend'] = it.charge_extend
+
+        sh.append()
 
 def store_tracks2D(h5file):
     t2d = h5file.root.tracks2d.row
@@ -358,6 +451,35 @@ def store_tracks3D(h5file):
            vl_h[i].append(pts)
        t3d.append()
 
+
+def store_ghost(h5file):
+    tgh = h5file.root.ghost.row
+    vl_h = h5file.get_node('/ghost_tracks')#llll
+
+    for it in dc.ghost_list:
+       tgh['event'] = dc.evt_list[-1].evt_nb
+       tgh['trigger'] = dc.evt_list[-1].trigger_nb
+
+       
+       tgh['x_anode'] = it.anode_x
+       tgh['y_anode'] = it.anode_y
+       tgh['z_anode'] = it.anode_z
+       
+       tgh['theta'] = it.theta
+       tgh['phi'] = it.phi
+       
+       tgh['n_hits'] = it.n_hits
+       tgh['total_ghost_charge'] = it.ghost_charge
+       tgh['total_track_charge'] = it.trk_charge
+       
+       tgh['z0_corr'] = it.z0_corr
+       tgh['t0_corr'] = it.t0_corr
+       
+       tgh['d_min'] = it.min_dist
+       
+       pts = [[p[0], p[1], p[2], q, s, r] for p,q,s, r in zip(it.path, it.dQ, it.ds, it.hits_ID)]
+       vl_h.append(pts)
+       tgh.append()
 
 
 
