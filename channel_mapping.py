@@ -9,9 +9,10 @@ def set_unused_channels():
     if(len(cf.broken_channels) > 0):
        print(" Removing ",len(cf.broken_channels)," broken channels :")
 
-    print(cf.module_used)
     for i in range(cf.n_tot_channels):
+        
         module, view, chan = dc.chmap[i].module, dc.chmap[i].view, dc.chmap[i].vchan
+        
         if(view >= cf.n_view or view < 0 or i in cf.broken_channels or cf.module_used[module]==False):
             dc.alive_chan[i,:] = False
 
@@ -31,22 +32,22 @@ def arange_in_view_channels():
 def get_mapping(detector, elec):
     if(os.path.exists(cf.channel_map) is False):
         print('the channel mapping file ', fmap, ' does not exists')
-        sys.exit()
+        exit()
 
-    if(detector == "cb1"):
+    if(detector == "cb1" or detector == 'cb2' or detector == 'cb'):
         if(elec == "top"):
             get_cb_top_mapping()
         elif(elec == "bot"):
             get_cb_bot_mapping()
         else : 
             print("the electronic ",elec, " for ", detector, " is not recognized")
-            sys.exit()
+            exit()
     elif(detector == "dp" and elec == "top"):
         get_dp_mapping()
 
     else :
         print("the electronic ",elec, " for ", detector, " is not recognized")
-        sys.exit()
+        exit()
 
 def get_cb_top_mapping():
     strip = get_strip_length()
@@ -73,10 +74,12 @@ def get_cb_top_mapping():
 
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
+                
                 length, capa = strip[globch]
                 
-                pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset[module][view] +  cf.view_pitch[view]/2.
-
+                nrepet = int(np.floor(channel/cf.view_chan_repet[view]))
+                pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet] +  cf.view_pitch[view]/2.
+                #print('view ', view, ' channel ', channel, ' at ', pos)
             else:
                 length, capa = -1, -1
                 pos=-9999.
@@ -105,7 +108,11 @@ def get_cb_bot_mapping():
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
                 length, capa = strip[globch]
-                pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset[module][view] +  cf.view_pitch[view]/2.
+
+                nrepet = int(np.floor(channel/cf.view_chan_repet[view]))
+                pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet] +  cf.view_pitch[view]/2.
+
+                #pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset[module][view] +  cf.view_pitch[view]/2.
 
             else:
                 length, capa = -1, -1
@@ -154,7 +161,6 @@ def get_strip_length():
             capa = length*cf.view_capa[view]
 
             strip.append( (length, capa) )
-
         return strip
 
 
