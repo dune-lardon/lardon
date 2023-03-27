@@ -8,6 +8,9 @@ import sys
 import tables as tab
 from abc import ABC, abstractmethod
 import importlib
+import bde_headers as head_bde
+
+import channel_mapping as cmap
 
 
 @nb.jit
@@ -33,8 +36,22 @@ def decode_8_to_5_3(x):
     read3 = (x & 0xe0) >> 5
     return read5, read3
 
-def get_unix_time(t):
+def get_unix_time_cb1(t):
     return t*20/1e9
+
+def get_unix_time(t):
+    return t*16/1e9
+
+
+def get_wib2_infos(x):
+
+    version = x & 0x3F
+    det_id  = (x & 0xFC0)>>6
+    crate   = (x & 0x3FF000) >> 12
+    slot    = (x & 0x1C00000) >> 22
+    link    = (x & 0xFC000000) >> 26
+
+    return crate, slot, link
 
 
 @nb.jit
@@ -73,6 +90,28 @@ def read_8evt_uint12_nb(data):
 
 
 
+@nb.jit
+def read_evt_uint14_nb(data):
+
+    tt = np.frombuffer(data, dtype=np.uint32)
+    assert np.mod(tt.shape[0],14)==0
+
+    out=np.empty(tt.shape[0]//14*32,dtype=np.uint16)
+
+    for i in nb.prange(tt.shape[0]//112): 
+        adc_words = tt[i*112:(i+1)*112]
+        for k in range(256):
+            word = int(14*k/32)
+            first_bit = int((14*k)%32)
+            nbits_first_word = min(14, 32-first_bit)
+            adc = adc_words[word] >> first_bit
+            if(nbits_first_word < 14):
+                adc +=  (adc_words[word+1] << nbits_first_word)
+            final = adc & 0x3FFF
+            out[i*256+k] = final
+    return out
+
+
 class decoder(ABC):
      
     @abstractmethod
@@ -101,16 +140,19 @@ class decoder(ABC):
 
 
 class top_decoder(decoder):
-    def __init__(self, run, sub, filename=None):
+    def __init__(self, run, sub, filename=None, det='cb'):
         self.run = run
         self.sub = sub
         self.filename = filename
+        self.detector = det
         print(' -- reading a top drift electronics file')
         
         """ some TDE specific parameters """
         self.evskey = 0xFF
         self.endkey = 0xF0
-        self.evdcard0 = 0x5 #number of cards disconnected -- maybe too CB oriented ?
+        self.evdcard0 = 0x0 #number of cards disconnected -- maybe too CB oriented ?
+        if(det == 'cb1'):
+            self.evdcard0 = 0x5 #number of cards disconnected in CB1
 
         self.header_type = np.dtype([
             ('k0','B'),
@@ -129,7 +171,7 @@ class top_decoder(decoder):
         ])
 
         self.header_size = self.header_type.itemsize
-
+        #print('header size of ', self.header_size)
 
     def get_filename(self):
         path = f"{cf.data_path}/{self.run}/{self.run}_{self.sub}"
@@ -153,7 +195,7 @@ class top_decoder(decoder):
 
     def read_run_header(self):
         run_nb, nb_evt = np.fromfile(self.f_in, dtype='<u4', count=2)
-        print('run: ', run_nb, ' nb of events ', nb_evt)
+        #print('run: ', run_nb, ' nb of events ', nb_evt)
 
         """ Read the run header of the binary data file """
         self.sequence = []
@@ -161,6 +203,8 @@ class top_decoder(decoder):
             seq  = np.fromfile( self.f_in, dtype='<u4', count=4)
             """4 uint of [event number - event total size with header- event data size - 0]"""
             self.sequence.append(seq[1])
+
+        #print("sequences of ",self.sequence[0],"bytes")
             
 
         self.event_pos = []
@@ -185,14 +229,22 @@ class top_decoder(decoder):
         good_evt = (head['evt_flag'][0] & 0x3F) == self.evdcard0
 
         if(not good_evt):
-            print(" problem, the event has ", head['evt_flag'][0] & 0x3F, ' cards disconnected instead of ', self.evdcard0)
+            print("  the event has ", head['evt_flag'][0] & 0x3F, ' cards disconnected instead of ', self.evdcard0)
 
         self.lro = head['lro'][0]
         self.cro = head['cro'][0]
-        
-        dc.evt_list.append( dc.event("cb","top", head['run_num'][0], self.sub, ievt, head['trig_num'][0], head['time_s'][0], head['time_ns'][0]) )
+
+
+        dc.evt_list.append( dc.event(self.detector, "top", head['run_num'][0], self.sub, ievt, head['trig_num'][0], head['time_s'][0], head['time_ns'][0]) )
 
     def read_evt(self, ievt):
+        if(self.detector == "cb1"):
+            return self.read_evt_one_block(ievt)
+        else : 
+            return self.read_evt_two_blocks(ievt)
+
+
+    def read_evt_one_block(self, ievt):
         if(self.lro < 0 or self.cro < 0):
             print(' please read the event header first! ')
             sys.exit()
@@ -201,6 +253,37 @@ class top_decoder(decoder):
         idx = self.event_pos[ievt] + self.header_size
         self.f_in.seek(idx,0)
         out = read_evt_uint12_nb( self.f_in.read(self.cro) )
+
+
+        if(len(out)/cf.n_sample != cf.n_tot_channels):
+            print(' The event is incomplete ... ')
+            print(len(out))
+            sys.exit()
+
+        out = out.astype(np.float32)
+        dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
+
+        self.lro = -1
+        self.cro = -1
+
+
+    def read_evt_two_blocks(self, ievt):
+        if(self.lro < 0 or self.cro < 0):
+            print(' please read the event header first! ')
+            sys.exit()
+
+
+        idx = self.event_pos[ievt] + self.header_size
+        self.f_in.seek(idx,0)
+        out = read_evt_uint12_nb( self.f_in.read(self.cro) )
+
+        self.f_in.read(1) #The bruno byte :-)
+
+        """ read second header"""
+        head = np.frombuffer(self.f_in.read(self.header_size), dtype=self.header_type)
+        self.cro = head['cro'][0]
+        out = np.append(out,read_evt_uint12_nb( self.f_in.read(self.cro) ))
+
 
 
         if(len(out)/cf.n_sample != cf.n_tot_channels):
@@ -214,6 +297,7 @@ class top_decoder(decoder):
         self.cro = -1
 
 
+
     def close_file(self):
         self.f_in.close()
         print('file closed!')
@@ -222,10 +306,11 @@ class top_decoder(decoder):
 
 
 class bot_decoder(decoder):
-    def __init__(self, run, sub, filename=None):
+    def __init__(self, run, sub, filename=None, det='cb'):
         self.run = run
         self.sub = sub
         self.filename = filename
+        self.detector = det
         print(' -- reading a bottom drift electronics file')
 
         """ bde specific parameters """
@@ -234,81 +319,41 @@ class bot_decoder(decoder):
         self.n_chan_per_block  = 64
         self.n_block_per_wib = 4 #128/64
 
-        self.trigger_header_type = np.dtype([
-            ('header_marker','<u4'),    #4
-            ('header_version','<u4'),   #8
-            ('trig_num', '<u8'),        #16    
-            ('timestamp', '<u8'),       #24
-            ('n_component', '<u8'),     #32
-            ('run_nb', '<u4'),          #36
-            ('error_bit', '<u4'),       #40
-            ('trigger_type', '<u2'),    #42
-            ('sequence_nb', '<u2'),     #44
-            ('max_sequence_nb', '<u2'), #46
-            ('unused', '<u2')           #48
-        ])
 
+        self.trigger_header_type = head_bde.get_trigger_header(det)
         self.trigger_header_size = self.trigger_header_type.itemsize
-        
-        self.component_header_type = np.dtype([
-            ('version','<u4'),      #4
-            ('unused','<u4'),       #8
-            ('geo_version','<u4'),  #12
-            ('geo_sys','<u2'),      #14
-            ('geo_region','<u2'),   #16
-            ('geo_ID','<u4'),       #20
-            ('geo_unused','<u4'),   #24
-            ('window_begin','<u8'), #32
-            ('window_end','<u8')    #40
-        ])
-        self.component_header_size = self.component_header_type.itemsize
 
-        self.fragment_header_type = np.dtype([
-            ('frag_marker','<u4'),  #4
-            ('frag_version','<u4'), #8
-            ('frag_size', '<u8'),   #16
-            ('trig_num', '<u8'),    #24
-            ('timestamp', '<u8'),   #32
-            ('tbegin', '<u8'),      #40
-            ('tend','<u8'),         #48
-            ('run_nb','<u4'),       #52
-            ('error_bit','<u4'),    #56
-            ('frag_type','<u4'),    #60
-            ('sequence_nb', '<u2'), #62
-            ('unused','<u2'),       #64
-            ('geo_version','<u4'),  #68
-            ('geo_sys','<u2'),      #70
-            ('geo_region','<u2'),   #72
-            ('geo_ID','<u4'),       #76    
-            ('geo_unused','<u4')    #80
-        ]) 
+        self.component_header_type = head_bde.get_component_header(det)
+        self.component_header_size = self.component_header_type.itemsize
         
+        self.fragment_header_type = head_bde.get_fragment_header(det)     
         self.fragment_header_size = self.fragment_header_type.itemsize
 
-        self.wib_header_type = np.dtype([
-            ('sof','<u1'),       #1
-            ('ver_fib','<u1'),   #2
-            ('crate_slot','<u1'),#3
-            ('res','<u1'),       #4
-            ('mm_oos_res','<u2'),#6
-            ('wib_err','<u2'),   #8
-            ('ts1','<u4'),       #12 #the time written sounds weird (maybe different bit ordering)
-            ('ts2','<u2'),       #14
-            ('count_z','<u2')    #16
-        ])
+        self.wib_header_type = head_bde.get_wib_header(det)     
         self.wib_header_size = self.wib_header_type.itemsize
 
-        """ Not sure what's written in it """
-        self.cb_header_type = np.dtype([
-            ('word1','<u4'),  #4
-            ('word2','<u4'),  #8
-            ('word3','<u4'),  #12
-            ('word4','<u4'),  #16
-        ])
-        
-        self.cb_header_size = self.cb_header_type.itemsize
 
-        self.wib_frame_size = self.wib_header_size + 4*(self.cb_header_size + int(64*3/2))
+        if(det == "cb1"):
+            
+            """ Not sure what's written in it """
+            self.cb_header_type = np.dtype([
+                ('word1','<u4'),  #4
+                ('word2','<u4'),  #8
+                ('word3','<u4'),  #12
+                ('word4','<u4'),  #16
+            ])
+            
+            self.cb_header_size = self.cb_header_type.itemsize            
+            self.wib_frame_size = self.wib_header_size + 4*(self.cb_header_size + int(64*3/2))
+
+        if(det == "cb"):
+            """ Not sure what's written in it """
+            self.wib_trailer_type = np.dtype([
+                ('word1','<u4')  #4
+            ])
+            self.wib_trailer_size = self.wib_trailer_type.itemsize            
+            """ data now encoded in 14-bit """
+            self.wib_frame_size = self.wib_header_size + self.wib_trailer_size +int(self.n_chan_per_link*14/8) 
 
 
     def get_filename(self):
@@ -318,12 +363,12 @@ class bot_decoder(decoder):
         for i in range(0,8,2):
             run_path += long_run[i:i+2]+"/"
         path = cf.data_path + "/" + run_path
-        print(path)
+        #print(path)
 
         s = int(self.sub)
         long_sub = f'{s:04d}'
-        sub_name = 'run'+str(f'{r:06d}')+'_'+long_sub
-        print(sub_name)
+        sub_name = 'run'+str(f'{r:06d}')+'_*'+long_sub+'_'
+        #print(sub_name)
         
         fl = glob.glob(path+"*"+sub_name+"*hdf5")
 
@@ -355,8 +400,14 @@ class bot_decoder(decoder):
 
         return nb_evt
 
-
     def read_evt_header(self, ievt):
+        if(self.detector == "cb1"):
+            return self.read_evt_header_cb1(ievt)
+        elif(self.detector == "cb"):
+            return self.read_evt_header_cb(ievt)
+
+
+    def read_evt_header_cb1(self, ievt):
         trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='TriggerRecordHeader',classname='Array').read()
 
         header_magic = 0x33334444
@@ -375,15 +426,52 @@ class bot_decoder(decoder):
             comp = np.frombuffer(trig_rec[s:t], dtype=self.component_header_type)
             self.links.append(comp['geo_ID'][0])
 
+        t_unix = get_unix_time_cb1(head['timestamp'][0])
+
+        t_s = int(t_unix)
+        t_ns = (t_unix - t_s) * 1e9
+        dc.evt_list.append( dc.event(self.detector,"bot", head['run_nb'][0], self.sub, ievt, head['trig_num'][0], t_s, t_ns) )
+
+
+    def read_evt_header_cb(self, ievt):
+        trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='RawData/TR_Builder_0x00000000_TriggerRecordHeader',classname='Array').read()
+
+        header_magic =  0x33334444
+        header_version = 0x00000003
+
+
+        head = np.frombuffer(trig_rec[:self.trigger_header_size], dtype=self.trigger_header_type)
+        if(head['header_marker'][0] != header_magic or head['header_version'][0] != header_version):
+            print(' there is a problem with the header magic / version ')
+            print("marker : ", head['header_marker'][0], " vs ", header_magic)
+            print("version : ", head['header_version'][0], " vs ", header_version)
+        self.nlinks = 12#head['n_component'][0]
+        self.links = []        
+        for i in range(self.nlinks):
+            s = self.trigger_header_size + i*self.component_header_size
+            t = s + self.component_header_size
+            comp = np.frombuffer(trig_rec[s:t], dtype=self.component_header_type)
+            self.links.append(comp['source_elemID'][0])
+
         t_unix = get_unix_time(head['timestamp'][0])
 
         t_s = int(t_unix)
         t_ns = (t_unix - t_s) * 1e9
-        dc.evt_list.append( dc.event("cb","bot", head['run_nb'][0], self.sub, ievt, head['trig_num'][0], t_s, t_ns) )
+        dc.evt_list.append( dc.event(self.detector,"bot", head['run_nb'][0], self.sub, ievt, head['trig_num'][0], t_s, t_ns) )
+
+
+
 
 
     def read_evt(self, ievt):
-        print('there is ', self.nlinks, ' each link has ', self.n_chan_per_link)
+        if(self.detector == "cb1"):
+            return self.read_evt_cb1(ievt)
+        elif(self.detector == "cb"):
+            return self.read_evt_cb(ievt)
+
+
+    def read_evt_cb1(self, ievt):
+
         for ilink in range(self.nlinks):
             name = f'{ilink:02d}'
 
@@ -401,15 +489,20 @@ class bot_decoder(decoder):
             frag_head = np.frombuffer(link_data[:self.fragment_header_size], dtype = self.fragment_header_type)
 
             n_frames = int((len(link_data)-self.fragment_header_size)/self.wib_frame_size)
+
             if(n_frames != cf.n_sample):
-                print(" the link has ", n_frames, " frames ... but ", cf.n_sample, ' are expected !')
+                print(" the link ", name, " has ", n_frames, " frames ... but ", cf.n_sample, ' are expected !')
                     
                 cf.n_sample = n_frames
+                if(n_frames == 0):
+                    return
 
                 """ reshape the dc arrays accordingly """
                 dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
                 dc.data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
                 dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                #lllll
+                cmap.set_unused_channels()
                 dc.mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
                     
 
@@ -449,6 +542,69 @@ class bot_decoder(decoder):
             out = out.astype(np.float32)
 
 
+            dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
+
+        self.nlinks = 0
+        self.links = []
+
+
+
+
+    def read_evt_cb(self, ievt):
+
+        for ilink in range(self.nlinks):
+            name = "0x%08d"%ilink
+            if(ilink == 10):
+                name = "0x0000000a"
+            elif(ilink == 11):
+                name = "0x0000000b"
+        
+
+            """ to be improved !"""
+            try :
+                link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/RawData", name='Detector_Readout_'+name+'_WIB',classname='Array').read()
+            except tab.NoSuchNodeError:
+                print('no link number ', ilink, 'with name RawData/Detector_Readout_'+name+'_WIB')
+                continue
+
+            frag_head = np.frombuffer(link_data[:self.fragment_header_size], dtype = self.fragment_header_type)
+
+            n_frames = int((len(link_data)-self.fragment_header_size)/self.wib_frame_size)
+
+            if(n_frames != cf.n_sample):
+                print(" the link ", name, " has ", n_frames, " frames ... but ", cf.n_sample, ' are expected !')
+                    
+                cf.n_sample = n_frames
+                if(n_frames == 0):
+                    return
+
+                """ reshape the dc arrays accordingly """
+                dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
+                dc.data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
+                dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                cmap.set_unused_channels()
+                dc.mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                    
+
+            wib_head = np.frombuffer(link_data[self.fragment_header_size:self.fragment_header_size+self.wib_header_size], dtype = self.wib_header_type)
+            
+            crate, link, slot = get_wib2_infos(wib_head['word1'][0])
+
+
+            # remove the fragment header
+            link_data = link_data[self.fragment_header_size:]
+    
+            #remove the wib header and trailer (size20+4, once per wib frame of size 464)
+            link_data = link_data.reshape(-1,self.wib_frame_size)[:,self.wib_header_size:-self.wib_trailer_size].flatten()
+    
+            """ decode data """
+            out = read_evt_uint14_nb(link_data)
+
+
+            ''' array structure is all channel at time=0 then at time=1 etc '''
+            ''' change it to all times of channel 1, then channel 2 etc '''            
+            out = np.reshape(out, (-1,self.n_chan_per_link)).T
+            out = out.astype(np.float32)
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
 
         self.nlinks = 0
