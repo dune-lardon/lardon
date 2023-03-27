@@ -1,0 +1,42 @@
+{
+    "default":
+    {
+	"n_view":"3",
+	"n_module":"1",
+	"view_name":["U","V","Z"],
+	"view_type":["Induction","Induction", "Collection"],
+	"view_angle":["60", "120", "0"],
+	"view_pitch":["0.765", "0.765", "0.51"],
+	"view_capa":["10.3","10.3","8.1"],
+	"view_nchan":["952", "952", "1168"],
+	"view_chan_repet":["476","476","292"],
+	"view_length":["437.58","437.58","297.84"],
+	"strips_length":"cb_2_strips.txt",
+	"view_z_offset":["1.32","0.32","0"],
+	"sub_path":"np04/vd-coldbox-bottom/raw/2023/detector/test/None",
+	"n_tot_channels":"3072",
+	"sampling":"1.953125",
+	"n_sample":"8192",
+	"e_per_ADCtick":"7.27",
+	"ADC_per_fC":"135.996",
+	"view_offset":[["-218.79","-218.79","-148.92"]],
+	"view_offset_repet":[[["-218.79","-144.585"],["-144.585","-218.79"],["-148.92","-148.92","0.","0."]]],
+	"x_boundaries":[["-168.","168."]],
+	"y_boundaries":[["-148.92","148.92"]],
+	"chmap":"cb_chmap_bde_crp5.txt",	    	    
+        "broken_channels":[2679, 3060, 322, 400, 383, 959, 943, 1168, 2415, 1647],
+	"signal_is_inverted":"0",
+	"e_drift":"0.446",
+	"drift_length":"22.9",
+	"anode_z":"11.5",
+	"channel_calib":"bde_calib_area_crp5.txt"
+	},
+
+    "19997-99999":
+    {
+	"e_drift":"0.442",
+	"drift_length":"23.1",
+        "broken_channels":[2780, 501, 400],
+	"channel_calib":"bde_calib_area_crp4.txt"
+    }
+}
