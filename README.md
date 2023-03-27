@@ -25,26 +25,31 @@ Check and modify **config.py** and files in `settings/` :
 ## To run lardon on data
 To launch lardon, type `python lardon.py` with the following arguments:<br/>
 **Mandatory**:<br/>
+* `-det <cb/cb1/dp>` which detector [default is cb, the 60-degree CRP]
 * `-elec <top/tde/bot/bde>` which electronics is used
 * `-run <run nb>` which run number
-* `-sub <subfile name>` which subfile (*e.g.* 1)<br/>
+* `-sub <subfile name>` which subfile (*e.g.* 1_a, 0)<br/>
 *Optional*:<br/>
 * `-n <nb of events>` how many events to process, default is -1 = all file
 * `-out <output file option>` optional extra name for the output
 * `-skip <nb to skip>` number of events to skip
-* `-det <your_detector>` which detector to reconstruct, default is cb1 (coldbox 1st CRP) [one can also look at the np02 data]
 
 
-*e.g.* : To run the first 10 events of top electronics run 455 subfile 5, type :
 
-`python lardon.py -elec top -run 1415 -sub 5 -n 10 -out example`
+*e.g. 1* : To run the first 10 events of top electronics run 1740 subfile 5_b, type :
 
-the output h5file will be **store_path/top_455_5_example.h5**
+`python lardon.py -det cb -elec top -run 1740 -sub 5_b -n 10 -out example`
 
+the output h5file will be **store_path/top_1740_5_b_example.h5**
+
+*e.g. 2* : To run the first all events of bottom electronics run 20199 subfile 0, type :
+
+`python lardon.py -det cb -elec bot -run 20199 -sub 0 -out full_example`
+the output h5file will be **store_path/bot_20199_0_full_example.h5**
 
 ## lardon Convention
-# Coldbox 1st period
-![convention](figs/coldbox_1.png)
+# Coldbox 2nd period
+![convention](figs/coldbox_2.png)
 
 * electrons drift along z axis
 * the origin of the (x,y,z) system is at the center of the detector
@@ -54,7 +59,7 @@ the output h5file will be **store_path/top_455_5_example.h5**
 ## Control Plots
 :warning: The data is structured in `daq_channel` ordering, which can have a mix of views<br/>
 
-By default, no control plots should be produced, but you can call the plotting functions in **lardon.py** anywhere in the reconstruction loop.
+By default, no control plots is produced, but you can call the plotting functions in **lardon.py** anywhere in the reconstruction loop.
 
 
 All plot functions have the two options :<br/>
@@ -66,7 +71,6 @@ All plot functions have the two options :<br/>
 Seen in `daq_channel` ordering:<br/>
 `plot.plot_event_display_per_daqch()`<br/>
 Seen in view channel ordering (more natural):<br/>
-`cmap.arange_in_view_channels()` <- to be called first, might change in near future\
 `plot.plot_event_display_per_view()`<br/>
 
 
@@ -83,11 +87,10 @@ where `noise_type` is either `raw` or `filt`<br/>
 ### To check the signal/noise separation on the event display:<br/>
 The signal (ROI) : `plot.event_display_per_view_roi()`<br/>
 The noise : `plot.event_display_per_view_noise()`<br/>
+The found hits on the ED: `plot.event_display_per_view_hits_found()`<br/>
 
 ### To plot hits found :<br/>
 `plot.plot_2dview_hits()`<br/>
-To see the hits found on top of the event display:<br/>
-`plot.event_display_per_view_hits_found()`<br/>
 
 ### To plot 2D tracks (and hits):<br/>
 `plot.plot_2dview_2dtracks()`<br/>
