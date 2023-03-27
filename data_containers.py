@@ -8,6 +8,8 @@ evt_list = []
 hits_list = []
 tracks2D_list = []
 tracks3D_list = []
+single_hits_list = []
+ghost_list = []
 pulse_fit_res = []
 wvf_pos = [[] for x in range(cf.n_tot_channels)]
 wvf_neg = [[] for x in range(cf.n_tot_channels)]
@@ -47,7 +49,9 @@ def reset_event():
     tracks2D_list.clear()
     tracks3D_list.clear()
     evt_list.clear()
-    
+    single_hits_list.clear()
+    ghost_list.clear()
+
     pulse_fit_res.clear()
 
 class channel:
@@ -102,13 +106,20 @@ class event:
         self.n_hits = np.zeros((cf.n_view), dtype=int)
         self.n_tracks2D = np.zeros((cf.n_view), dtype=int)
         self.n_tracks3D = 0
-
+        self.n_single_hits = 0
+        self.n_ghosts = 0
+        self.noise_raw = None
+        self.noise_filt = None
+        self.noise_study = None
 
     def set_noise_raw(self, noise):
         self.noise_raw = noise
 
     def set_noise_filt(self, noise):
         self.noise_filt = noise
+
+    def set_noise_study(self, noise):
+        self.noise_study = noise
 
     def dump(self):
         print("RUN ",self.run_nb, " of ", self.elec, " EVENT ", self.evt_nb, " TRIGGER ", self.trigger_nb,)
@@ -207,6 +218,8 @@ class hits:
         return (self.charge, self.charge_pos, self.charge_neg)
 
 
+    def mini_dump(self):
+        print('Hit ',self.ID, '(',self.matched,') v',self.view,' ch ', self.channel, ' t:', self.start, ' to ', self.stop, 'max ',self.max_t, ' min ', self.min_t, ' maxADC ', self.max_adc, ' minADc ', self.min_adc)
     def dump(self):
 
         print("\n**View ", self.view, " Channel ", self.channel, " ID: ", self.ID)
@@ -225,6 +238,45 @@ class hits:
         print(" charges pos : ", self.charge_pos, " neg : ", self.charge_neg)
 
 
+class singleHits:
+    def __init__(self, n_hits, IDs, x, y, z, d_min):
+        self.n_hits = n_hits
+        self.IDs = IDs
+        self.charge_pos = [0.,0.,0.]
+        self.charge_extend = 0.
+        self.charge_neg = [0.,0.,0.]
+
+        self.max_t   = [-1, -1, -1]
+        self.min_t   = [-1, -1, -1]
+        self.X = x
+        self.Y = y
+        self.Z = z
+        self.d_track = d_min
+        self.veto = False
+
+    def set_veto(self, veto, charge_extend):
+        self.veto = veto
+        self.charge_extend = charge_extend
+
+    def set_view(self, view, charge_pos, charge_neg, max_t, min_t):
+        self.charge_pos[view] = charge_pos
+        self.charge_neg[view] = charge_neg
+        self.max_t[view] = max_t
+        self.min_t[view] = min_t
+
+
+    def dump(self):
+        print('\n****')        
+        print('Single Hit at ', self.X, ', ', self.Y, ', ', self.Z)
+        print('Nb of hits/view ', self.n_hits)
+        print('IDs ', self.IDs)
+        print('Charge pos ', self.charge_pos)
+        print('Charge neg ', self.charge_neg)
+        print('Time max ', self.max_t)
+        print('Time min ', self.min_t)
+        print('Distance to closest 3D track ', self.d_track)
+        print('Is vetoed ', self.veto)
+        print('Charge extended ', self.charge_extend)
 
 
 class trk2D:
@@ -259,9 +311,12 @@ class trk2D:
 
         self.matched = [-1 for x in range(cf.n_view)]
         self.cluster = cluster
+        self.match_3D = -1
 
         self.ini_time = t0
         self.end_time = t0
+
+        self.ghost = False
 
     def __lt__(self,other):
         """ sort tracks by decreasing Z and increasing channel """
@@ -437,6 +492,8 @@ class trk2D:
         self.len_path += self.dist(other)
         self.matched = [-1 for x in range(cf.n_view)]
         self.drays.extend(other.drays)
+        self.match_3D = -1
+        self.ghost = False
 
         if(self.path[0][1] > other.path[0][1]):
                self.ini_slope = self.ini_slope
@@ -466,15 +523,18 @@ class trk2D:
         return sum([q for q, (x, z) in zip(self.dQ, self.path) if z >= start and z <= stop])
 
     def mini_dump(self):
-        print("view : ", self.view, " from (%.1f,%.1f)"%(self.path[0][0], self.path[0][1]), " to (%.1f, %.1f)"%(self.path[-1][0], self.path[-1][1]), " N = ", self.n_hits, " L = %.1f/%.1f"%(self.len_straight, self.len_path), " Q = ", self.tot_charge, " Dray N = ", self.n_hits_dray, " Qdray ", self.dray_charge)
+        print("2D track ", self.trackID," in view : ", self.view, " from (%.1f,%.1f)"%(self.path[0][0], self.path[0][1]), " to (%.1f, %.1f)"%(self.path[-1][0], self.path[-1][1]), " N = ", self.n_hits, " L = %.1f/%.1f"%(self.len_straight, self.len_path), " Q = ", self.tot_charge, " Dray N = ", self.n_hits_dray, " Qdray ", self.dray_charge, "3D MATCH : ", self.match_3D)
         #print('track hits ID ', self.hits_ID)
-
+        #print('matches : ', self.matched)
+        #print('3D match : ', self.match_3D)
 
 
 class trk3D:
     def __init__(self):
 
         self.match_ID  =  [-1]*cf.n_view#[t.ID for t in trks]
+        self.ID_3D      = -1
+
         self.chi2    = [-1]*cf.n_view
         self.momentum = -1
 
@@ -514,6 +574,7 @@ class trk3D:
 
     def set_view(self, trk, path, dq, ds, hits_id, isFake=False):
         view = trk.view
+        trk.match_3D = self.ID_3D
 
         self.path[view]  = path
         self.dQ[view]   = dq
@@ -583,6 +644,7 @@ class trk3D:
 
     def dump(self):
         print('\n----')
+        print('Track with ID ', self.ID_3D)
         print(" From (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f)"%(self.ini_x, self.ini_y, self.ini_z, self.end_x, self.end_y, self.end_z))
         print('z-overlap ', self.ini_z_overlap, ' to ', self.end_z_overlap)
         print("N Hits ", self.n_hits)
@@ -593,3 +655,46 @@ class trk3D:
         print(" z0 ", self.z0_corr, " t0 ", self.t0_corr)
         print(" MATCHING DISTANCE SCORE : ", self.d_match)
         print('----\n')
+
+class ghost:
+    def __init__(self, ghost_id, t2d_id, min_dist, ghost_charge, trk_charge, nhits):#, t3d_id, min_dist, xstart, ystart, zstart):
+        self.ghost_ID = ghost_id
+        self.trk2D_ID = t2d_id
+
+        self.trk3D_ID = -1
+        self.anode_x = -9999
+        self.anode_y = -9999
+        self.anode_z = -9999
+        self.min_dist = min_dist
+
+        self.n_hits = nhits
+        self.path = []
+        self.dQ = []
+        self.hits_ID = []
+        self.ds = []
+
+        self.theta = -9999
+        self.phi = -9999
+        
+        self.ghost_charge = ghost_charge
+        self.trk_charge = trk_charge
+
+        self.t0_corr = -9999
+        self.z0_corr = -9999
+
+    def set_3D_ghost(self, t3d_id, path, dQ, ds, hits, x, y, z, theta, phi, t0, z0):
+        self.trk3D_ID = t3d_id
+        self.anode_x = x
+        self.anode_y = y
+        self.anode_z = z
+
+        self.path = path
+        self.dQ = dQ
+        self.hits_ID = hits
+        self.ds = ds
+
+        self.theta = theta
+        self.phi = phi
+
+        self.t0_corr = t0
+        self.z0_corr = z0

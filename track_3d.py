@@ -84,11 +84,9 @@ def finalize_3d_track(track, npts):
     m_phi_ini = sum(phi_ini)/nv
     m_phi_end = sum(phi_end)/nv
 
-    #print("mean theta ", m_theta_ini, m_theta_end)
-    #print("mean phi ", m_phi_ini, m_phi_end)
-
     track.set_angles(m_theta_ini, m_phi_ini, m_theta_end, m_phi_end)
     track.d_match = dtot
+    
     return True
 
 def linear_interp(dx, z0, a):
@@ -130,10 +128,17 @@ def complete_trajectories(tracks):
         A = np.array([[np.cos(ang_track), -np.cos(ang_other)],
                       [-np.sin(ang_track), np.sin(ang_other)]])
 
-
+        """
+        print('View',track.view, '->',track.path[0][0], ", ", track.path[0][1], ' to ', track.path[-1][0], ", ", track.path[-1][1])
+        print('with')
+        print('View',other.view,'->',other.path[0][0], ", ", other.path[0][1], ' to ', other.path[-1][0], ", ", other.path[-1][1])
+        """
 
         D = A[0,0]*A[1,1]-A[0,1]*A[1,0]
-
+        """
+        print(A)
+        print('D=',D)
+        """
         if(D == 0.):
             print("MEGA PBM :::  DETERMINANT IS ZERO")
             continue
@@ -209,6 +214,8 @@ def complete_trajectories(tracks):
             xy = A.dot([pos_spl, pos])/D
             x, y = xy[0], xy[1]
 
+            #print(x,y,z)
+
             dxdy = A.dot([a1t, a0t])/D
 
             dxdz, dydz = dxdy[0], dxdy[1]
@@ -218,31 +225,57 @@ def complete_trajectories(tracks):
             a1 = 0. if dydz == 0 else 1/dydz
 
 
-            pxy = A.dot([0., cf.view_pitch[v_track]])/D
+            ux = 1./math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)) if a1!=0 else 0.
+            uy = 1./math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)) if a0 !=0 else 0.
+
+            cosgamma = math.fabs(np.sin(ang_track)*ux+np.cos(ang_track)*uy)
+                
+
+            dr = cf.view_pitch[v_track]/cosgamma if cosgamma != 0 else 9999.
+
+
+            """
+            #this was somewhat wrong with diagonal view 
+            #pxy = A.dot([0., cf.view_pitch[v_track]])/D
             pitchx, pitchy = cf.view_pitch[v_track]*np.sin(ang_track), cf.view_pitch[v_track]*np.cos(ang_track)
 
             dr = 1
 
-            """ For views not parallel to an axis, I'm not sure it's correct """
             if(a1 == 0):
                 dr *= math.sqrt(1. + pow(a0,2))
             else :
                 dr = np.sqrt(pow(pitchx*math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)),2)) + np.sqrt(pow(pitchy*math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)),2))
+            """
 
-
-
+            
             """ debugging """
-
-            if(p>9999):
+            if(p>999999):
                 print(p, " at z ", z, " : ", pos, " with ", pos_spl)
+                print(' matching v',v_track, ' with v',v_other)
                 print("  -> x ", x, " y ", y)
+                
                 print("   before rotation : ", a0t, " ", a1t)
                 print("   rotated ", dxdz, " ", dydz)
                 print("   pitches ", pitchx, " ",pitchy)
                 print("With prev point  : ", np.sqrt(pow(x-xp,2)+pow(y-yp,2) +pow(z-zp,2)))
                 print(" with prev dx ", x-xp, " dy ", y-yp, " dz ", z-zp)
+                dd = np.sqrt(pow(x-xp,2)+pow(y-yp,2)+pow(z-zp,2))
+                print(" ux = ",(x-xp)/dd, ' uy = ', (y-yp)/dd, ' uz = ', (z-zp)/dd)
                 print(" with prev pos : ", pos-pp)
                 print("   -->a0 ", a0, " a1 ", a1, " -> ds ", dr)
+                print('TEST')
+                
+                ux = 1./math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)) if a1!=0 else 0.
+                uy = 1./math.sqrt(1. + pow(a1, 2)*(1./pow(a0, 2) + 1.)) if a0 !=0 else 0.
+                cosgamma1 = math.fabs(np.sin(ang_track-np.pi/2.)*ux+np.cos(ang_track-np.pi/2.)*uy)
+                cosgamma2 = math.fabs(np.sin(ang_track)*ux+np.cos(ang_track)*uy)
+                
+                drtest1 = cf.view_pitch[v_track]/cosgamma1
+                drtest2 = cf.view_pitch[v_track]/cosgamma2
+                print('->ux',ux, 'uy',uy, " -> ", cosgamma1, cosgamma2)
+                print('----->',drtest1, drtest2)
+
+
                 print("----------")
                 xp = x
                 yp = y
@@ -351,7 +384,7 @@ def find_tracks_rtree():
         start = t.path[0][1]
         stop  = t.path[-1][1]
 
-        if(t.len_straight >= len_min):
+        if(t.len_straight >= len_min and t.ghost == False):
             rtree_idx.insert(t.trackID, (t.view, stop, t.view, start))
         i+=1
         idx_to_ID.append(t.trackID)
@@ -399,7 +432,7 @@ def find_tracks_rtree():
                 if(ti.module_end != tj.module_end):
                     continue
 
-                #print("overlaps with, ", j_ID, ' idx ', j_idx)
+                #print("...overlaps with, ", j_ID, ' idx ', j_idx)
                 #tj.mini_dump()
 
                 tj_start = tj.path[0][1]
@@ -424,7 +457,7 @@ def find_tracks_rtree():
                     matches.append( (j_ID, balance, dmin) )
 
             if(len(matches) > 0):
-                ''' sort matches by balance '''
+                ''' sort matches by balance ''' #distance '''
                 matches = sorted(matches, key=itemgetter(1))
                 ti.matched[tj.view] = matches[0][0]
 
@@ -462,9 +495,13 @@ def find_tracks_rtree():
                 continue
             #t3D.angles(tv0, tv1)
             correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+            trk_ID = dc.evt_list[-1].n_tracks3D+1
+            t3D.ID_3D = trk_ID
+
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
             #dc.tracks3D_list[-1].dump()
             for t in trks:
                 for i in range(cf.n_view):
                     t.matched[i] = -1
+                    t.match_3D = trk_ID
