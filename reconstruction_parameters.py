@@ -60,7 +60,11 @@ def build_default_reco():
            "fft":{
               "freq":-1,
               "low_cut":0.6
+           },
+           "microphonic":{
+              "window":-1
            }
+
         },
 
         "hit_finder":{
@@ -96,6 +100,19 @@ def build_default_reco():
 	    "dz_tol": 2.0
 	},
 
+        "ghost":{
+            "dmin":10
+        },
+
+        "single_hit":{
+            "time_tol":9,
+            "outlier_dmax":5,
+            "veto_nchan":9,
+            "veto_nticks":100,
+            "int_nchan":3,
+            "int_nticks":50
+        },
+        
         "plot":{
            "noise":{
               "show": 0,
@@ -186,6 +203,7 @@ def dump():
         print("    Coh per view case : ", dc.reco['noise']['coherent']['per_view'])
         print("    Coh with capa weight  : ",  dc.reco['noise']['coherent']['capa_weight'])
         print("    Coh with calibrated ch : ",  dc.reco['noise']['coherent']['calibrated'])
+        print("    Microphonic window : ", dc.reco['noise']['microphonic']['window'])
 
         print("\n~Hit Finder~ ")
         print("    Amplitude RMS threshold Coll:", dc.reco['hit_finder']['coll']['amp_sig'], " Ind:", dc.reco['hit_finder']['ind']['amp_sig'])
@@ -203,6 +221,18 @@ def dump():
         print("    Max track charge balance : ", dc.reco['track_3d']['qfrac'])
         print("    Min track 2D length : ", dc.reco['track_3d']['len_min'])
         print("    Distance to detector x-boundaries : ", dc.reco['track_3d']['dx_tol'], 'y-boundaries: ', dc.reco['track_3d']['dy_tol'], " z-boundary ", dc.reco['track_3d']['dz_tol'])
+
+        print("\n~3D Ghost Finder~ ")
+        print("    Ghost-Track min distance : ", dc.reco["ghost"]["dmin"])
+
+        print("\n~Single Hit Finder~ ")
+        print("    Time Tolerance ", dc.reco["single_hit"]["time_tol"])
+        print("    Outlier Dmax ", dc.reco["single_hit"]["outlier_dmax"])
+        print("    Veto nchannel ", dc.reco["single_hit"]["veto_nchan"])
+        print("    Veto nticks ", dc.reco["single_hit"]["veto_nticks"])
+        print("    Integral nchannel ", dc.reco["single_hit"]["int_nchan"])
+        print("    Integral nticks ", dc.reco["single_hit"]["int_nticks"])
+
         print("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n")
 
 
@@ -250,6 +280,7 @@ class params:
        self.noise_coh_calibrated = False      # account for channel calibration
        self.noise_fft_freq  = -1          # specific frequency removal (-1 is none)
        self.noise_fft_lcut  = 0.6         # low-pass filter frequency cut
+       self.noise_micro_window  = -1         # microphonic window size
 
 
        self.hit_amp_sig     = [3,6,2]    # default amplitude trigger threshold for hit search - in RMS
@@ -274,6 +305,16 @@ class params:
        self.trk3D_dy_tol   = [2.,2.]    #distance tolerance to detector y-boundaries for timing computation
        self.trk3D_dz_tol   = 2.    #distance tolerance to detector z-upper boundary for timing computation
 
+       self.ghost_dmin = 10. #min distance between potential track/ghost pair
+       
+       self.sh_time_tol     = 9. #
+       self.sh_outlier_dmax = 5. #
+       self.sh_veto_nchan   = 9 #
+       self.sh_veto_nticks  = 100 #
+       self.sh_int_nchan    = 3 #
+       self.sh_int_nticks   = 150 #
+       
+
        self.plt_noise_show        = 0
        self.plt_evt_disp_daq_show = 0
        self.plt_evt_disp_vch_show = 0
@@ -284,7 +325,7 @@ class params:
        self.plt_evt_disp_vch_col_zrange = [-50,50]   # color scale for collection view event display plots
 
 
-    def read(self,detector='cb1',elec='top'):
+    def read(self,detector='cb',elec='top'):
        with open(cf.lardon_path+'/settings/'+detector+'_'+elec+'/reco_parameters.json','r') as f:
 
              data = json.load(f)
@@ -337,6 +378,7 @@ class params:
 
                 self.noise_fft_freq  = data[config][elec]['noise']['fft']['freq']
                 self.noise_fft_lcut  = data[config][elec]['noise']['fft']['low_cut']
+                self.noise_micro_window  = data[config][elec]['noise']['microphonic']['window']
 
                 self.hit_amp_sig     = data[config][elec]['hit_finder']['amp_sig_thrs']
                 self.hit_dt_min      = data[config][elec]['hit_finder']['dt_min']
@@ -360,6 +402,18 @@ class params:
                 self.trk3D_dx_tol   = data[config][elec]['track_3d']['dx_tol']
                 self.trk3D_dy_tol   = data[config][elec]['track_3d']['dy_tol']
                 self.trk3D_dz_tol   = data[config][elec]['track_3d']['dz_tol']
+
+
+                self.ghost_dmin = data[config][elec]['ghost']['dmin']
+
+
+                self.sh_time_tol     = data[config][elec]['single_hit']['time_tol']
+                self.sh_outlier_dmax = data[config][elec]['single_hit']['outlier_dmax']
+                self.sh_veto_nchan   = data[config][elec]['single_hit']['veto_nchan']
+                self.sh_veto_nticks  = data[config][elec]['single_hit']['veto_nticks']
+                self.sh_int_nchan    = data[config][elec]['single_hit']['int_nchan']
+                self.sh_int_nticks   = data[config][elec]['single_hit']['int_nticks']
+
 
                 self.plt_noise_show              = data[config][elec]['plot']['noise']['show']
                 self.plt_noise_zrange            = data[config][elec]['plot']['noise']['zrange']
@@ -407,6 +461,7 @@ class params:
         print("    Coh per view case : ", self.noise_coh_per_view)
         print("    Coh with capa weight  : ", self.noise_coh_capa_weight)
         print("    Coh with calibrated ch : ", self.noise_coh_calibrated)
+        print("    Microphonic window : ", self.noise_micro_window)
 
         print("\n~Hit Finder~ ")
         print("    Amplitude RMS threshold ", self.hit_amp_sig)
@@ -424,5 +479,17 @@ class params:
         print("    Max track charge balance : ", self.trk3D_qfrac)
         print("    Min track 2D length : ", self.trk3D_len_min)
         print("    Distance to detector x-boundaries : ", self.trk3D_dx_tol, 'y-boundaries: ', self.trk3D_dy_tol, " z-boundary ", self.trk3D_dz_tol)
+
+        print("\n~3D Ghost Finder~ ")
+        print("    Ghost-Track min distance : ", self.ghost_dmin)
+
+        print("\n~Single Hit Finder~ ")
+        print("    Time Tolerance ", self.sh_time_tol)
+        print("    Outlier Dmax ", self.sh_outlier_dmax)
+        print("    Veto nchannel ", self.sh_veto_nchan)
+        print("    Veto nticks ", self.sh_veto_nticks)
+        print("    Integral nchannel ", self.sh_int_nchan)
+        print("    Integral nticks ", self.sh_int_nticks)
+
         print("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n")
 
