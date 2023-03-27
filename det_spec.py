@@ -55,6 +55,8 @@ def configure(detector, elec, run):
         cf.data_path += "/" + data['sub_path']
 
         cf.view_chan_repet  = [int(x) for x in data['view_chan_repet']]
+        cf.view_offset_repet  = [[[float(x) for x in xv] for xv in xm] for xm in data['view_offset_repet']]
+        
         cf.view_z_offset = [float(x) for x in data['view_z_offset']]
         
         cf.drift_length = float(data['drift_length'])
