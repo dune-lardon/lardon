@@ -82,12 +82,12 @@ def compute_pedestal(noise_type='None'):
 
 def update_mask(thresh):
     dc.mask_daq = ne.evaluate( "where((abs(data) > thresh*rms), 0, 1)", global_dict={'data':dc.data_daq, 'rms':dc.evt_list[-1].noise_filt.ped_rms[:,None]}).astype(bool)
-    np.logical_and(dc.mask_daq, dc.alive_chan)
+    dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan)
 
 
 def update_mask_inputs(thresh, mean, rms):
     dc.mask_daq = ne.evaluate( "where((abs(data-baseline) >  thresh*std) , 0, 1)", global_dict={'data':dc.data_daq, 'baseline':mean[:,None],'std':rms[:,None]}).astype(bool)
-    np.logical_and(dc.mask_daq, dc.alive_chan)
+    dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan)
 
 
 def refine_mask(n_pass = 1, debug=False, test=False):
@@ -455,3 +455,54 @@ def set_mask_wf_rms(channel=1, to_be_shown=False):
       axs[2].set_title('cleanup waveform')
       axs[2].plot(wf_noise)
 
+
+
+def study_noise():
+    """ some attempt at caracterizing the microphonic noise """
+    t_test = time.time()
+
+    nchunks = 16
+    if(cf.n_sample%nchunks != 0):
+        return
+    chunk = int(cf.n_sample/nchunks)
+    #print("chunking in ", chunk)
+    dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, nchunks, chunk))
+    dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, nchunks, chunk))
+    
+    mean = [[-999 for x in range(cf.n_tot_channels)] for i in range(nchunks)]
+    std = [[-999 for x in range(cf.n_tot_channels)] for i in range(nchunks)]
+    #print("LENGTHS : ", len(mean), len(mean[0]))
+    for i in range(nchunks):
+        mean[i], std[i] = compute_pedestal_nb(dc.data_daq[:,i,:], dc.mask_daq[:,i,:])
+        #mean[i] = m
+        #std[i] = s
+    #print(time.time()-t_test, " s to compute")
+    
+    mean = np.asarray(mean)
+    #print(mean.shape)
+    #min_mean = np.min(mean, axis=0)
+    #max_mean = np.max(mean, axis=0)
+    #print(min_mean.shape)
+    delta_mean = np.max(mean, axis=0) - np.min(mean, axis=0)#max_mean - min_mean
+    std_mean   = np.mean(std, axis=0)
+
+    """
+    for i in [2113, 2863, 529]:
+        print("CHANNEL ", i)
+        print("means : ")
+        print([mean[k][i] for k in range(nchunks)])
+        print("stds: ")
+        print([std[k][i] for k in range(nchunks)])
+        print(min_mean[i], " and ", max_mean[i])
+        print("delta : ", delta_mean[i])
+    """
+
+    ped = dc.noise( delta_mean, std_mean )
+    dc.evt_list[-1].set_noise_study(ped)
+
+
+
+
+    """ restore original data shape """
+    dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, cf.n_sample))
+    dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
