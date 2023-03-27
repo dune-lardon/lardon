@@ -5,6 +5,8 @@ import pedestals as ped
 import numpy as np
 import numexpr as ne 
 
+import bottleneck as bn
+
 
 
 def gaussian(x, mu, sig):
@@ -164,3 +166,29 @@ def coherent_noise_per_view():#groupings, capa_weight, calibrated):
     dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
     dc.data_daq /= calib[:,None]
     dc.data_daq *= capa[:,None]
+
+
+def centered_median_filter(array, size):
+    """ pads the array such that the output is the centered sliding median"""
+    rsize = size - size // 2 - 1
+    array = np.pad(array, pad_width=((0, 0) , (0, rsize)),
+                   mode='constant', constant_values=np.nan)
+    return bn.move_median(array, size, min_count=1, axis=-1)[:, rsize:]
+
+
+def median_filter():
+    window = dc.reco['noise']['microphonic']['window']
+    
+    if(window < 0):
+        return
+
+    """ apply median filter on data to remove microphonic noise """    
+
+    """ mask the data with nan where potential signal is (ROI)"""
+    med = centered_median_filter(np.where(dc.mask_daq==True, dc.data_daq, np.nan), window)
+
+    """ in median computation, if everything is masked (all nan) nan is returnedso changed these cases to 0 """
+    med = np.nan_to_num(med, nan=0.)
+
+    """ apply correction to data points """
+    dc.data_daq -= med
