@@ -140,7 +140,7 @@ class decoder(ABC):
 
 
 class top_decoder(decoder):
-    def __init__(self, run, sub, filename=None, det='cb'):
+    def __init__(self, run, sub, filename=None, det='cb', dummy=""):
         self.run = run
         self.sub = sub
         self.filename = filename
@@ -306,12 +306,16 @@ class top_decoder(decoder):
 
 
 class bot_decoder(decoder):
-    def __init__(self, run, sub, filename=None, det='cb'):
+    def __init__(self, run, sub, filename=None, det='cb', flow_writer="0-0"):
         self.run = run
         self.sub = sub
         self.filename = filename
         self.detector = det
+        self.flow = flow_writer[:flow_writer.find("-")]
+        self.writer = flow_writer[flow_writer.find("-")+1:]
+
         print(' -- reading a bottom drift electronics file')
+
 
         """ bde specific parameters """
         self.n_chan_per_link = 256
@@ -370,7 +374,17 @@ class bot_decoder(decoder):
         sub_name = 'run'+str(f'{r:06d}')+'_*'+long_sub+'_'
         #print(sub_name)
         
-        fl = glob.glob(path+"*"+sub_name+"*hdf5")
+
+        if(self.detector == "cb"):
+            app_name = "dataflow"+self.flow+"_datawriter_"+self.writer
+        elif(self.detector == "cb1"):
+            app_name = "dataflow"+self.flow
+        else:
+            app_name = ""
+
+
+
+        fl = glob.glob(path+"*"+sub_name+"*"+app_name+"*hdf5")
 
         if(len(fl) != 1):
             print('none or more than one file matches ... : ', fl)
@@ -434,7 +448,10 @@ class bot_decoder(decoder):
 
 
     def read_evt_header_cb(self, ievt):
-        trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='RawData/TR_Builder_0x00000000_TriggerRecordHeader',classname='Array').read()
+        fl = int(self.flow)
+        name =  f'{fl:08d}'
+
+        trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='RawData/TR_Builder_0x'+name+'_TriggerRecordHeader',classname='Array').read()
 
         header_magic =  0x33334444
         header_version = 0x00000003

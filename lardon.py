@@ -20,6 +20,9 @@ parser.add_argument('-out', dest='outname', help='extra name on the output', def
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
 parser.add_argument('-f', '--file', help="Override derived filename")
 parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used for pulsing data')
+parser.add_argument('-flow', type=str, default="-1", help="dataflow number (bde-only)", dest='dataflow')
+parser.add_argument('-writer', type=str, default="-1", help="datawriter number (bde-only)", dest='datawriter')
+
 
 args = parser.parse_args()
 
@@ -48,6 +51,9 @@ det.configure(detector, elec, run)
 
 is_pulse = args.is_pulse
 
+""" some bde special case """
+dataflow = args.dataflow
+datawriter = args.datawriter
 
 import config as cf
 import data_containers as dc
@@ -68,12 +74,33 @@ import ghost as ghost
 plot.set_style()
 
 
+""" Special case when BDE-DAQ has to use multiple dataflow/datawriter app to write the data (e.g. high trigger rate, long window) """
+
+multipass_daqname = ""
+if(dataflow != "-1" or datawriter != "-1"):
+    multipass_daqname = "_"
+
+    if(dataflow !=  "-1"):
+      multipass_daqname += dataflow
+      
+    if(datawriter != "-1"):
+        multipass_daqname += datawriter
+        
+else:
+    if(dataflow ==  "-1"):
+        dataflow = "0"
+    if(datawriter == "-1"):  
+        datawriter = "0"
+
+
 """ output file """
 if(outname_option):
     outname_option = "_"+outname_option
 else:
     outname_option = ""
-name_out = f"{cf.store_path}/{elec}_{run}_{sub}{outname_option}.h5"
+
+
+name_out = f"{cf.store_path}/{elec}_{run}_{sub}{multipass_daqname}{outname_option}.h5"
 output = tab.open_file(name_out, mode="w", title="Reconstruction Output")
 
 
@@ -102,7 +129,7 @@ cmap.set_unused_channels()
 if(detector=="dp"):
     reader = read.dp_decoder(run, str(sub), args.file)
 else:
-    reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file, detector)
+    reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file, detector, dataflow+"-"+datawriter)
 
 reader.open_file()
 nb_evt = reader.read_run_header()
