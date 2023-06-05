@@ -13,12 +13,11 @@
 	"view_length":["437.58","437.58","297.84"],
 	"strips_length":"cb_2_strips.txt",
 	"view_z_offset":["1.32","0.32","0"],
-	"sub_path":"np04/vd-coldbox-bottom/raw/2023/detector/test/None",
+	"data_path":"/eos/experiment/neutplatform/protodune/rawdata/np04/vd-coldbox-bottom/raw/2023/detector/test/None",
 	"n_tot_channels":"3072",
 	"sampling":"1.953125",
 	"n_sample":"8192",
 	"e_per_ADCtick":"7.27",
-	"ADC_per_fC":"135.996",
 	"view_offset":[["-218.79","-218.79","-148.92"]],
 	"view_offset_repet":[[["-218.79","-144.585"],["-144.585","-218.79"],["-148.92","-148.92","0.","0."]]],
 	"x_boundaries":[["-168.","168."]],
@@ -32,11 +31,19 @@
 	"channel_calib":"bde_calib_area_crp5.txt"
 	},
 
-    "19997-99999":
+    "19997-20939":
     {
 	"e_drift":"0.442",
 	"drift_length":"23.1",
         "broken_channels":[2780, 501, 400],
 	"channel_calib":"bde_calib_area_crp4.txt"
+    },
+    "20940-99999":
+    {
+	"e_drift":"0.438",
+	"drift_length":"23.3",
+        "broken_channels":[322, 1647, 2415, 1659, 1558, 1557, 383, 959, 943, 1315, 1312, 400, 2679, 3060],
+	"channel_calib":"bde_calib_area_crp5.txt"
     }
+
 }

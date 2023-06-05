@@ -1,14 +1,21 @@
-data_path = "/eos/experiment/neutplatform/protodune/rawdata/"
-
 """ User's specific """
-lardon_path = "."
+
+""" Where is LARDON """
+lardon_path = "/eos/user/l/lzambell/analysis/coldbox/lardon/"
+
+""" Where to store the reconstructed output file """
 store_path = lardon_path+"/reco"
+
+""" Where to store the control plots """
 plot_path  = lardon_path+"/results"
 
 
 
+""" General variable overwritten by the detector settings """
+data_path = ""
+
 LAr_temperature = 87. #K - to check in the slow control 
-e_drift = 0.4  #kV/cm - default, overwritten in settings
+e_drift = 0.4  #kV/cm
 
 """ default values overwritten by the json file """
 n_view = -1
@@ -25,7 +32,6 @@ sampling = 0
 n_sample = 0
 e_per_ADCtick=0
 channel_calib = ''
-ADC_per_fC = 0
 elec = "none"
 channel_map = ""
 broken_channels = []
