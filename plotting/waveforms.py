@@ -48,6 +48,7 @@ def plot_wvf_current_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sam
         if(adc_max > -1):
             ax[i].set_ybound(upper=adc_max)
             
+
     for a in ax[:-1]:
         a.tick_params(labelbottom=False)
     ax[-1].set_xlabel('Time')
@@ -57,6 +58,7 @@ def plot_wvf_current_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sam
     plt.tight_layout()
     plt.subplots_adjust(top=0.95)
 
+        
     save_with_details(fig, option, 'waveforms')
     #plt.savefig(cf.plot_path+'/waveforms'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
@@ -123,13 +125,13 @@ def plot_track_wvf_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sampl
     
     for i in range(nview):
         n_wvf = len(vch_list[i])
-        colors = plt.cm.ocean(np.linspace(0,1,n_wvf))
+        colors = plt.cm.ocean(np.linspace(0.2,.8,n_wvf))
         for k in range(n_wvf):
             view, ch = vch_list[i][k]
             legend = "v"+str(view)+" ch"+str(ch)
             ax[i] = draw_current_waveform(-1, view, ch, ax=ax[i], label=legend, c=colors[k])
         ax[i].set_ylabel('ADC')
-        #ax[i].legend(loc='upper right')
+        ax[i].legend(loc='upper right')
         ax[i].set_xlim([tmin, tmax])
         if(adc_min > -1):
             ax[i].set_ybound(lower=adc_min)
@@ -165,7 +167,6 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
     ax = [fig.add_subplot(gs[0,0])]
     ax.extend([fig.add_subplot(gs[i,0], sharex=ax[0]) for i in range(1,n_wvf)])
 
-    
     for i in range(n_wvf):
         view, ch = vch_list[i]
         
