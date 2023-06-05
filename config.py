@@ -1,7 +1,7 @@
 """ User's specific """
 
 """ Where is LARDON """
-lardon_path = "/eos/user/l/lzambell/analysis/coldbox/lardon/"
+lardon_path = "."
 
 """ Where to store the reconstructed output file """
 store_path = lardon_path+"/reco"
