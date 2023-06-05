@@ -52,8 +52,8 @@ def plot_3d(option=None, to_be_shown=True):
 
 
     v = lar.drift_velocity()
-    ax.set_xlim3d(cf.x_boundaries)
-    ax.set_ylim3d(cf.y_boundaries)
+    ax.set_xlim3d(cf.x_boundaries[0])
+    ax.set_ylim3d(cf.y_boundaries[0])
     ax.set_zlim3d(cf.anode_z - v*cf.n_sample/cf.sampling, cf.anode_z)
 
 
