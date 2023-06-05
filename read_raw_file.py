@@ -17,6 +17,7 @@ import channel_mapping as cmap
 def read_evt_uint12_nb(data):
     """ reads the top electronics event """
     l = len(data)
+
     assert np.mod(l,3)==0
 
     out=np.empty(l//3*2,dtype=np.uint16)
@@ -30,6 +31,42 @@ def read_evt_uint12_nb(data):
         out[i*2+1] = ((mid_uint8 % 16) << 8) + lst_uint8
 
     return out
+
+
+
+@nb.jit
+def read_evt_uint12_nb_RD(data):
+    """ reads the bot electronics event of 50l """
+    l = len(data)
+
+    assert np.mod(l,6)==0
+
+    out=np.empty(l//3*4,dtype=np.uint16)
+
+
+    for i in nb.prange(l//6):
+
+        b0  = np.uint16(data[i*6+0])
+        b1  = np.uint16(data[i*6+1])
+        b2  = np.uint16(data[i*6+2])
+        b3  = np.uint16(data[i*6+3])
+        b4  = np.uint16(data[i*6+4])
+        b5  = np.uint16(data[i*6+5])
+
+        out[i*8+7] = (b0 & 0X0FFF)<<0 
+        out[i*8+6] = ((b1 & 0X00FF)<<4) + ((b0 & 0XF000) >> 12)
+        out[i*8+5] = ((b2& 0X000F)<<8) + ((b1& 0XFF00) >> 8 )
+        out[i*8+4] = (b2& 0XFFF0)>>4
+        out[i*8+3] = (b3& 0X0FFF)<<0
+        out[i*8+2] = ((b4& 0X00FF)<<4) + ((b3& 0XF000) >> 12)
+        out[i*8+1] = ((b5& 0X000F)<<8) + ((b4& 0XFF00) >> 8)
+        out[i*8+0] = (b5& 0XFFF0)>>4
+
+
+    return out
+
+
+
 
 def decode_8_to_5_3(x):
     read5 =  x & 0x1f
@@ -171,7 +208,7 @@ class top_decoder(decoder):
         ])
 
         self.header_size = self.header_type.itemsize
-        #print('header size of ', self.header_size)
+
 
     def get_filename(self):
         path = f"{cf.data_path}/{self.run}/{self.run}_{self.sub}"
@@ -195,7 +232,7 @@ class top_decoder(decoder):
 
     def read_run_header(self):
         run_nb, nb_evt = np.fromfile(self.f_in, dtype='<u4', count=2)
-        #print('run: ', run_nb, ' nb of events ', nb_evt)
+
 
         """ Read the run header of the binary data file """
         self.sequence = []
@@ -204,7 +241,7 @@ class top_decoder(decoder):
             """4 uint of [event number - event total size with header- event data size - 0]"""
             self.sequence.append(seq[1])
 
-        #print("sequences of ",self.sequence[0],"bytes")
+
             
 
         self.event_pos = []
@@ -367,12 +404,12 @@ class bot_decoder(decoder):
         for i in range(0,8,2):
             run_path += long_run[i:i+2]+"/"
         path = cf.data_path + "/" + run_path
-        #print(path)
+
 
         s = int(self.sub)
         long_sub = f'{s:04d}'
         sub_name = 'run'+str(f'{r:06d}')+'_*'+long_sub+'_'
-        #print(sub_name)
+
         
 
         if(self.detector == "cb"):
@@ -496,7 +533,7 @@ class bot_decoder(decoder):
             try :
                 link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/TPC/CRP004", name='Link'+name,classname='Array').read()
             except tab.NoSuchNodeError:
-                #print('no link number ', ilink, 'with name CRP004')
+
                 try :
                     link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/TPC/APA004", name='Link'+name,classname='Array').read()
                 except tab.NoSuchNodeError:
@@ -518,7 +555,7 @@ class bot_decoder(decoder):
                 dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
                 dc.data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
                 dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
-                #lllll
+
                 cmap.set_unused_channels()
                 dc.mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
                     
@@ -527,7 +564,7 @@ class bot_decoder(decoder):
             
             _, fiber = decode_8_to_5_3(wib_head['ver_fib'][0])
             crate, slot = decode_8_to_5_3(wib_head['crate_slot'][0])
-            #print(ilink, ' ', name, ' fiber ', fiber, ' crate ', crate, ' slot ', slot)
+
 
 
             # remove the fragment header
@@ -766,3 +803,90 @@ class dp_decoder(decoder):
         self.f_in.close()
         print('file closed!')
 
+
+
+
+class _50l_decoder(decoder):
+    def __init__(self, run, sub, filename=None):
+        self.run = run
+        self.sub = sub
+        self.filename = filename
+        self.detector = "50l"
+
+        self.evt_byte_size = 129528
+        self.n_femb = 4       
+        
+    def get_filename(self):
+        path = f"{cf.data_path}/{self.run}/"
+        fl = glob.glob(path+"*.bin")
+        s = int(self.sub)
+        if(len(fl) == 0 or len(fl) < s):
+            print('file numbering do not match ...')#
+            print('--> ', path, " contains ", len(fl), " files")
+            exit()
+        f = fl[s]
+        return f
+
+
+    def open_file(self):
+        f = self.filename if self.filename else self.get_filename()
+        print('Reconstructing ', f)
+        self.filename = f
+        self.f_in = open(f,'rb')
+        
+        
+
+
+    def read_run_header(self):
+        import os
+        self.fsize = os.path.getsize(self.filename)
+
+        n_evt = int(self.fsize/self.evt_byte_size)
+        return n_evt
+
+
+    def read_evt_header(self, ievt):
+        name = self.filename.replace('.bin','')
+        #name = name.replace(cf.data_path, '')
+        fsplit = name.split('_')        
+        timestamp = int(fsplit[-1])
+
+        t_s = int(timestamp/100)
+        t_ns = (timestamp - t_s*100) * 1e7
+
+        dc.evt_list.append( dc.event(self.detector,"bot", self.run, self.sub, ievt, ievt, t_s, t_ns) )
+
+    
+    def read_evt(self, ievt):
+        idx = ievt * self.evt_byte_size
+        self.f_in.seek(idx,0)
+
+        t = []
+        for i in range(self.n_femb):
+
+            self.f_in.read(9*2)
+            t.extend(np.fromfile(self.f_in, dtype='>u2', count=3824))
+
+            for k in range(3):
+                self.f_in.read(8*2)
+                t.extend(np.fromfile(self.f_in, dtype='>u2', count=3825))
+            self.f_in.read(8*2)
+            t.extend(np.fromfile(self.f_in, dtype='>u2', count=851))
+        dt = np.dtype(np.uint16)
+        tt = np.asarray(t, dtype=dt)
+
+        """ remove the extra byte """
+        tt = tt.reshape(-1,25)[:,1:].flatten()
+
+        out = read_evt_uint12_nb_RD( tt)
+        
+        out = np.reshape(out, (-1, 32)).T # split into 32 channel chunks
+        out = np.reshape(out, (32, 4, 646)) # Reshape into 
+        out = out.swapaxes(0,1)
+        out = np.reshape(out, (128, 646))
+        dc.data_daq = out
+
+
+    def close_file(self):
+        self.f_in.close()
+        print('file closed!')

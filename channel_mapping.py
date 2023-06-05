@@ -34,7 +34,7 @@ def get_mapping(detector, elec):
         print('the channel mapping file ', fmap, ' does not exists')
         exit()
 
-    if(detector == "cb1" or detector == 'cb2' or detector == 'cb'):
+    if(detector == "cb1" or detector == 'cb2' or detector == 'cb' or detector == "50l"):
         if(elec == "top"):
             get_cb_top_mapping()
         elif(elec == "bot"):
