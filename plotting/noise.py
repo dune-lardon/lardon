@@ -350,7 +350,7 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
                    interpolation='none',
                    cmap   = cmap_corr,
                    extent=[0, cf.n_tot_channels, 0., cf.n_tot_channels],
-                   vmin=-1, vmax=1)
+                   vmin=-0.6, vmax=0.6)#vmin=-1, vmax=1)
 
     if(corr_type=='daq'):
         title = 'DAQ Channels'
@@ -400,6 +400,7 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
 
     plt.close()
 
+    #return corr
 
 
 def plot_sticky_finder_daqch(option='', to_be_shown=False):
