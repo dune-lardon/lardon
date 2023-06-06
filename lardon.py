@@ -260,6 +260,7 @@ for ievent in range(nevent):
     ped.refine_mask(n_pass=2, test=True)
     ped.compute_pedestal(noise_type='filt')
 
+    hf.find_hits()
 
     print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits)
 
