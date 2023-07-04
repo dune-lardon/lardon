@@ -151,8 +151,16 @@ if(nevent > nb_evt):# or nevent < 0):
     print(f"WARNING: Requested {nevent} events from a file containing only {nb_evt} events.")
     nevent = nb_evt
 
-if( nevent < 0 and evt_skip == 0):
-    print(f" --->> Will process all {nb_evt} events of run {run}")
+if( nevent < 0):
+    nevent = nb_evt
+    if( evt_skip == 0):
+        print(f" --->> Will process all {nb_evt} events of run {run}")
+    else:
+        if(evt_skip >= nevent):
+            print("Too many skipped events asked ... bye!")
+            reader.close_file()
+            output.close()
+            exit()
 else:
     print(f" --->> Will process {nevent - evt_skip} events [out of {nb_evt}] of run {run}")
 
@@ -171,6 +179,7 @@ for ievent in range(nevent):
     t0 = time.time()
     if(evt_skip > 0 and ievent < evt_skip):
         continue
+
     dc.reset_event()
     n_event_done += 1
 
@@ -200,16 +209,14 @@ for ievent in range(nevent):
     """ produces a rough mask estimate """
     ped.compute_pedestal(noise_type='raw')
 
-
     """ update the pedestal """
     ped.compute_pedestal(noise_type='filt')
 
-    
-    #plot.event_display_per_view(adc_ind=[-100,100],adc_coll=[-10, 300], option='raw', to_be_shown=True)
+    #plot.event_display_per_view(adc_ind=[-100,100],adc_coll=[-10, 500], option='raw', to_be_shown=True)
+    #plot.event_display_per_view(adc_ind=[-50,50],adc_coll=[-10, 100], option='raw', to_be_shown=True)
     
 
     #plot.event_display_per_view_noise([-100,100],[-50, 150],option='noise_raw', to_be_shown=True)
-    
 
     if(is_pulse==True):
 
@@ -225,6 +232,7 @@ for ievent in range(nevent):
 
     """ low pass FFT cut """
     ps = noise.FFT_low_pass(False)
+    
 
 
 
@@ -244,13 +252,11 @@ for ievent in range(nevent):
         ped.refine_mask(n_pass=2, test=True)
 
 
-
     """ special microphonic noise study """
     #ped.study_noise()
 
     """ CNR """
     noise.coherent_noise()
-
 
     """ microphonic noise """
     noise.median_filter()
@@ -271,11 +277,9 @@ for ievent in range(nevent):
 
 
     
-    
 
     trk2d.find_tracks_rtree()
 
-    #[t.mini_dump() for t in dc.tracks2D_list]
 
     print("---- Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
 
@@ -284,11 +288,9 @@ for ievent in range(nevent):
 
     ghost.ghost_finder(threshold=10)
 
-    #print(len(dc.ghost_list), " POTENTIAL GHOST FOUND")
+
 
     trk3d.find_tracks_rtree()
-
-    #[t.dump() for t in dc.tracks3D_list]
 
 
     ghost.ghost_trajectory()
@@ -302,12 +304,6 @@ for ievent in range(nevent):
     print('- Found ', len(dc.ghost_list), ' Ghosts!')
     print('%.2f s to process '%(time.time()-t0))
 
-    #[x.dump() for x in dc.single_hits_list]
-
-
-    #plot.plot_2dview_hits_2dtracks(to_be_shown=True)
-    #plot.plot_2dview_hits_3dtracks(to_be_shown=True)
-    
 
 
     store.store_event(output)
