@@ -17,11 +17,11 @@ def compute_pedestal_nb(data, mask):
 
     mean  = np.zeros(shape[:-1])
     res   = np.zeros(shape[:-1])
-    for idx,v in np.ndenumerate(res):
+    for idx,r in np.ndenumerate(res):
         ch = data[idx]
         ma  = mask[idx]
         """ use the assumed mean method """
-        K = ch[0]
+        K = 1.*ch[0] #make it float
         n, Ex, Ex2, tmp = 0., 0., 0., 0.
         for x,v in zip(ch,ma):
             if(v == True):
@@ -30,6 +30,7 @@ def compute_pedestal_nb(data, mask):
                 Ex += x-K
                 Ex2 += (x-K)*(x-K)
 
+                #print(n, Ex)
         """cut at min. 10 pts to compute a proper RMS"""
         if( n < 10 ):
             mean[idx] = -1.
@@ -51,12 +52,10 @@ def compute_pedestal(noise_type='None'):
         ''' and pedestal and rms are computed again -- twice '''
         ''' this is still not ideal '''
 
-
         thresh = dc.reco['pedestal']['first_pass_thrs']
         for i in range(2):
             update_mask_inputs(thresh, mean, std)
             mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq)
-
         ped = dc.noise( mean, std )
         dc.evt_list[-1].set_noise_raw(ped)
 
@@ -64,12 +63,6 @@ def compute_pedestal(noise_type='None'):
 
         dc.data_daq = dc.data_daq*inv[:,None] + mean[:,None]*inv[:,None]
 
-        """
-        if(cf.signal_is_inverted==True):
-            dc.data_daq = mean[:,None] - dc.data_daq
-        else:
-            dc.data_daq -= mean[:,None]
-        """
 
     elif(noise_type=='filt'): 
         ped = dc.noise( mean, std )
@@ -91,9 +84,6 @@ def update_mask_inputs(thresh, mean, rms):
 
 
 def refine_mask(n_pass = 1, debug=False, test=False):
-    if(debug == True): import matplotlib.pyplot as plt
-    t0 = time.time()
-
 
     for ch in range(cf.n_tot_channels):
 
@@ -149,25 +139,6 @@ def refine_mask(n_pass = 1, debug=False, test=False):
                                       dc.reco['pedestal']['amp_thr'][view]*rms,
                                       dc.reco['pedestal']['dt_thr'],
                                       dc.reco['pedestal']['zero_cross_thr'])
-
-
-        if(debug==True and ch > 1 and (ch % 50) == 0):
-           nrows, ncols = 10, 5
-           fig = plt.figure()
-           for it,channel in enumerate(range(ch-50,ch)):    
-                  title = 'v'+str(view)+'-ch'+str(channel)
-                  ax = fig.add_subplot(nrows, ncols, it+1)
-                  ax.set_title(title)
-                  ax.plot(dc.data_daq[channel],'o',markersize=0.2)
-                  ax.axhline(y=dc.evt_list[-1].noise_filt.ped_rms[channel]*dc.reco['pedestal']['amp_thr'][dc.chmap[channel].view], color='gray')
-                  ax.axhline(y=0, color='lightgray')
-                  ax.axhline(y=-dc.evt_list[-1].noise_filt.ped_rms[channel]*dc.reco['pedestal']['amp_thr'][dc.chmap[channel].view], color='gray')
-                  ax.plot(np.max(dc.data_daq[channel, :])*dc.mask_daq[channel,:],linestyle='-',linewidth=1,color='r')
-                  ax.set(xlabel=None,ylabel=None)
-                  ax.axis('off')
-           plt.subplots_adjust(left=0.01, bottom=0.01, right=0.99, top=0.95, wspace=0.05, hspace=1)
-           plt.show()
-
 
 
 @nb.jit('(boolean[:],float64[:],int64,float64,float64,int64,int64,int64,int64)',nopython = True)
@@ -280,7 +251,7 @@ def mask_induction_signal_test(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_th
 
                 if((t_min-last_t_max) < dt_posneg_thr):
                     if(last_stop_pos < start_neg+1):
-                        mask[stop_pos:start_neg+1] = 0                    
+                        mask[last_stop_pos:start_neg+1] = 0                    
             start_neg, stop_neg, t_min, val_min, dt_neg = -1, -1, -1, 1, 0
 
 @nb.jit('(boolean[:],float64[:],int64,int64,float64,int64)',nopython = True)
