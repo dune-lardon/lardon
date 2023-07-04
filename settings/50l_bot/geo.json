@@ -19,14 +19,18 @@
 	"n_sample":"646",
 	"e_per_ADCtick":"22.95",
 	"view_offset":[["-15","-15","-12.24"]],
-	"view_offset_repet":[[["-15"],["-15"],["-12.24"]]],
+	"view_offset_repet":[[["-15."],["-15."],["-12.24"]]],
 	"x_boundaries":[["-16.","16."]],
-	"y_boundaries":[["-16","16"]],
-	"chmap":"50l_chmap.txt",	    	    
+	"y_boundaries":[["-12.24","12.24"]],
+	"chmap":"50l_chmap_2022.txt",	    	    
         "broken_channels":[],
 	"signal_is_inverted":"0",
 	"e_drift":"0.5",
 	"drift_length":"52",
 	"anode_z":"26"
-	}
+	},
+    "010623-999999":
+    {
+	"chmap":"50l_chmap_2023.txt"
+    }
 }
