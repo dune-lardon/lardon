@@ -34,7 +34,7 @@ def get_mapping(detector, elec):
         print('the channel mapping file ', fmap, ' does not exists')
         exit()
 
-    if(detector == "cb1" or detector == 'cb2' or detector == 'cb' or detector == "50l"):
+    if(detector == "cb1" or detector == 'cb2' or detector == 'cb'):
         if(elec == "top"):
             get_cb_top_mapping()
         elif(elec == "bot"):
@@ -44,6 +44,9 @@ def get_mapping(detector, elec):
             exit()
     elif(detector == "dp" and elec == "top"):
         get_dp_mapping()
+
+    elif(detector == "50l" and elec== "bot"):
+        get_50l_bot_mapping()
 
     else :
         print("the electronic ",elec, " for ", detector, " is not recognized")
@@ -114,6 +117,42 @@ def get_cb_bot_mapping():
 
                 #pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset[module][view] +  cf.view_pitch[view]/2.
 
+            else:
+                length, capa = -1, -1
+                pos=-9999.            
+            c = dc.channel(daqch, globch, module, view, channel, length, capa, gain, pos)
+            dc.chmap.append(c)
+
+
+def get_50l_bot_mapping():
+    strip = get_strip_length()
+    calib  = get_calibration()
+    module = 0
+
+    with open(cf.channel_map, 'r') as f:
+        for line in f.readlines()[1:]:
+            li = line.split()
+            daqch =  int(li[0])
+            globch = int(li[1])
+            AB = int(li[2])
+            femb = int(li[3])
+            asic = int(li[4])
+            asic_ch = int(li[5])        
+            view = int(li[6])
+            channel = int(li[7])
+            gain = calib[daqch]
+
+
+            if(globch >= 0 and view >= 0 and view < cf.n_view):
+                length, capa = strip[globch]
+
+                nrepet = int(np.floor(channel/cf.view_chan_repet[view]))
+                if(view == 0):
+                    pos = int(np.fabs(cf.view_nchan[view]-(channel%cf.view_chan_repet[view])+0.5)) * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet] #+  cf.view_pitch[view]/2.
+                else:
+                    pos = (channel%cf.view_chan_repet[view]+0.5) * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet]# +  cf.view_pitch[view]/2.
+
+                    
             else:
                 length, capa = -1, -1
                 pos=-9999.            
