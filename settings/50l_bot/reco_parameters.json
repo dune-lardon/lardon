@@ -1,8 +1,8 @@
 {
   "default":{
       "pedestal":{ 
-          "first_pass_thrs": 3,
-          "other_pass_thrs": 4,
+          "first_pass_thrs": 2,
+          "other_pass_thrs": 3,
           "rise_thr": [5,5,20],
           "ramp_thr": [1,1,2],
           "amp_thr": [2,2,3],
@@ -12,31 +12,31 @@
 	 
       "mask":{
 	  "coll":{
-	      "min_dt":8,
-	      "low_thr":[2.5,3.5],
-	      "high_thr":[4.0,4.0],
+	      "min_dt":5,
+	      "low_thr":[1.5,2.0],
+	      "high_thr":[2.0,2.5],
 	      "min_rise":2,
-	      "min_fall":4,
+	      "min_fall":2,
 	      "pad_bef":10,
 	      "pad_aft":15
 	  },
 	  
 	  "ind":{
-	      "max_dt_pos_neg":15,
+	      "max_dt_pos_neg":5,
 	      "pad_bef":10,
 	      "pad_aft":15,
 	      "pos":{
 		  "min_dt":4,
-		  "low_thr":[2.0,3.0],
-		  "high_thr":[3.0,5.0],
+		  "low_thr":[1.5,2.0],
+		  "high_thr":[2.0,2.5],
 		  "min_rise":2,
 		  "min_fall":2
 	      },
 	      
 	      "neg":{
 		  "min_dt":4,
-		  "low_thr":[-2.0,-3.0],
-		  "high_thr":[-3.0,-5.0],
+		  "low_thr":[-1.5,-2.0],
+		  "high_thr":[-2.0,-2.5],
 		  "min_rise":2,
 		  "min_fall":2
 	      }
@@ -56,18 +56,18 @@
               "low_cut":0.6
           },
 	  "microphonic":{
-	      "window":300
+	      "window":-1
 	  }
       },
       
       "hit_finder":{
           "coll":{
-              "amp_sig": [2.5,5.5],
-              "dt_min": 9
+              "amp_sig": [2.0,2.5],
+              "dt_min": 6
           },
           "ind":{
-              "amp_sig": [2,3],
-              "dt_min": 10
+              "amp_sig": [1.5,2.0],
+              "dt_min": 6
           },
           "pad":{
               "left": 6,
