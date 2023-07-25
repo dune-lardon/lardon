@@ -15,12 +15,26 @@ def dist(p, q, r):
     return np.linalg.norm(t(p, q, r)*(p-q)+q-r)
 
 
-def closest_activity(x0,y0,z0):
+def closest_activity_3D(x0,y0,z0):
     d_min = 9999;
     for t in dc.tracks3D_list:
         start = np.array([t.ini_x, t.ini_y, t.ini_z])
         end = np.array([t.end_x, t.end_y, t.end_z])
         hit = np.array([x0, y0, z0])
+        
+        d = dist(start, end, hit)
+        if(d < d_min):
+            d_min = d
+
+    return d_min
+
+
+def closest_activity_2D(x0,y0):
+    d_min = 9999;
+    for t in dc.tracks3D_list:
+        start = np.array([t.ini_x, t.ini_y])
+        end = np.array([t.end_x, t.end_y])
+        hit = np.array([x0, y0])
         
         d = dist(start, end, hit)
         if(d < d_min):
@@ -35,33 +49,32 @@ def in_veto_region(ch, t, hit_ch, hit_t, nchan_int, nticks_int):
     return True
 
 def veto(hits, nchan, nticks, nchan_int, nticks_int):
-    """ find the largest hit in the collection view """
+
+    """ find the largest hit in the given view """
     best_hit = -1
     max_Q = 0.
     for h in hits:
-        if(cf.view_type[h.view] != 'Collection'):
-            continue
-        if(h.charge > max_Q):
+        if(np.fabs(h.charge) > max_Q):
             max_Q = h.charge
             best_hit = h
-
+    
 
     if(best_hit.daq_channel+1 in cf.broken_channels):
-        return True, -1
+        return True, -1, -1, 1
 
     if(best_hit.daq_channel-1 in cf.broken_channels):
-        return True, -1
+        return True, -1, -1, 1
 
     """ time/position cut """
-    if(best_hit.channel < nchan or best_hit.channel > cf.view_nchan[best_hit.view]-nchan):
-        return True, -1
+    if(best_hit.channel%cf.view_chan_repet[best_hit.view] < nchan or best_hit.channel%cf.view_chan_repet[best_hit.view] > cf.view_chan_repet[best_hit.view]-nchan):
+        return True, -1, -1, 1
 
-    if(best_hit.max_t < nticks or best_hit.max_t > cf.n_sample-nticks):
-        return True, -1
+    if(best_hit.start < nticks or best_hit.stop > cf.n_sample-nticks):
+        return True, -1, -1, 1
 
 
     
-    tmin, tmax = best_hit.max_t - nticks, best_hit.max_t + nticks+1
+    tmin, tmax = best_hit.start - nticks, best_hit.stop + nticks+1
     vetoed = False
     
     for i in range(cf.n_tot_channels):
@@ -80,11 +93,16 @@ def veto(hits, nchan, nticks, nchan_int, nticks_int):
 
 
     if(vetoed == False):
-        integrated_q = np.sum(dc.data[best_hit.module, best_hit.view, best_hit.channel-nchan_int:best_hit.channel+nchan_int+1, best_hit.start-nticks_int:best_hit.stop+nticks_int])
-        integrated_q *= dc.chmap[best_hit.daq_channel].gain
-        return False, integrated_q
+        d = dc.data[best_hit.module, best_hit.view, best_hit.channel-nchan_int:best_hit.channel+nchan_int+1, best_hit.start-nticks_int:best_hit.stop+nticks_int+1]
+        g = dc.chmap[best_hit.daq_channel].gain
+        int_q = np.sum(d)*g
+        int_pos_q = np.sum((d>0)*d)*g
+        int_neg_q = np.sum((d<0)*d)*g
 
-    return True, -1
+
+        return False, int_q, int_pos_q, int_neg_q
+
+    return True, -1, -1, 1
     
             
 
@@ -95,26 +113,33 @@ def compute_sh_properties(hits):
     charge_pos = 0.
     charge_neg = 0.
     min_t = 99999
+    zero_t = 0
     max_t = 0
     max_Q = 0.
+    start = 0
+    stop  = 0
     view = -1
+
     for h in hits:
-        if(h.charge > max_Q):
+        if(np.fabs(h.charge) > max_Q):
             min_t = h.min_t
+            zero_t = h.zero_t
             max_t = h.max_t
+            start = h.start
+            stop  = h.stop
             view = h.view
 
         charge_pos += h.charge_pos
         charge_neg += h.charge_neg
     
 
-    return view, charge_pos, charge_neg, max_t, min_t
+    return view, charge_pos, charge_neg, start, stop, max_t, zero_t, min_t
 
-def check_nmatch(ov):
+def check_nmatch(ov, max_per_view):
     nmatch = [len(x) for x in ov]
     is_good = True
     for x in nmatch:
-        is_good = is_good and (x>0 and x <3)
+        is_good = is_good and (x>0 and x <max_per_view+1)
     return is_good
     
 def find_outliers(coord, d_max):
@@ -123,17 +148,22 @@ def find_outliers(coord, d_max):
     
     dx = [np.fabs(med_x-x[2]) for x in coord]
     dy = [np.fabs(med_y-x[3]) for x in coord]
+        
     out = []
-    out.extend([(x[0],x[1]) for x,d in zip(coord,dx) if d>d_max])
-    out.extend([(x[0],x[1]) for x,d in zip(coord,dy) if d>d_max])
-
-    n_outliers = len(out)
+    out.extend([[x[0],x[1]] for x,d,l in zip(coord,dx, dy) if d>d_max or l>d_max])
+    
     out = list(chain(*out))
     c = Counter(out)
-
-    ID_to_rm = [k for k,v in c.items() if v==n_outliers]
-
+    ID_to_rm = [k for k,v in c.items() if v>=2]
     return med_x, med_y, ID_to_rm
+
+def barycenter(coord, all_z):
+    bx = np.mean([x[2] for x in coord])
+    by = np.mean([x[3] for x in coord])
+    bz = np.mean(all_z)
+
+    dmax = np.max([np.sqrt(pow(bx-h[2],2)+pow(by-h[3], 2)) for h in coord])
+    return bx, by, bz, dmax
 
 def get_hit_xy(ha, hb):
     v_a, v_b = ha.view, hb.view
@@ -141,7 +171,7 @@ def get_hit_xy(ha, hb):
     ang_b = np.radians(cf.view_angle[v_b])
     x_a, x_b = ha.X, hb.X
 
-    A = np.array([[np.cos(ang_a), -np.cos(ang_b)],
+    A = np.array([[-np.cos(ang_a), np.cos(ang_b)],
                   [-np.sin(ang_a), np.sin(ang_b)]])
     
     D = A[0,0]*A[1,1]-A[0,1]*A[1,0]
@@ -171,7 +201,7 @@ def same_view_compatibility(ha, hb):
 def single_hit_finder():    
     cmap.arange_in_view_channels()
 
-    time_tol = dc.reco['single_hit']['time_tol']
+    max_per_view  = dc.reco['single_hit']['max_per_view']
     outlier_dmax = dc.reco['single_hit']['outlier_dmax']
     veto_nchan = dc.reco['single_hit']['veto_nchan']
     veto_nticks = dc.reco['single_hit']['veto_nticks']
@@ -193,23 +223,15 @@ def single_hit_finder():
     rtree_idx = index.Index(properties=pties)
 
     """ make a subset of unmatched hits """
-    free_hits = [x for x in dc.hits_list if x.matched==-9999]
+    free_hits = [x for x in dc.hits_list if x.matched==-9999 and x.signal == cf.view_type[x.view]]
 
 
     for h in free_hits: 
         start = h.start
         stop  = h.stop
-
+        
         rtree_idx.insert(h.ID, (h.view, start, h.view, stop))
-        #i+=1
-        #idx_to_ID.append(h.ID)
 
-    """
-    ID_to_idx = [-1]*(max(idx_to_ID)+1)
-
-    for idx, ID in enumerate(idx_to_ID):
-        ID_to_idx[ID] = idx
-    """
 
     for h in free_hits:
         if(h.matched != -9999):
@@ -223,11 +245,12 @@ def single_hit_finder():
             intersect = list(rtree_idx.intersection((iview, start, iview, stop)))
             [overlaps[iview].append(dc.hits_list[k-ID_shift]) for k in intersect]
 
-        if(check_nmatch(overlaps)==False):
+            
+        """ check that there is 1 or 2 overlaps in the other views """
+        if(check_nmatch(overlaps, max_per_view)==False):
             continue
-
-
         
+        """ get the 3D coordinates of all hits combination """
         coord = []
         for iview in range(cf.n_view-1):
             for ha in overlaps[iview]:
@@ -237,6 +260,7 @@ def single_hit_finder():
                         coord.append((ha.ID, hb.ID, x, y))
 
 
+        """ compute the median (x,y) coordinates, and remove the far away hits"""
         med_x, med_y, to_rm = find_outliers(coord, outlier_dmax)
 
         i=0
@@ -249,24 +273,38 @@ def single_hit_finder():
                         i+=1
                         break
             i+=1
-        if(check_nmatch(overlaps)==False):
+        if(check_nmatch(overlaps, max_per_view)==False):
             continue
 
+        """ re-get the 3D coordinates of all hits combination """
+        coord = []
+        for iview in range(cf.n_view-1):
+            for ha in overlaps[iview]:
+                for jview in range(iview+1, cf.n_view):
+                    for hb in overlaps[jview]:
+                        x,y = get_hit_xy(ha, hb)                        
+                        coord.append((ha.ID, hb.ID, x, y))
+        
 
-        med_z = np.median([x.Z for x in list(chain(*overlaps))])
-        d_min = closest_activity(med_x, med_y, med_z)
+        bar_x, bar_y, bar_z, bar_dmax = barycenter(coord, [x.Z for x in list(chain(*overlaps))])
 
+
+
+        """ compute the shortest distance to a 3D track """
+        d_min_3D = closest_activity_3D(bar_x, bar_y, bar_z)
+        d_min_2D = closest_activity_2D(bar_x, bar_y)
 
         nhits = [len(x) for x in overlaps]
 
         IDs = [[x.ID for x in ov] for ov in overlaps]
 
 
-        sh = dc.singleHits(nhits, IDs, med_x, med_y, med_z, d_min)
+        sh = dc.singleHits(nhits, IDs, bar_x, bar_y, bar_z, bar_dmax, d_min_3D, d_min_2D)
         
-        v, q = veto(overlaps[2], veto_nchan, veto_nticks, int_nchan, int_nticks)
+        for iv in range(cf.n_view):
+            v, q, p, n = veto(overlaps[iv], veto_nchan, veto_nticks, int_nchan, int_nticks)
 
-        sh.set_veto(v,q)
+            sh.set_veto(iv, v, q, p, n)
         
         for ov in overlaps:            
             sh.set_view(*compute_sh_properties(ov))
@@ -278,3 +316,4 @@ def single_hit_finder():
 
         dc.single_hits_list.append(sh)
         dc.evt_list[-1].n_single_hits += 1
+        #sh.dump()
