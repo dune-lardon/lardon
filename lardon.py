@@ -68,12 +68,12 @@ import data_containers as dc
 import read_raw_file as read
 import channel_mapping as cmap
 import plotting as plot
+import reconstruction_parameters as params
 import pedestals as ped
 import noise_filter as noise
 import store as store
 import hit_finder as hf
 import track_2d as trk2d
-import reconstruction_parameters as params
 import track_3d as trk3d
 import single_hits as sh
 import ghost as ghost
@@ -125,7 +125,7 @@ else:
 """ set analysis parameters """
 params.build_default_reco()
 params.configure(detector, elec)
-#params.dump()
+params.dump()
 
 
 """ set the channel mapping """
@@ -249,7 +249,7 @@ for ievent in range(nevent):
 
     for n_iter in range(2):
         ped.compute_pedestal(noise_type='filt')
-        ped.refine_mask(n_pass=2, test=True)
+        ped.refine_mask(n_pass=2)
 
 
     """ special microphonic noise study """
@@ -263,7 +263,7 @@ for ievent in range(nevent):
 
 
     ped.compute_pedestal(noise_type='filt')
-    ped.refine_mask(n_pass=2, test=True)
+    ped.refine_mask(n_pass=2)
     ped.compute_pedestal(noise_type='filt')
 
     hf.find_hits()
@@ -272,7 +272,8 @@ for ievent in range(nevent):
 
 
     #plot.event_display_per_view_noise([-40,40],[-50, 100],option='noise_cnr', to_be_shown=True)
-    #plot.event_display_per_view_hits_found([-100,100],[-50, 300],option='hits', to_be_shown=True)    
+    #plot.event_display_per_view_hits_found([-50,50],[-10, 100],option='hits', to_be_shown=True)    
+        #[-100,100],[-50, 300],option='hits', to_be_shown=True)    
     #plot.plot_2dview_hits(to_be_shown=True)
 
 
@@ -283,7 +284,7 @@ for ievent in range(nevent):
 
     print("---- Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
 
-    #plot.plot_2dview_2dtracks(to_be_shown=True)
+
 
 
     ghost.ghost_finder(threshold=10)
@@ -291,13 +292,16 @@ for ievent in range(nevent):
 
 
     trk3d.find_tracks_rtree()
-
+    #[t.dump() for t in dc.tracks3D_list]
 
     ghost.ghost_trajectory()
 
+    
     #plot.plot_3d(to_be_shown=True)
-
+    
     sh.single_hit_finder()
+
+    
 
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
