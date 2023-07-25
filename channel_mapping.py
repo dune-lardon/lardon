@@ -148,9 +148,9 @@ def get_50l_bot_mapping():
 
                 nrepet = int(np.floor(channel/cf.view_chan_repet[view]))
                 if(view == 0):
-                    pos = int(np.fabs(cf.view_nchan[view]-(channel%cf.view_chan_repet[view])+0.5)) * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet] #+  cf.view_pitch[view]/2.
+                    pos = int(np.fabs(cf.view_nchan[view]-(channel%cf.view_chan_repet[view])+0.5)) * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet]
                 else:
-                    pos = (channel%cf.view_chan_repet[view]+0.5) * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet]# +  cf.view_pitch[view]/2.
+                    pos = (channel%cf.view_chan_repet[view]+0.5) * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet]
 
                     
             else:
