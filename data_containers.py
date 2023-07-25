@@ -29,7 +29,7 @@ False : broken
 alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
 
 
-#reco = {}
+reco = {}
 
 data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
 #mask might be useless
@@ -177,10 +177,7 @@ class hits:
         self.ID = idx + n_tot_hits
 
     def hit_positions(self, v):
-        self.t = self.max_t
-
-        #""" trick because view Y is separated into 2 sub-volumes in CB1 """
-        #self.X = self.channel%cf.view_chan_repet[self.view] * cf.view_pitch[self.view] + cf.view_offset[self.view] +  cf.view_pitch[self.view]/2.
+        self.t = self.max_t if self.signal == "Collection" else self.zero_t
         
 
         """ transforms time bins into distance from the anode """
@@ -200,7 +197,7 @@ class hits:
 
 
         """ I'm not sure this is good """
-        self.charge = self.charge_pos # if cf.view_type[self.view] == "Collection" else self.charge_neg
+        self.charge = self.charge_pos if self.signal == "Collection" else self.charge_pos + np.fabs(self.charge_neg)
 
 
 
@@ -220,6 +217,7 @@ class hits:
 
     def mini_dump(self):
         print('Hit ',self.ID, '(',self.matched,') v',self.view,' ch ', self.channel, ' t:', self.start, ' to ', self.stop, 'max ',self.max_t, ' min ', self.min_t, ' maxADC ', self.max_adc, ' minADc ', self.min_adc)
+
     def dump(self):
 
         print("\n**View ", self.view, " Channel ", self.channel, " ID: ", self.ID)
@@ -239,45 +237,66 @@ class hits:
 
 
 class singleHits:
-    def __init__(self, n_hits, IDs, x, y, z, d_min):
+    def __init__(self, n_hits, IDs, x, y, z, d_max_bary, d_min_3D, d_min_2D):
         self.n_hits = n_hits
         self.IDs = IDs
         self.charge_pos = [0.,0.,0.]
-        self.charge_extend = 0.
+        self.charge_extend = [0., 0, 0]
+        self.charge_extend_pos = [0., 0, 0]
+        self.charge_extend_neg = [0., 0, 0]
         self.charge_neg = [0.,0.,0.]
 
+        self.start   = [-1, -1, -1]
+        self.stop   = [-1, -1, -1]
+
         self.max_t   = [-1, -1, -1]
+        self.zero_t   = [-1, -1, -1]
         self.min_t   = [-1, -1, -1]
         self.X = x
         self.Y = y
         self.Z = z
-        self.d_track = d_min
-        self.veto = False
+        self.d_bary_max = d_max_bary
+        self.d_track_3D = d_min_3D
+        self.d_track_2D = d_min_2D
 
-    def set_veto(self, veto, charge_extend):
-        self.veto = veto
-        self.charge_extend = charge_extend
+        self.veto = [False, False, False]
+        
+    def set_veto(self, view, veto, q, p, n):
+        self.veto[view] = veto
+        self.charge_extend[view] = q
+        self.charge_extend_pos[view] = p
+        self.charge_extend_neg[view] = n
 
-    def set_view(self, view, charge_pos, charge_neg, max_t, min_t):
+    def set_view(self, view, charge_pos, charge_neg, start, stop, max_t, zero_t, min_t):
         self.charge_pos[view] = charge_pos
         self.charge_neg[view] = charge_neg
+
+        self.start[view] = start
+        self.stop[view] = stop
+
         self.max_t[view] = max_t
+        self.zero_t[view] = zero_t
         self.min_t[view] = min_t
 
 
     def dump(self):
         print('\n****')        
         print('Single Hit at ', self.X, ', ', self.Y, ', ', self.Z)
+        print('Max hit distance to barycenter ', self.d_bary_max)
         print('Nb of hits/view ', self.n_hits)
         print('IDs ', self.IDs)
         print('Charge pos ', self.charge_pos)
         print('Charge neg ', self.charge_neg)
+        print('Starts ', self.start)
+        print('Stops ', self.stop)
         print('Time max ', self.max_t)
+        print('Time zero ', self.zero_t)
         print('Time min ', self.min_t)
-        print('Distance to closest 3D track ', self.d_track)
+        print('Distance to closest track in 2D:', self.d_track_2D, ' in 3D ', self.d_track_3D)
         print('Is vetoed ', self.veto)
         print('Charge extended ', self.charge_extend)
-
+        print('Charge extended pos ', self.charge_extend_pos)
+        print('Charge extended neg ', self.charge_extend_neg)
 
 class trk2D:
     def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, hit_ID, chi2, cluster):
