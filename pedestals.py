@@ -83,7 +83,7 @@ def update_mask_inputs(thresh, mean, rms):
     dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan)
 
 
-def refine_mask(n_pass = 1, debug=False, test=False):
+def refine_mask(n_pass = 1):
 
     for ch in range(cf.n_tot_channels):
 
@@ -98,51 +98,34 @@ def refine_mask(n_pass = 1, debug=False, test=False):
         rms  = dc.evt_list[-1].noise_filt.ped_rms[ch]
 
         if(cf.view_type[view] == "Collection"): 
-            """ in testing phase """ 
-            if(test==True):
-                mask_collection_signal_test(dc.mask_daq[ch], dc.data_daq[ch],
-                                            dc.reco['mask']['coll']['min_dt'],
-                                            dc.reco['mask']['coll']['low_thr'][n_pass-1]*rms,
-                                            dc.reco['mask']['coll']['high_thr'][n_pass-1]*rms,
-                                            dc.reco['mask']['coll']['min_rise'],
-                                            dc.reco['mask']['coll']['min_fall'],
-                                            dc.reco['mask']['coll']['pad_bef'],
-                                            dc.reco['mask']['coll']['pad_aft'])
-
-            else:            
-                mask_collection_signal(dc.mask_daq[ch], dc.data_daq[ch],
-                                       dc.reco['pedestal']['rise_thr'][view],
-                                       dc.reco['pedestal']['ramp_thr'][view],
-                                       dc.reco['pedestal']['amp_thr'][view]*rms,
-                                       dc.reco['pedestal']['dt_thr'])                
+            mask_collection_signal(dc.mask_daq[ch], dc.data_daq[ch],
+                                   dc.reco['mask']['coll']['min_dt'],
+                                   dc.reco['mask']['coll']['low_thr'][n_pass-1]*rms,
+                                   dc.reco['mask']['coll']['high_thr'][n_pass-1]*rms,
+                                   dc.reco['mask']['coll']['min_rise'],
+                                   dc.reco['mask']['coll']['min_fall'],
+                                   dc.reco['mask']['coll']['pad_bef'],
+                                   dc.reco['mask']['coll']['pad_aft'])
+            
         else:
-            if(test==True):
-
-                mask_induction_signal_test(dc.mask_daq[ch], dc.data_daq[ch],
-                                           dc.reco['mask']['ind']['max_dt_pos_neg'],
-                                           dc.reco['mask']['ind']['pos']['min_dt'],
-                                           dc.reco['mask']['ind']['pos']['low_thr'][n_pass-1]*rms,
-                                           dc.reco['mask']['ind']['pos']['high_thr'][n_pass-1]*rms,
-                                           dc.reco['mask']['ind']['pos']['min_rise'],
-                                           dc.reco['mask']['ind']['pos']['min_fall'],
-                                           dc.reco['mask']['ind']['neg']['min_dt'],
-                                           dc.reco['mask']['ind']['neg']['low_thr'][n_pass-1]*rms,
-                                           dc.reco['mask']['ind']['neg']['high_thr'][n_pass-1]*rms,
-                                           dc.reco['mask']['ind']['neg']['min_rise'],
-                                           dc.reco['mask']['ind']['neg']['min_fall'],
-                                           dc.reco['mask']['ind']['pad_bef'],
-                                           dc.reco['mask']['ind']['pad_aft'])
-            else:
-                mask_induction_signal(dc.mask_daq[ch], dc.data_daq[ch],
-                                      dc.reco['pedestal']['rise_thr'][view],
-                                      dc.reco['pedestal']['ramp_thr'][view],
-                                      dc.reco['pedestal']['amp_thr'][view]*rms,
-                                      dc.reco['pedestal']['dt_thr'],
-                                      dc.reco['pedestal']['zero_cross_thr'])
-
-
+            mask_induction_signal(dc.mask_daq[ch], dc.data_daq[ch],
+                                  dc.reco['mask']['ind']['max_dt_pos_neg'],
+                                  dc.reco['mask']['ind']['pos']['min_dt'],
+                                  dc.reco['mask']['ind']['pos']['low_thr'][n_pass-1]*rms,
+                                  dc.reco['mask']['ind']['pos']['high_thr'][n_pass-1]*rms,
+                                  dc.reco['mask']['ind']['pos']['min_rise'],
+                                  dc.reco['mask']['ind']['pos']['min_fall'],
+                                  dc.reco['mask']['ind']['neg']['min_dt'],
+                                  dc.reco['mask']['ind']['neg']['low_thr'][n_pass-1]*rms,
+                                  dc.reco['mask']['ind']['neg']['high_thr'][n_pass-1]*rms,
+                                  dc.reco['mask']['ind']['neg']['min_rise'],
+                                  dc.reco['mask']['ind']['neg']['min_fall'],
+                                  dc.reco['mask']['ind']['pad_bef'],
+                                  dc.reco['mask']['ind']['pad_aft'])
+            
+            
 @nb.jit('(boolean[:],float64[:],int64,float64,float64,int64,int64,int64,int64)',nopython = True)
-def mask_collection_signal_test(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft):
+def mask_collection_signal(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft):
     mask[:]=1
 
     start, stop, t_max, val_max, dt = -1, -1, -1, -1, 0
@@ -175,7 +158,7 @@ def mask_collection_signal_test(mask, data, dt_thr, low_thr, high_thr, rise_thr,
 
 
 @nb.jit('(boolean[:],float64[:],int64,int64,float64,float64,int64,int64,int64,float64,float64,int64,int64,int64,int64)',nopython = True)
-def mask_induction_signal_test(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, high_pos_thr, rise_pos_thr, fall_pos_thr, dt_neg_thr, low_neg_thr, high_neg_thr, rise_neg_thr, fall_neg_thr, pad_bef, pad_aft):
+def mask_induction_signal(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, high_pos_thr, rise_pos_thr, fall_pos_thr, dt_neg_thr, low_neg_thr, high_neg_thr, rise_neg_thr, fall_neg_thr, pad_bef, pad_aft):
 
 
     mask[:]=1
@@ -254,177 +237,7 @@ def mask_induction_signal_test(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_th
                         mask[last_stop_pos:start_neg+1] = 0                    
             start_neg, stop_neg, t_min, val_min, dt_neg = -1, -1, -1, 1, 0
 
-@nb.jit('(boolean[:],float64[:],int64,int64,float64,int64)',nopython = True)
-def mask_collection_signal(mask, data, rise_thr, ramp_thr, amp_thr, dt_thr):
 
-    
-      tmp_start   = 0 # store candidate signal start to be registered when stop is found
-      trig_pos    = -1 # store position at which sample exceed  amp_thrs*ped_rms - 0 otherwise
-      find_pos    = 0 # counter for consecutive positive sample 
-      ramp        = 0 # counter 3 consecutive rising samples
-      ongoing     = 0 # flag triggered when signal start found
-      oldval1     = 0 # store previous sample 
-      oldval2     = 0 # store pre-previous sample
-      zero_cross_check = 0
-
-      for x,val in np.ndenumerate(data):
-
-        # set positive signal trigger
-        if(val >= amp_thr):   
-            trig_pos = x[0]
-
-        # set back positive trigger to zero if a certain period is over
-        elif(trig_pos > 0 and (x[0] - trig_pos > dt_thr)): 
-            trig_pos = -1
-
-        # if rising edge found - register begining of signal
-        if(trig_pos > 0 and find_pos >= rise_thr and ramp > ramp_thr and ongoing == 0):
-          tmp_start = x[0] - find_pos
-          ongoing = 1
-
-        # signal found - look when amp. reaches noise floor (neg. value)
-        if(find_pos >= rise_thr and ongoing == 1 and val < 0):
-          start = tmp_start
-          stop  = x[0]
-          for it in range(start,stop): mask[it] = 0
-
-          # reset counters
-          zero_cross_check = 0
-          find_pos         = 0
-          ongoing          = 0
-          trig_pos         = -1
-
-        if(val > 0):
-           # start counter for positive samples
-           find_pos += 1
-           # identify ramping 
-           if(val > oldval1 and val > oldval2): ramp += 1
-           else: ramp -= 1
-        else:
-           zero_cross_check += 1
-
-        # reset counters when negative sample is found (deep in the noise) for col.
-        if(zero_cross_check >= 1):
-           zero_cross_check = 0
-           find_pos         = 0
-           ramp             = 0
-           ongoing          = 0
-
-        oldval2 = oldval1
-        oldval1 = val
-
-@nb.jit('(boolean[:],float64[:],int64,int64,float64,int64,int64)',nopython = True)
-def mask_induction_signal(mask, data, rise_thr, ramp_thr, amp_thr, dt_thr, zero_cross_thr):
-
-      tmp_start   = 0 # store candidate signal start to be registered when stop is found
-      trig_pos    = 0 # store position at which sample exceed  amp_thrs*ped_rms - 0 otherwise
-      trig_neg    = 0 # store position at which sample exceed -amp_thrs*ped_rms - 0 otherwise
-      find_pos    = 0 # counter for consecutive positive sample 
-      find_neg    = 0 # counter for consecutive negative sample 
-      ramp        = 0 # counter 3 consecutive rising samples
-      ongoing     = 0 # flag triggered when signal start found
-      oldval1     = 0 # store previous sample 
-      oldval2     = 0 # store pre-previous sample
-      inv         = 0 # invert flag for induction signal
-      zero_cross_check = 0
-
-      for x,val in np.ndenumerate(data):
-
-        # set positive signal trigger
-        if(val >= amp_thr):   trig_pos = x[0]
-        # set back positive trigger to zero if a certain period is over
-        elif(x[0] - trig_pos > dt_thr): trig_pos = 0
-
-        # check for sample above threshold for induction signal start
-        if(trig_pos > 0 and find_pos > rise_thr and val > 0 and ongoing == 0):
-          tmp_start = x[0] - find_pos
-          ongoing = 1
-
-        if(trig_pos > 0 and find_pos >= rise_thr and ongoing == 1):
-          # set negative signal trigger
-          if(val <= -amp_thr): trig_neg = x[0] 
-          elif(x[0] - trig_neg > dt_thr): trig_neg = 0        
-
-          # set invert flag when induction crosses zero
-          if(val < 0 and inv == 0):
-            inv = 1
-            x_zero_cross = x[0]
-
-          # set induction signal stop once a positive sample is found - 5 samples after zero crossing required
-          if(val > 0 and inv == 1 and x[0] > x_zero_cross+zero_cross_thr):
-
-            # require a minimal signal length/negative amplitude/duration to remove spikes
-            if(x[0] - tmp_start > dt_thr/4 and trig_pos - tmp_start > 0 and trig_neg >0 and find_neg >= rise_thr):
-              start= tmp_start
-              stop = x[0]
-              for it in range(start,stop): mask[it] = 0
-
-              # reset counters
-              zero_cross_check= 0
-              find_pos = 0
-              find_neg = 0
-              ongoing  = 0
-              trig_pos = 0
-              trig_neg = 0
-              inv      = 0
-
-        if(val > 0 and inv == 0):
-           # start counter for positive samples
-           find_pos += 1
-           # identify ramping 
-           if(val > oldval1 and val > oldval2): ramp += 1
-           else: ramp -= 1
-        elif(val < 0 and inv == 1):
-           # start counter for negative samples
-           find_neg += 1
-        else:
-           zero_cross_check += 1
-
-        # reset counters when negative/positive sample is found (deep in the noise) for col. and ind. resp.
-        if(zero_cross_check >= 5):
-           zero_cross_check = 0
-           find_pos         = 0
-           find_neg         = 0
-           ramp             = 0
-           ongoing          = 0
-           inv              = 0
-
-        oldval2 = oldval1
-        oldval1 = val
-
-def set_mask_wf_rms_all():
-    # set signal mask bins from threshold - simplest method
-
-    # subtract mean to waveform
-    wf_base  = dc.data_daq - np.mean(dc.data_daq)
-    # remove samples exceeding +/- 4 std of the input waveform
-    dc.mask_daq = np.where(np.abs(wf_base) < 4*np.std(wf_base), 1, 0)
-
-
-def set_mask_wf_rms(channel=1, to_be_shown=False):
-    # plot cleaned waveform from signal 
-    # for debug purpose only
-
-    wf_base  = dc.data_daq[channel] - np.mean(dc.data_daq[channel])
-    wf_noise = np.where(np.abs(wf_base) < 4*np.std(wf_base), dc.data_daq[channel], np.mean(dc.data_daq[channel]))
-
-    if(to_be_shown==True):
-      import matplotlib.pyplot as plt
-
-      print("<raw> = ",np.mean(dc.data_daq[channel]),"<noise> = ",np.mean(wf_noise))
-      print("S_raw = ",np.std(dc.data_daq[channel]),"S_noise = ",np.std(wf_noise))
-
-      fig, axs = plt.subplots(3, 1)
-      axs[0].set_title('raw waveform')
-      axs[0].plot(dc.data_daq[channel, :])
-
-      axs[1].set_title('baseline subtracted waveform')
-      axs[1].plot(wf_base)
-      axs[1].axhline(y = 4*np.std(wf_base), xmin = 0, xmax = len(wf_base), linestyle = '--', color='r')
-      axs[1].axhline(y = -4*np.std(wf_base), xmin = 0, xmax = len(wf_base), linestyle = '--', color='r')
-
-      axs[2].set_title('cleanup waveform')
-      axs[2].plot(wf_noise)
 
 
 
