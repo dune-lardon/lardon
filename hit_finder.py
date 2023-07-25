@@ -27,7 +27,6 @@ def hit_search(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3):
         if(n==0 and np.mean(data) > thr1):
             n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, start, dt_min, thr1, thr2)
         
-            #print("Looked at a collection-type hit anyway in ",view, dc.chmap[daq_chan].vchan, start, ' --> Found ', n, ' hits!')
 
             for i in range(n):
                 ll.append(dc.hits(module, view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
