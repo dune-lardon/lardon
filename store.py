@@ -84,6 +84,9 @@ class Hits(IsDescription):
 
     is_collection  = BoolCol()
 
+    tdc_start = UInt16Col()
+    tdc_stop = UInt16Col()
+
     tdc_max  = UInt16Col()
     tdc_min  = UInt16Col()
     tdc_zero = UInt16Col()
@@ -198,17 +201,30 @@ class SingleHits(IsDescription):
     trigger = UInt32Col()
 
     n_hits = UInt32Col(shape=(cf.n_view))
-    IDs = UInt32Col(shape=(cf.n_view,2))
+    IDs = UInt32Col(shape=(cf.n_view,3))
+
     charge_pos = Float32Col(shape=(cf.n_view))
     charge_neg = Float32Col(shape=(cf.n_view))
-    charge_extend = Float32Col()
+
+    charge_extend = Float32Col(shape=(cf.n_view))
+    charge_extend_pos = Float32Col(shape=(cf.n_view))
+    charge_extend_neg = Float32Col(shape=(cf.n_view))
+
+    tdc_start = UInt16Col(shape=(cf.n_view))
+    tdc_stop = UInt16Col(shape=(cf.n_view))
     tdc_max = UInt16Col(shape=(cf.n_view))
+    tdc_zero = UInt16Col(shape=(cf.n_view))
     tdc_min = UInt16Col(shape=(cf.n_view))
+
     x = Float64Col()
     y = Float64Col()
     z = Float64Col()
-    d_track = Float64Col()
-    veto = BoolCol()
+
+    d_bary_max = Float64Col()
+    d_track_3D = Float64Col()
+    d_track_2D = Float64Col()
+
+    veto = BoolCol(shape=(cf.n_view))
     
 
 def create_tables(h5file):
@@ -325,6 +341,9 @@ def store_hits(h5file):
 
        hit['is_collection'] = ih.signal == "Collection"
        
+       hit['tdc_start']  = ih.start
+       hit['tdc_stop']   = ih.stop
+
        hit['tdc_max']  = ih.max_t
        hit['tdc_min']  = ih.min_t
        hit['tdc_zero'] = ih.zero_t
@@ -352,7 +371,7 @@ def store_single_hits(h5file):
 
         sh['n_hits'] = it.n_hits
 
-        id_np = np.zeros((cf.n_view,2), dtype=int)
+        id_np = np.zeros((cf.n_view, 3), dtype=int)
         id_np.fill(-1)
         for i,j in enumerate(it.IDs):
             id_np[i][0:len(j)] = j
@@ -360,14 +379,25 @@ def store_single_hits(h5file):
         sh['IDs'] = id_np
         sh['charge_pos'] =  it.charge_pos
         sh['charge_neg'] =  it.charge_neg
+
+        sh['tdc_start'] =  it.start
+        sh['tdc_stop'] =  it.stop
+
         sh['tdc_max'] =  it.max_t
+        sh['tdc_zero'] =  it.min_t
         sh['tdc_min'] =  it.min_t
+
         sh['x'] =  it.X
         sh['y'] =  it.Y
         sh['z'] =  it.Z
-        sh['d_track'] = it.d_track
+
+        sh['d_bary_max'] = it.d_bary_max
+        sh['d_track_3D'] = it.d_track_3D
+        sh['d_track_2D'] = it.d_track_2D
         sh['veto'] = it.veto
         sh['charge_extend'] = it.charge_extend
+        sh['charge_extend_pos'] = it.charge_extend_pos
+        sh['charge_extend_neg'] = it.charge_extend_neg
 
         sh.append()
 
