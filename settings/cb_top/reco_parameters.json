@@ -12,11 +12,11 @@
 	 
       "mask":{
 	  "coll":{
-	      "min_dt":15,
-	      "low_thr":[2.0,3.0],
-	      "high_thr":[5.0,4.0],
+	      "min_dt":10,
+	      "low_thr":[2.0,2.0],
+	      "high_thr":[5.0,3.0],
 	      "min_rise":3,
-	      "min_fall":10,
+	      "min_fall":8,
 	      "pad_bef":10,
 	      "pad_aft":15
 	  },
@@ -26,18 +26,18 @@
 	      "pad_bef":10,
 	      "pad_aft":15,
 	      "pos":{
-		  "min_dt":10,
+		  "min_dt":8,
 		  "low_thr":[1.8,2.0],
-		  "high_thr":[2.5,3.5],
+		  "high_thr":[2.5,3.0],
 		  "min_rise":3,
-		  "min_fall":3
+		  "min_fall":1
 	      },
 	      
 	      "neg":{
-		  "min_dt":10,
-		  "low_thr":[-1.8,-2.0],
-		  "high_thr":[-2.5,-3.5],
-		  "min_rise":3,
+		  "min_dt":8,
+		  "low_thr":[-1.8,-1.8],
+		  "high_thr":[-2.5,-2.5],
+		  "min_rise":1,
 		  "min_fall":3
 	      }
 	  }
@@ -64,7 +64,7 @@
       
       "hit_finder":{
           "coll":{
-              "amp_sig": [3,6],
+              "amp_sig": [2.5,5.5],
               "dt_min": 10
           },
           "ind":{
@@ -72,8 +72,8 @@
               "dt_min": 10
           },
           "pad":{
-              "left": 6,
-              "right": 10
+              "left": 10,
+              "right": 20
           }
       },
 
@@ -100,10 +100,10 @@
       },
 
       "single_hit":{
-	  "time_tol":9,
-	  "outlier_dmax":5,
-	  "veto_nchan":9,
-	  "veto_nticks":100,
+	  "max_per_view":3,
+	  "outlier_dmax":2.5,
+	  "veto_nchan":16,
+	  "veto_nticks":150,
 	  "int_nchan":3,
 	  "int_nticks":50
       },

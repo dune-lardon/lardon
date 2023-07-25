@@ -105,10 +105,10 @@ def build_default_reco():
         },
 
         "single_hit":{
-            "time_tol":9,
-            "outlier_dmax":5,
-            "veto_nchan":9,
-            "veto_nticks":100,
+            "max_per_view":3,
+            "outlier_dmax":2,
+            "veto_nchan":16,
+            "veto_nticks":150,
             "int_nchan":3,
             "int_nticks":50
         },
@@ -226,7 +226,8 @@ def dump():
         print("    Ghost-Track min distance : ", dc.reco["ghost"]["dmin"])
 
         print("\n~Single Hit Finder~ ")
-        print("    Time Tolerance ", dc.reco["single_hit"]["time_tol"])
+        #print("    Time Tolerance ", dc.reco["single_hit"]["time_tol"])
+        print("    Max nb of SH hits/view ", dc.reco["single_hit"]["max_per_view"])
         print("    Outlier Dmax ", dc.reco["single_hit"]["outlier_dmax"])
         print("    Veto nchannel ", dc.reco["single_hit"]["veto_nchan"])
         print("    Veto nticks ", dc.reco["single_hit"]["veto_nticks"])
@@ -484,7 +485,8 @@ class params:
         print("    Ghost-Track min distance : ", self.ghost_dmin)
 
         print("\n~Single Hit Finder~ ")
-        print("    Time Tolerance ", self.sh_time_tol)
+        #print("    Time Tolerance ", self.sh_time_tol)
+        #print("    Max nb of hit/view ", 
         print("    Outlier Dmax ", self.sh_outlier_dmax)
         print("    Veto nchannel ", self.sh_veto_nchan)
         print("    Veto nticks ", self.sh_veto_nticks)

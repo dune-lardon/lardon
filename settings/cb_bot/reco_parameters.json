@@ -13,8 +13,8 @@
       "mask":{
 	  "coll":{
 	      "min_dt":8,
-	      "low_thr":[2.5,3.5],
-	      "high_thr":[4.0,4.0],
+	      "low_thr":[2.5,2.5],
+	      "high_thr":[4.0,3.0],
 	      "min_rise":2,
 	      "min_fall":4,
 	      "pad_bef":10,
@@ -27,16 +27,16 @@
 	      "pad_aft":15,
 	      "pos":{
 		  "min_dt":4,
-		  "low_thr":[2.0,3.0],
-		  "high_thr":[3.0,5.0],
+		  "low_thr":[2.0,2.0],
+		  "high_thr":[3.0,3.0],
 		  "min_rise":2,
 		  "min_fall":2
 	      },
 	      
 	      "neg":{
 		  "min_dt":4,
-		  "low_thr":[-2.0,-3.0],
-		  "high_thr":[-3.0,-5.0],
+		  "low_thr":[-2.0,-1.8],
+		  "high_thr":[-3.0,-2.5],
 		  "min_rise":2,
 		  "min_fall":2
 	      }
@@ -70,8 +70,8 @@
               "dt_min": 10
           },
           "pad":{
-              "left": 6,
-              "right": 10
+              "left": 12,
+              "right": 20
           }
       },
 
@@ -98,10 +98,10 @@
       },
 
       "single_hit":{
-	  "time_tol":9,
-	  "outlier_dmax":5,
-	  "veto_nchan":9,
-	  "veto_nticks":100,
+	  "max_per_view":3,
+	  "outlier_dmax":2.5,
+	  "veto_nchan":16,
+	  "veto_nticks":150,
 	  "int_nchan":3,
 	  "int_nticks":50
       },
