@@ -5,7 +5,7 @@
 	"n_module":"1",
 	"view_name":["U","V","Z"],
 	"view_type":["Induction","Induction", "Collection"],
-	"view_angle":["60", "120", "0"],
+	"view_angle":["120", "60", "180"],
 	"view_pitch":["0.765", "0.765", "0.51"],
 	"view_capa":["10.3","10.3","8.1"],
 	"view_nchan":["952", "952", "1168"],
