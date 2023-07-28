@@ -1,13 +1,8 @@
 {
   "default":{
       "pedestal":{ 
-          "first_pass_thrs": 3,
-          "other_pass_thrs": 4,
-          "rise_thr": [5,5,30],
-          "ramp_thr": [1,1,2],
-          "amp_thr": [2,2,3],
-          "dt_thr": 100,
-          "zero_cross_thr": 15
+          "raw_rms_thr": 3,
+	  "n_iter":2
       },
 	 
       "mask":{
@@ -109,19 +104,16 @@
       },
       
       "plot":{
-          "noise":{
-              "show": 0,
+          "noise":{           
               "zrange": [0,15]
           },
           "evt_display":{
               "daqch":{
-                  "show":0,
                   "zrange":[-50,50]
               },
               "viewch":{
-                  "show":0,
                   "ind_zrange":[-50,50],
-                  "col_zrange":[-50,50]
+                  "col_zrange":[-10,100]
               }
           }
       }
