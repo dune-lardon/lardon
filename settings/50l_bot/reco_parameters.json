@@ -1,13 +1,8 @@
 {
   "default":{
       "pedestal":{ 
-          "first_pass_thrs": 2,
-          "other_pass_thrs": 3,
-          "rise_thr": [5,5,20],
-          "ramp_thr": [1,1,2],
-          "amp_thr": [2,2,3],
-          "dt_thr": 60,
-          "zero_cross_thr": 15
+	  "raw_rms_thr":3,
+          "n_iter":2 
       },
 	 
       "mask":{
@@ -76,7 +71,7 @@
       },
 
       "track_2d":{
-	  "min_nb_hits": 5,
+	  "min_nb_hits": 6,
 	  "rcut": 6.0,
 	  "chi2cut": 8.0,
 	  "y_error": 0.5,
@@ -86,7 +81,7 @@
       
       "track_3d":{
 	  "ztol":3.0,
-	  "qfrac":5.0, 
+	  "qfrac":2.0, 
 	  "len_min":2.0, 
 	  "dx_tol": [3.0,0.5],
 	  "dy_tol": [3.0,3.0],
@@ -100,26 +95,23 @@
       "single_hit":{
 	  "time_tol":9,
 	  "outlier_dmax":5,
-	  "veto_nchan":9,
-	  "veto_nticks":100,
+	  "veto_nchan":4,
+	  "veto_nticks":70,
 	  "int_nchan":3,
-	  "int_nticks":50
+	  "int_nticks":40
       },
       
       "plot":{
           "noise":{
-              "show": 0,
               "zrange": [0,15]
           },
           "evt_display":{
               "daqch":{
-                  "show":0,
                   "zrange":[-50,50]
               },
               "viewch":{
-                  "show":0,
                   "ind_zrange":[-50,50],
-                  "col_zrange":[-50,50]
+                  "col_zrange":[-10,100]
               }
           }
       }

@@ -1,0 +1,121 @@
+{
+    "pedestal":{ 
+        "raw_rms_thr": 3, /*basic threshold for ROI*/
+	"n_iter":2 /*number of iteration for roi-rms computation*/
+    },
+	 
+    "mask":{ /*parameters for better ROI*/
+	"coll":{ /*collection views - unipolar signal*/
+	    "min_dt":10,
+	    "low_thr":[2.0,2.0],
+	    "high_thr":[5.0,3.0],
+	    "min_rise":3,
+	    "min_fall":8,
+	    "pad_bef":10,
+	    "pad_aft":15
+	},
+	  
+	"ind":{ /*for induction views - bipolar signal*/
+	    "max_dt_pos_neg":20,
+	    "pad_bef":10,
+	    "pad_aft":15,
+	    "pos":{
+		"min_dt":8,
+		"low_thr":[1.8,2.0],
+		"high_thr":[2.5,3.0],
+		"min_rise":3,
+		"min_fall":1
+	    },
+	    
+	    "neg":{
+		"min_dt":8,
+		"low_thr":[-1.8,-1.8],
+		"high_thr":[-2.5,-2.5],
+		"min_rise":1,
+		"min_fall":3
+	    }
+	}
+    },
+	 
+    "noise":{
+        "coherent":{
+            "groupings":[32], /*nb of channels in same card/same view*/
+	    "per_view":1,
+	    "capa_weight":0, /*apply a weight to the data based on the capacitance*/
+	    "calibrated":0
+        },
+	
+        "fft":{
+            "freq":-1, /*if one wants to rm specific freq*/
+            "low_cut":0.6 /*in MHz*/
+        },
+	
+	"microphonic":{
+	    "window":-1 /*size of the sliding window*/
+	}
+	
+    },
+    
+    "hit_finder":{ 
+        "coll":{
+            "amp_sig": [2.5,5.5],
+            "dt_min": 10
+        },
+        "ind":{
+            "amp_sig": [2,3],
+            "dt_min": 10
+        },
+        "pad":{
+            "left": 10,
+            "right": 20
+        }
+    },
+    
+    "track_2d":{
+	"min_nb_hits": 5,
+	"rcut": 6.0,
+	"chi2cut": 8.0,
+	"y_error": 0.5,
+	"slope_error": 1.0,
+	"pbeta":3.0
+    },
+    
+    "track_3d":{
+	"ztol":3.0,
+	"qfrac":5.0, 
+	"len_min":2.0, 
+	"dx_tol": [3.0,0.5],
+	"dy_tol": [3.0,3.0],
+	"dz_tol": 2.0
+    },
+    
+    "ghost":{
+	"dmin":10.0
+    },
+    
+    "single_hit":{
+	"max_per_view":3,
+	"outlier_dmax":2.5,
+	"veto_nchan":16,
+	"veto_nticks":150,
+	"int_nchan":3,
+	"int_nticks":50
+    },
+    
+    "plot":{
+        "noise":{
+            "zrange": [0,15]
+        },
+        "evt_display":{
+            "daqch":{
+                "zrange":[-50,50]
+            },
+            "viewch":{
+                "ind_zrange":[-50,50],
+                "col_zrange":[-50,50]
+            }
+        }
+    }
+}
+
+

@@ -1,13 +1,8 @@
 {
   "default":{
       "pedestal":{ 
-          "first_pass_thrs": 3,
-          "other_pass_thrs": 4,
-          "rise_thr": [30,30],
-          "ramp_thr": [2,2],
-          "amp_thr": [3,3],
-          "dt_thr": 100,
-          "zero_cross_thr": 15
+	  "raw_rms_thr":3,
+          "n_iter":2 
       },
 	 
       "mask":{
@@ -71,16 +66,13 @@
       
       "plot":{
           "noise":{
-              "show": 0,
               "zrange": [0,15]
           },
           "evt_display":{
               "daqch":{
-                  "show":0,
                   "zrange":[-50,50]
               },
               "viewch":{
-                  "show":0,
                   "col_zrange":[-50,50]
               }
           }
