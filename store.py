@@ -560,3 +560,40 @@ def store_pulse(h5file):
     
         tpul.append()
     
+
+def dictToGroup(f, parent, groupname, dictin, force=False, recursive=True):
+    """
+    From https://stackoverflow.com/questions/18071075/saving-dictionaries-to-file-numpy-and-python-2-3-friendly
+    
+    Take a dict, shove it into a PyTables HDF5 file as a group. Each item in
+    the dict must have a type and shape compatible with PyTables Array.
+
+    If 'force == True', any existing child group of the parent node with the
+    same name as the new group will be overwritten.
+
+    If 'recursive == True' (default), new groups will be created recursively
+    for any items in the dict that are also dicts.
+    """
+    try:
+        g = f.create_group(parent, groupname)
+    except tables.NodeError as ne:
+        if force:
+            pathstr = parent._v_pathname + '/' + groupname
+            f.removeNode(pathstr, recursive=True)
+            g = f.create_group(parent, groupname)
+        else:
+            raise ne
+    for key, item in dictin.items():
+        if(key=="plot"):
+            continue
+        if isinstance(item, dict):
+            if recursive:
+                dictToGroup(f, g, key, item, recursive=True)
+        else:
+            if item is None:
+                item = '_None'
+            f.create_array(g, key, item)
+    return g
+
+def save_reco_param(h5file):
+    g = dictToGroup(h5file, "/", "reco", dc.reco, force=False, recursive=True)
