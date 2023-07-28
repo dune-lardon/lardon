@@ -4,16 +4,17 @@ import numpy as np
 import numba as nb
 import os
 import glob as glob
-import sys
+#import sys
 import tables as tab
 from abc import ABC, abstractmethod
 import importlib
-import bde_headers as head_bde
+import utils.bde_headers as head_bde
+import utils.filenames as fname
 
 import channel_mapping as cmap
 
 
-@nb.jit
+@nb.jit(nopython = True)
 def read_evt_uint12_nb(data):
     """ reads the top electronics event """
     l = len(data)
@@ -34,7 +35,7 @@ def read_evt_uint12_nb(data):
 
 
 
-@nb.jit
+@nb.jit(nopython = True)
 def read_evt_uint12_nb_RD(data):
     """ reads the bot electronics event of 50l """
     l = len(data)
@@ -91,7 +92,7 @@ def get_wib2_infos(x):
     return crate, slot, link
 
 
-@nb.jit
+@nb.jit(nopython = True)
 def read_8evt_uint12_nb(data):
     """ reads the bottom electronics event """
 
@@ -127,7 +128,7 @@ def read_8evt_uint12_nb(data):
 
 
 
-@nb.jit
+@nb.jit(nopython = True)
 def read_evt_uint14_nb(data):
 
     tt = np.frombuffer(data, dtype=np.uint32)
@@ -187,7 +188,7 @@ class top_decoder(decoder):
         """ some TDE specific parameters """
         self.evskey = 0xFF
         self.endkey = 0xF0
-        self.evdcard0 = 0x0 #number of cards disconnected -- maybe too CB oriented ?
+        self.evdcard0 = 0x0 #number of cards disconnected (CB-60deg)
         if(det == 'cb1'):
             self.evdcard0 = 0x5 #number of cards disconnected in CB1
 
@@ -215,7 +216,7 @@ class top_decoder(decoder):
         fl = glob.glob(path+"_*")
         if(len(fl) != 1):
             print('none or more than one file matches ... : ', fl)
-            sys.exit()
+            exit()
         f = fl[0]
         return f
 
@@ -226,8 +227,11 @@ class top_decoder(decoder):
 
         f_type = f[f.rfind('.')+1:]
         print(' NB : file type is ', f_type)
-        self.f_in = open(f,'rb')
-        
+        try:
+            self.f_in = open(f,'rb')
+        except IOError:
+            print('File ', f, ' does not exist...')
+            exit()
 
 
     def read_run_header(self):
@@ -284,7 +288,7 @@ class top_decoder(decoder):
     def read_evt_one_block(self, ievt):
         if(self.lro < 0 or self.cro < 0):
             print(' please read the event header first! ')
-            sys.exit()
+            exit()
 
 
         idx = self.event_pos[ievt] + self.header_size
@@ -295,7 +299,7 @@ class top_decoder(decoder):
         if(len(out)/cf.n_sample != cf.n_tot_channels):
             print(' The event is incomplete ... ')
             print(len(out))
-            sys.exit()
+            exit()
 
         out = out.astype(np.float32)
         dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
@@ -307,7 +311,7 @@ class top_decoder(decoder):
     def read_evt_two_blocks(self, ievt):
         if(self.lro < 0 or self.cro < 0):
             print(' please read the event header first! ')
-            sys.exit()
+            exit()
 
 
         idx = self.event_pos[ievt] + self.header_size
@@ -325,7 +329,7 @@ class top_decoder(decoder):
 
         if(len(out)/cf.n_sample != cf.n_tot_channels):
             print(' The event is incomplete ... ')
-            sys.exit()
+            exit()
 
         out = out.astype(np.float32)
         dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
@@ -398,14 +402,12 @@ class bot_decoder(decoder):
 
 
     def get_filename(self):
-        r = int(self.run)
-        long_run = f'{r:08d}'
-        run_path = ""
-        for i in range(0,8,2):
-            run_path += long_run[i:i+2]+"/"
+        
+        run_path = fname.get_run_directory(self.run)
         path = cf.data_path + "/" + run_path
 
 
+        r = int(self.run)
         s = int(self.sub)
         long_sub = f'{s:04d}'
         sub_name = 'run'+str(f'{r:06d}')+'_*'+long_sub+'_'
@@ -425,7 +427,7 @@ class bot_decoder(decoder):
 
         if(len(fl) != 1):
             print('none or more than one file matches ... : ', fl)
-            sys.exit()
+            exit()
 
         return fl[0]
 
@@ -705,11 +707,12 @@ class dp_decoder(decoder):
 
 
     def get_filename(self):
-        path = f"{cf.data_path}/{self.run}/{self.run}_{self.sub}"
+        run_path = fname.get_run_directory(self.run)
+        path = f"{cf.data_path}/{run_path}/{self.run}_{self.sub}"
         fl = glob.glob(path+".*")
         if(len(fl) != 1):
             print('none or more than one file matches ... : ', fl)
-            sys.exit()
+            exit()
         f = fl[0]
         return f
 
@@ -771,7 +774,7 @@ class dp_decoder(decoder):
     def read_evt(self, ievt):
         if(self.lro < 0 or self.cro < 0):
             print(' please read the event header first! ')
-            sys.exit()
+            exit()
 
 
         idx = self.event_pos[ievt] + self.header_size
@@ -790,7 +793,7 @@ class dp_decoder(decoder):
 
         if(len(out)/cf.n_sample != cf.n_tot_channels):
             print(' The event is incomplete ... ')
-            sys.exit()
+            exit()
 
         out = out.astype(np.float32)
         dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
@@ -817,7 +820,8 @@ class _50l_decoder(decoder):
         self.n_femb = 4       
         
     def get_filename(self):
-        path = f"{cf.data_path}/{self.run}/"
+        run_path = fname.get_run_directory(self.run)
+        path = f"{cf.data_path}/{run_path}/"
         fl = glob.glob(path+"*.bin")
         s = int(self.sub)
         if(len(fl) == 0 or len(fl) < s):
@@ -847,7 +851,6 @@ class _50l_decoder(decoder):
 
     def read_evt_header(self, ievt):
         name = self.filename.replace('.bin','')
-        #name = name.replace(cf.data_path, '')
         fsplit = name.split('_')        
         timestamp = int(fsplit[-1])
 
@@ -885,6 +888,7 @@ class _50l_decoder(decoder):
         out = out.swapaxes(0,1)
         out = np.reshape(out, (128, 646))
         dc.data_daq = out
+        dc.data_daq[:64,:] *= 2
 
 
     def close_file(self):
