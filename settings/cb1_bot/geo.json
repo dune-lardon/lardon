@@ -14,7 +14,6 @@
 	"strips_length":"cb_1_strips_bot.txt",
 	"view_z_offset":["1.17","0.32","0"],
 	"signal_is_inverted":"0",
-	"data_path":"/eos/experiment/neutplatform/protodune/rawdata/np04/vd-coldbox-bottom/raw/2021/detector/test/None",
 	"n_tot_channels":"1792",
 	"sampling":"2",
 	"n_sample":"8192",
