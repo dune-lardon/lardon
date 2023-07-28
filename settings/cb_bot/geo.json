@@ -13,7 +13,6 @@
 	"view_length":["437.58","437.58","297.84"],
 	"strips_length":"cb_2_strips.txt",
 	"view_z_offset":["1.32","0.32","0"],
-	"data_path":"/eos/experiment/neutplatform/protodune/rawdata/np04/vd-coldbox-bottom/raw/2023/detector/test/None",
 	"n_tot_channels":"3072",
 	"sampling":"1.953125",
 	"n_sample":"8192",
