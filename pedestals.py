@@ -49,11 +49,12 @@ def compute_pedestal(noise_type='None'):
     if(noise_type=='raw'):
         ''' As nothing is masked yet, the computed raw pedestal is biased when there is signal '''
         ''' a rough mask is computed from the RMS '''
-        ''' and pedestal and rms are computed again -- twice '''
-        ''' this is still not ideal '''
+        ''' and pedestal and rms are computed again '''
 
-        thresh = dc.reco['pedestal']['first_pass_thrs']
-        for i in range(2):
+
+        thresh = dc.reco['pedestal']['raw_rms_thr']
+        n_iter = dc.reco['pedestal']['n_iter']
+        for i in range(n_iter):
             update_mask_inputs(thresh, mean, std)
             mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq)
         ped = dc.noise( mean, std )
@@ -249,42 +250,22 @@ def study_noise():
     if(cf.n_sample%nchunks != 0):
         return
     chunk = int(cf.n_sample/nchunks)
-    #print("chunking in ", chunk)
+
     dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, nchunks, chunk))
     dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, nchunks, chunk))
     
     mean = [[-999 for x in range(cf.n_tot_channels)] for i in range(nchunks)]
     std = [[-999 for x in range(cf.n_tot_channels)] for i in range(nchunks)]
-    #print("LENGTHS : ", len(mean), len(mean[0]))
+
     for i in range(nchunks):
         mean[i], std[i] = compute_pedestal_nb(dc.data_daq[:,i,:], dc.mask_daq[:,i,:])
-        #mean[i] = m
-        #std[i] = s
-    #print(time.time()-t_test, " s to compute")
     
     mean = np.asarray(mean)
-    #print(mean.shape)
-    #min_mean = np.min(mean, axis=0)
-    #max_mean = np.max(mean, axis=0)
-    #print(min_mean.shape)
-    delta_mean = np.max(mean, axis=0) - np.min(mean, axis=0)#max_mean - min_mean
+    delta_mean = np.max(mean, axis=0) - np.min(mean, axis=0)
     std_mean   = np.mean(std, axis=0)
-
-    """
-    for i in [2113, 2863, 529]:
-        print("CHANNEL ", i)
-        print("means : ")
-        print([mean[k][i] for k in range(nchunks)])
-        print("stds: ")
-        print([std[k][i] for k in range(nchunks)])
-        print(min_mean[i], " and ", max_mean[i])
-        print("delta : ", delta_mean[i])
-    """
 
     ped = dc.noise( delta_mean, std_mean )
     dc.evt_list[-1].set_noise_study(ped)
-
-
 
 
     """ restore original data shape """
