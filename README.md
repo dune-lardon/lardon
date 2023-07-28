@@ -19,13 +19,13 @@ then : `conda activate lardenv`
 Check and modify **config.py** and files in `settings/` :
 * *store_path* : your directory where the output file will be stored
 * *plot_path*  : your directory where control plots will be stored
-* Update the detector & runs configuration files in `settings/` if needed, and the path to the data in `config.py`
+* Update the detector & runs configuration files in `settings/` if needed
 
 
 ## To run lardon on data
 To launch lardon, type `python lardon.py` with the following arguments:<br/>
 **Mandatory**:<br/>
-* `-det <cb/cb1/dp>` which detector [default is cb, the 60-degree CRP]
+* `-det <cb/cb1/dp/50l>` which detector [default is cb, the 60-degree CRP]
 * `-elec <top/tde/bot/bde>` which electronics is used
 * `-run <run nb>` which run number
 * `-sub <subfile name>` which subfile (*e.g.* 1_a, 0)<br/>
@@ -45,6 +45,7 @@ the output h5file will be **store_path/top_1740_5_b_example.h5**
 *e.g. 2* : To run the first all events of bottom electronics run 20199 subfile 0, type :
 
 `python lardon.py -det cb -elec bot -run 20199 -sub 0 -out full_example`
+
 the output h5file will be **store_path/bot_20199_0_full_example.h5**
 
 ## lardon Convention
