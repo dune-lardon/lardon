@@ -13,6 +13,7 @@ plot_path  = lardon_path+"/results"
 
 """ General variable overwritten by the detector settings """
 data_path = ""
+domain = ""
 
 LAr_temperature = 87. #K - to check in the slow control 
 e_drift = 0.4  #kV/cm
