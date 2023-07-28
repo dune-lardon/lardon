@@ -19,7 +19,7 @@ parser.add_argument('-n', '--nevent', type=int, help='number of events to proces
 parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='cb', choices=['cb1','dp','cb2', 'cb', '50l'])
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
-parser.add_argument('-f', '--file', help="Override derived filename")
+parser.add_argument('-f', '--file', help="Custom input filename")
 parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used for pulsing data')
 parser.add_argument('-flow', type=str, default="-1", help="dataflow number (bde-only)", dest='dataflow')
 parser.add_argument('-writer', type=str, default="-1", help="datawriter number (bde-only)", dest='datawriter')
@@ -169,9 +169,7 @@ else:
 """ store basic informations """
 store.store_run_infos(output, int(run), str(sub), elec, nevent, time.time())
 store.store_chan_map(output)
-
-""" debug """
-n_event_done = 0
+store.save_reco_param(output)
 
 
 for ievent in range(nevent):
@@ -181,7 +179,6 @@ for ievent in range(nevent):
         continue
 
     dc.reset_event()
-    n_event_done += 1
 
     print("-*-*-*-*-*-*-*-*-*-*-")
     print(" READING EVENT ", ievent)
@@ -300,8 +297,6 @@ for ievent in range(nevent):
     #plot.plot_3d(to_be_shown=True)
     
     sh.single_hit_finder()
-
-    
 
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
