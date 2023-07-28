@@ -6,16 +6,20 @@ dependencies:
   - matplotlib
   - numpy
   - numba
-  - python > 3.6
+  - python
   - pandas
   - scikit-learn
   - scipy
-  - uproot = 3.11.3
+  - uproot 
   - numexpr
   - pytables
   - vitables
   - colorcet
   - bottleneck
-  - pyyaml
+  - fast-histogram
+  - pip
   - pip:
     - rtree
+    - json-with-comments
+    - pylandau
+    - iminuit
