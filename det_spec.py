@@ -1,6 +1,8 @@
-import json as json
+import jsonc as json
 import config as cf
 import os
+import utils.filenames as fname
+
 
 def is_concerned(key, run):
     to_be_used = {}
@@ -19,6 +21,14 @@ def is_concerned(key, run):
         
 
 def configure(detector, elec, run):
+    """ access to files """    
+    with open(cf.lardon_path+'/settings/'+detector+'_'+elec+'/path.json','r') as f:
+        locations = json.load(f)
+        key = fname.get_data_path(locations)
+        cf.domain = key
+        cf.data_path = locations[key]
+    
+
     """ long term parameters """
     with open(cf.lardon_path+'/settings/'+detector+'_'+elec+'/geo.json','r') as f:
            
@@ -52,13 +62,15 @@ def configure(detector, elec, run):
         cf.n_sample = int(data['n_sample'])
         cf.sampling = float(data['sampling'])
         cf.e_per_ADCtick = float(data['e_per_ADCtick'])
+        
+        """
         cf.data_path = data['data_path']
 
         if (os.path.exists(cf.data_path) == False):
             print('ERROR : the directory for data does not exist ')
             print(cf.data_path)
             exit()
-
+        """
         cf.view_chan_repet  = [int(x) for x in data['view_chan_repet']]
         cf.view_offset_repet  = [[[float(x) for x in xv] for xv in xm] for xm in data['view_offset_repet']]
         
