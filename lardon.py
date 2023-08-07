@@ -23,7 +23,7 @@ parser.add_argument('-f', '--file', help="Custom input filename")
 parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used for pulsing data')
 parser.add_argument('-flow', type=str, default="-1", help="dataflow number (bde-only)", dest='dataflow')
 parser.add_argument('-writer', type=str, default="-1", help="datawriter number (bde-only)", dest='datawriter')
-
+parser.add_argument('-job', dest='is_job', action='store_true', help='Flag that lardon is running on a job')
 
 args = parser.parse_args()
 
@@ -63,11 +63,17 @@ dataflow = args.dataflow
 datawriter = args.datawriter
 
 
+is_job = args.is_job
+
 import config as cf
 import data_containers as dc
 import read_raw_file as read
 import channel_mapping as cmap
-import plotting as plot
+
+if(is_job == False):
+    import plotting as plot
+    plot.set_style()
+
 import reconstruction_parameters as params
 import pedestals as ped
 import noise_filter as noise
@@ -79,7 +85,7 @@ import single_hits as sh
 import ghost as ghost
 
 
-plot.set_style()
+
 
 
 
@@ -108,8 +114,11 @@ if(outname_option):
 else:
     outname_option = ""
 
+if(is_job == False):
+    name_out = f"{cf.store_path}/{elec}_{run}_{sub}{multipass_daqname}{outname_option}.h5"
+else:
+    name_out = f"{elec}_{run}_{sub}{multipass_daqname}{outname_option}.h5"
 
-name_out = f"{cf.store_path}/{elec}_{run}_{sub}{multipass_daqname}{outname_option}.h5"
 output = tab.open_file(name_out, mode="w", title="Reconstruction Output")
 
 
@@ -125,7 +134,7 @@ else:
 """ set analysis parameters """
 params.build_default_reco()
 params.configure(detector, elec)
-params.dump()
+#params.dump()
 
 
 """ set the channel mapping """
@@ -297,6 +306,13 @@ for ievent in range(nevent):
     #plot.plot_3d(to_be_shown=True)
     
     sh.single_hit_finder()
+
+    """
+    if(len(dc.tracks3D_list) > 0):
+        [t.dump() for t in dc.tracks3D_list]
+        plot.event_display_per_view_hits_found([-50,50],[-10, 100],option='hits', to_be_shown=True)            
+        plot.plot_2dview_hits_3dtracks(to_be_shown=True)
+    """
 
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
