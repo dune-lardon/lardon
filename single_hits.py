@@ -76,28 +76,36 @@ def veto(hits, nchan, nticks, nchan_int, nticks_int):
     
     tmin, tmax = best_hit.start - nticks, best_hit.stop + nticks+1
     vetoed = False
-    
-    for i in range(cf.n_tot_channels):
-        module, view, chan = dc.chmap[i].get_ana_chan()
 
+    daqchan = best_hit.daq_channel
+    daqch_neighbours = [-1 for i in range(2*nchan+1)]
+    daqch_neighbours[nchan] = daqchan
+
+    for i in range(nchan):
+        daqch_neighbours[nchan-i-1] = dc.chmap[daq_neighbours[nchan-i]].prev_daqch
+        daqch_neighbours[nchan+i+1] = dc.chmap[daq_neighbours[nchan+i]].next_daqch
+    
+    for i in daq_neighbours:
         if(i in cf.broken_channels):
             continue
-            
-        if(view == best_hit.view and chan >= best_hit.channel - nchan and chan <= best_hit.channel + nchan):
+        if(i < 0):
+            continue
 
-            roi = ~dc.mask_daq[i, tmin:tmax]
-            index = np.where(roi==True)[0]
+        roi = ~dc.mask_daq[i, tmin:tmax]
+        index = np.where(roi==True)[0]
             
-            for ir in index:
-                vetoed = vetoed | in_veto_region(chan, ir+tmin, best_hit.channel, best_hit.max_t, nchan_int, nticks_int)
+        for ir in index:
+            vetoed = vetoed | in_veto_region(chan, ir+tmin, best_hit.channel, best_hit.max_t, nchan_int, nticks_int)
 
 
     if(vetoed == False):
-        d = dc.data[best_hit.module, best_hit.view, best_hit.channel-nchan_int:best_hit.channel+nchan_int+1, best_hit.start-nticks_int:best_hit.stop+nticks_int+1]
-        g = dc.chmap[best_hit.daq_channel].gain
-        int_q = np.sum(d)*g
-        int_pos_q = np.sum((d>0)*d)*g
-        int_neg_q = np.sum((d<0)*d)*g
+        int_q, int_pos_q, int_neg_q = 0., 0., 0.
+        for i in daq_neighbours:
+            g = dc.chmap[i].gain
+            d = dc.data_daq[i, best_hit.start-nticks_int:best_hit.stop+nticks_int+1]
+            int_q += np.sum(d)*g
+            int_pos_q += np.sum((d>0)*d)*g
+            int_neg_q += np.sum((d<0)*d)*g
 
 
         return False, int_q, int_pos_q, int_neg_q
@@ -199,7 +207,7 @@ def same_view_compatibility(ha, hb):
 
 
 def single_hit_finder():    
-    cmap.arange_in_view_channels()
+    #cmap.arange_in_view_channels()
 
     max_per_view  = dc.reco['single_hit']['max_per_view']
     outlier_dmax = dc.reco['single_hit']['outlier_dmax']
@@ -223,7 +231,7 @@ def single_hit_finder():
     rtree_idx = index.Index(properties=pties)
 
     """ make a subset of unmatched hits """
-    free_hits = [x for x in dc.hits_list if x.matched==-9999 and x.signal == cf.view_type[x.view]]
+    free_hits = [x for x in dc.hits_list if x.is_free==True and x.signal == cf.view_type[x.view]]
 
 
     for h in free_hits: 
@@ -234,7 +242,7 @@ def single_hit_finder():
 
 
     for h in free_hits:
-        if(h.matched != -9999):
+        if(h.is_free == False):
             continue
         start = h.start
         stop  = h.stop
@@ -298,8 +306,8 @@ def single_hit_finder():
 
         IDs = [[x.ID for x in ov] for ov in overlaps]
 
-
-        sh = dc.singleHits(nhits, IDs, bar_x, bar_y, bar_z, bar_dmax, d_min_3D, d_min_2D)
+        sh_ID = dc.evt_list[-1].n_single_hits
+        sh = dc.singleHits(sh_ID, nhits, IDs, bar_x, bar_y, bar_z, bar_dmax, d_min_3D, d_min_2D)
         
         for iv in range(cf.n_view):
             v, q, p, n = veto(overlaps[iv], veto_nchan, veto_nticks, int_nchan, int_nticks)
@@ -310,7 +318,7 @@ def single_hit_finder():
             sh.set_view(*compute_sh_properties(ov))
             
             for hit in ov:
-                hit.set_match(-5555)
+                hit.set_match_sh(sh_ID)
                 start, stop = hit.start, hit.stop
                 rtree_idx.delete(hit.ID, (hit.view, start, hit.view, stop))
 
