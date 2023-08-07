@@ -3,7 +3,7 @@ import config as cf
 import data_containers as dc
 import numpy as np
 from abc import ABC, abstractmethod
-
+from itertools import tee, islice, chain
 
 def set_unused_channels():
     if(len(cf.broken_channels) > 0):
@@ -27,8 +27,31 @@ def arange_in_view_channels():
             continue
         dc.data[module, view, chan] = dc.data_daq[i]
 
+def previous_and_next(some_iterable):
+    #from https://stackoverflow.com/questions/1011938/loop-that-also-accesses-previous-and-next-values
+    prevs, items, nexts = tee(some_iterable, 3)
+    prevs = chain([None], prevs)
+    nexts = chain(islice(nexts, 1, None), [None])
+    return zip(prevs, items, nexts)
+    
+def is_true_channel(x):
+    (module, view, channel, daq) = x
+    if(module < 0 or view < 0 or channel < 0):    
+        return False
+    else:
+        return True
 
-
+def get_neighbour(chan, other):
+    if(other == None):
+        return -1
+    elif(is_true_channel(other)==False):
+        return -1
+    else:
+        if(chan[0] == other[0] and chan[1] == other[1]):
+            return other[3]
+        else:
+            return -1
+    
 def get_mapping(detector, elec):
     if(os.path.exists(cf.channel_map) is False):
         print('the channel mapping file ', fmap, ' does not exists')
@@ -51,6 +74,32 @@ def get_mapping(detector, elec):
     else :
         print("the electronic ",elec, " for ", detector, " is not recognized")
         exit()
+        
+    """ get the previous and next physical channel """
+    ch_list = [(x.module, x.view, x.vchan, x.daqch) for x in dc.chmap]    
+    ch_list = sorted(ch_list, key=lambda x:(x[0],x[1],x[2]))
+    
+    for prev, item, nxt in previous_and_next(ch_list):
+        if(is_true_channel(item) == False):
+            continue
+        else:
+            daqch = item[3]
+            
+            prev_daqch = get_neighbour(item, prev)
+            next_daqch = get_neighbour(item, nxt)
+
+            view, vchan = item[1], item[2]
+            if(vchan==0):
+                prev_daqch = -1
+            if(vchan==cf.view_nchan[view]):
+                next_daqch = -1
+            if(vchan%cf.view_chan_repet[view]==0):
+                prev_daqch = -1
+            if((vchan-1)%cf.view_chan_repet[view]==0):
+                next_daqch = -1
+
+            dc.chmap[daqch].set_prev_next(prev_daqch, next_daqch)
+
 
 def get_cb_top_mapping():
     strip = get_strip_length()
@@ -141,7 +190,6 @@ def get_50l_bot_mapping():
             view = int(li[6])
             channel = int(li[7])
             gain = calib[daqch]
-
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
                 length, capa = strip[globch]
