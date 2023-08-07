@@ -27,8 +27,8 @@ def min_distance(xx_a, zz_a, xx_b, zz_b):
 def ghost_finder(threshold):
     """ to be called before 3D finder """
 
-    """ unmatched 2D tracks in collection view """
-    tracks = [t for t in dc.tracks2D_list if t.view == 2]# and t.match_3D < 0]
+    """ 2D tracks in collection view """
+    tracks = [t for t in dc.tracks2D_list if t.view == 2]
     n_trk = len(tracks)
 
 
@@ -70,7 +70,6 @@ def ghost_finder(threshold):
 
     for i,ti in enumerate(tracks):
         if(ti.ghost == True):
-            #print(i, " is already ghosted :-)")
             continue
 
         idx = best_match[i]
@@ -79,28 +78,18 @@ def ghost_finder(threshold):
         nmatch = best_match.count(idx)
 
         if(nmatch > 1):
-            #print('ambiguity, give up atm')
             continue
         dmin = best_mindist[i]
         tj = tracks[idx]
         if(tj.ghost == True):
-            #print(j, " is already ghosted :-)")
             continue
 
         qi = ti.tot_charge
         qj = tj.tot_charge
 
-        """
-        print("-----")
-        print('track i', ti.path[0][0], ti.path[0][1])
-        print('track j', tj.path[0][0], tj.path[0][1])
-        print("slope ", ti.ini_slope, " and ", tj.ini_slope)
-        print("Dmin is ", dmin)
-        print('Qi : ', qi, ' Qj: ', qj)
-        """
-
         if(ti.ini_slope*tj.ini_slope>=0):
             continue
+
         if(qi < qj):
             ti.ghost = True
             ghost = dc.ghost(ti.trackID, tj.trackID, dmin, qi, qj, ti.n_hits)
@@ -149,6 +138,9 @@ def ghost_trajectory():
             continue
 
         ghost = dc.ghost(ghost_track.trackID, t2d.trackID, g.min_dist, ghost_track.tot_charge, t2d.tot_charge, ghost_track.n_hits)
+
+        ghost_track.set_match_hits_ghost(t3d.ID_3D)
+        
         dc.ghost_list.append(ghost)
         dc.evt_list[-1].n_ghosts += 1
 
