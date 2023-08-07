@@ -32,9 +32,6 @@ alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
 reco = {}
 
 data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
-#mask might be useless
-#mask = np.ones((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=bool)
-
 
 
 n_tot_hits = 0
@@ -43,7 +40,6 @@ def reset_event():
     data_daq[:,:] = 0.
 
     data[:,:,:,:] = 0.
-    #mask[:,:,:,:] = True
 
     hits_list.clear()
     tracks2D_list.clear()
@@ -65,6 +61,17 @@ class channel:
         self.capa   = capa
         self.gain = gain
         self.pos  = pos
+        self.prev_daqch = -1
+        self.next_daqch = -1
+
+
+    def __str__(self):
+        return "DAQ "+str(self.daqch)+"-> M"+str(self.module)+" V"+str(self.view)+" ch "+str(self.vchan)+ " - prev : "+str(self.prev_daqch)+" next : "+str(self.next_daqch)
+
+    def set_prev_next(self, prev, nxt):
+        self.prev_daqch = prev
+        self.next_daqch = nxt
+
     def get_ana_chan(self):
         return self.module, self.view, self.vchan
 
@@ -161,13 +168,17 @@ class hits:
         self.max_fC = self.max_adc*chmap[self.daq_channel].gain
         self.min_fC = self.min_adc*chmap[self.daq_channel].gain
 
-        self.cluster = -1
+
         self.X       = chmap[self.daq_channel].pos
         self.Z       = -1
-        self.matched = -9999
 
-        self.ped_bef = -1
-        self.ped_aft = -1
+
+        self.match_2D = -9999
+        self.match_3D = -9999
+        self.match_dray = -9999
+        self.match_ghost = -9999
+        self.match_sh = -9999
+        self.is_free = True
 
     def __lt__(self,other):
         """ sort hits by decreasing Z and increasing channel """
@@ -200,30 +211,45 @@ class hits:
         self.charge = self.charge_pos if self.signal == "Collection" else self.charge_pos + np.fabs(self.charge_neg)
 
 
+    def set_match_2D(self, ID):
+        self.match_dray = -9999
+        self.match_2D = ID
+        self.is_free = False
 
-    def set_match(self, ID):
-        self.matched = ID
+    def set_match_dray(self, ID):
+        self.match_2D = -9999
+        self.match_dray = ID
+        self.is_free = False
 
-    def set_cluster(self, ID):
-        self.cluster = ID
 
-    def set_ped(self, bef, aft):
-        self.ped_bef = bef
-        self.ped_aft = aft
+    def set_match_3D(self, ID):
+        self.match_3D = ID
+        self.is_free = False
+
+
+    def set_match_ghost(self, ID):    
+        self.match_3D = -9999
+        self.match_dray = -9999
+        self.match_ghost = ID
+        self.is_free = False
+
+    def set_match_sh(self, ID):
+        self.match_sh = ID
+        self.is_free = False
+
 
     def get_charges(self):
         return (self.charge, self.charge_pos, self.charge_neg)
 
 
     def mini_dump(self):
-        print('Hit ',self.ID, '(',self.matched,') v',self.view,' ch ', self.channel, ' t:', self.start, ' to ', self.stop, 'max ',self.max_t, ' min ', self.min_t, ' maxADC ', self.max_adc, ' minADc ', self.min_adc)
+        print('Hit ',self.ID, '(free:',self.is_free,') v',self.view,' ch ', self.channel, ' t:', self.start, ' to ', self.stop, 'max ',self.max_t, ' min ', self.min_t, ' maxADC ', self.max_adc, ' minADc ', self.min_adc, 'matched 2D ', self.match_2D, ' 3D ', self.match_3D, ' dray ', self.match_dray, 'ghost ', self.match_ghost, 'SH ', self.match_SH)
 
     def dump(self):
 
         print("\n**View ", self.view, " Channel ", self.channel, " ID: ", self.ID)
         print("Type ", self.signal)
         print("channel gain ", chmap[self.daq_channel].gain)
-
 
         print(" from t ", self.start, " to ", self.stop, " dt = ", self.stop-self.start)
         print(" tmax ", self.max_t, " tmin ", self.min_t, ' dt = ', self.min_t-self.max_t)
@@ -234,10 +260,18 @@ class hits:
         print(" adc max ", self.max_adc, " adc min ", self.min_adc)
         print(" fC max ", self.max_fC, " fC min ", self.min_fC)
         print(" charges pos : ", self.charge_pos, " neg : ", self.charge_neg)
+        print(" Is free ", self.is_free)
+        print(" Match in 2D with trk ", self.match_2D)
+        print(" Match in 3D with trk ", self.match_3D)
+        print(" Match as dray with trk ", self.match_dray)
+        print(" Match as ghost with trk ", self.match_ghost)
+        print(" Match as SH with hits ", self.match_sh)
+
 
 
 class singleHits:
-    def __init__(self, n_hits, IDs, x, y, z, d_max_bary, d_min_3D, d_min_2D):
+    def __init__(self, ID_SH, n_hits, IDs, x, y, z, d_max_bary, d_min_3D, d_min_2D):
+        self.ID_SH = ID_SH
         self.n_hits = n_hits
         self.IDs = IDs
         self.charge_pos = [0.,0.,0.]
@@ -299,7 +333,7 @@ class singleHits:
         print('Charge extended neg ', self.charge_extend_neg)
 
 class trk2D:
-    def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, hit_ID, chi2, cluster):
+    def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, hit_ID, chi2):
         self.trackID = ID
         self.view    = view
         self.module_ini = -1
@@ -321,6 +355,7 @@ class trk2D:
         self.chi2_bkwd   = chi2
 
         self.drays   = []
+        self.drays_ID   = []
 
         self.tot_charge = q0
         self.dray_charge = 0.
@@ -329,7 +364,6 @@ class trk2D:
         self.len_path = 0.
 
         self.matched = [-1 for x in range(cf.n_view)]
-        self.cluster = cluster
         self.match_3D = -1
 
         self.ini_time = t0
@@ -342,8 +376,9 @@ class trk2D:
         return (self.path[0][1] > other.path[0][1]) or (self.path[0][1] == other.path[0][1] and self.path[0][0] < other.path[0][0])
 
 
-    def add_drays(self, x, y, q):
+    def add_drays(self, x, y, q, ID):
         self.drays.append((x,y,q))
+        self.drays_ID.append(ID)
         self.dray_charge += q
         self.n_hits_dray += 1
         self.remove_hit(x, y, q)
@@ -428,7 +463,7 @@ class trk2D:
 
         self.n_hits_dray = len(self.drays)
         self.dray_charge = sum(k for i,j,k in self.drays)
-
+        
         self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
         self.len_path = 0.
         for i in range(self.n_hits-1):
@@ -511,6 +546,7 @@ class trk2D:
         self.len_path += self.dist(other)
         self.matched = [-1 for x in range(cf.n_view)]
         self.drays.extend(other.drays)
+        self.drays_ID.extend(other.drays_ID)
         self.match_3D = -1
         self.ghost = False
 
@@ -541,6 +577,20 @@ class trk2D:
     def charge_in_z_interval(self, start, stop):
         return sum([q for q, (x, z) in zip(self.dQ, self.path) if z >= start and z <= stop])
 
+    def set_match_hits_3D(self, ID):
+        for x in self.hits_ID:
+            hits_list[x-n_tot_hits].set_match_3D(ID)
+        for x in self.drays_ID:
+            hits_list[x-n_tot_hits].set_match_3D(ID)
+
+    def set_match_hits_ghost(self, ID):
+        for x in self.hits_ID:
+            hits_list[x-n_tot_hits].set_match_ghost(ID)
+        for x in self.drays_ID:
+            hits_list[x-n_tot_hits].set_match_ghost(ID)
+
+    
+
     def mini_dump(self):
         print("2D track ", self.trackID," in view : ", self.view, " from (%.1f,%.1f)"%(self.path[0][0], self.path[0][1]), " to (%.1f, %.1f)"%(self.path[-1][0], self.path[-1][1]), " N = ", self.n_hits, " L = %.1f/%.1f"%(self.len_straight, self.len_path), " Q = ", self.tot_charge, " Dray N = ", self.n_hits_dray, " Qdray ", self.dray_charge, "3D MATCH : ", self.match_3D)
         #print('track hits ID ', self.hits_ID)
@@ -551,7 +601,7 @@ class trk2D:
 class trk3D:
     def __init__(self):
 
-        self.match_ID  =  [-1]*cf.n_view#[t.ID for t in trks]
+        self.match_ID  =  [-1]*cf.n_view
         self.ID_3D      = -1
 
         self.chi2    = [-1]*cf.n_view
@@ -624,7 +674,8 @@ class trk3D:
         n_fake = 0
         for i in range(cf.n_view):
             if(self.match_ID[i] == -1):
-                tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1,0, -1)
+                tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1,0)
+
                 self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.],[-1, -1], isFake=True)
                 n_fake += 1
         return n_fake

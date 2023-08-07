@@ -101,11 +101,21 @@ class Hits(IsDescription):
     charge_pos = Float32Col()
     charge_neg = Float32Col()
 
+    is_free = BoolCol()
 
+    match_3D = Int32Col()
+    match_2D = Int32Col()
+    match_dray = Int32Col()
+    match_ghost = Int32Col()
+    match_sh = Int32Col()
 
 class Tracks2D(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
+    
+    ID       = UInt32Col()
+    match_3D = Int32Col()
+    matched  = Int32Col(shape=(cf.n_view))
 
     view    = UInt8Col()
     pos_ini = Float32Col()
@@ -138,8 +148,11 @@ class Tracks3D(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
 
-    matched = BoolCol(shape=(cf.n_view))
+    matched_2D = Int32Col(shape=(cf.n_view))
     n_matched = UInt32Col()
+    
+    ID = UInt32Col()
+    
 
     x_ini   = Float32Col()
     y_ini   = Float32Col()
@@ -176,6 +189,9 @@ class Ghost(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
 
+    match_3D = UInt32Col()
+    match_2D = UInt32Col()
+
     x_anode   = Float32Col()
     y_anode   = Float32Col()
     z_anode   = Float32Col()
@@ -201,7 +217,9 @@ class SingleHits(IsDescription):
     trigger = UInt32Col()
 
     n_hits = UInt32Col(shape=(cf.n_view))
-    IDs = UInt32Col(shape=(cf.n_view,3))
+    hit_IDs = UInt32Col(shape=(cf.n_view,3))
+
+    ID = UInt32Col()
 
     charge_pos = Float32Col(shape=(cf.n_view))
     charge_neg = Float32Col(shape=(cf.n_view))
@@ -360,6 +378,16 @@ def store_hits(h5file):
        hit['charge_neg'] = ih.charge_neg
 
 
+       hit['is_free'] = ih.is_free
+       
+
+
+       hit['match_3D'] = ih.match_3D
+       hit['match_2D'] = ih.match_2D
+       hit['match_dray'] = ih.match_dray
+       hit['match_ghost'] = ih.match_ghost
+       hit['match_sh'] = ih.match_sh
+
        hit.append()
 
 def store_single_hits(h5file):
@@ -371,12 +399,14 @@ def store_single_hits(h5file):
 
         sh['n_hits'] = it.n_hits
 
+        sh['ID'] = it.ID_SH
+
         id_np = np.zeros((cf.n_view, 3), dtype=int)
         id_np.fill(-1)
         for i,j in enumerate(it.IDs):
             id_np[i][0:len(j)] = j
 
-        sh['IDs'] = id_np
+        sh['hit_IDs'] = id_np
         sh['charge_pos'] =  it.charge_pos
         sh['charge_neg'] =  it.charge_neg
 
@@ -409,6 +439,12 @@ def store_tracks2D(h5file):
     for it in dc.tracks2D_list:
        t2d['event'] = dc.evt_list[-1].evt_nb
        t2d['trigger'] = dc.evt_list[-1].trigger_nb
+
+       t2d['ID'] = it.trackID
+
+       t2d['match_3D'] = it.match_3D
+       t2d['matched']  = it.matched
+
 
        t2d['view'] = it.view
        t2d['pos_ini'] = it.path[0][0]
@@ -446,8 +482,10 @@ def store_tracks3D(h5file):
        t3d['event'] = dc.evt_list[-1].evt_nb
        t3d['trigger'] = dc.evt_list[-1].trigger_nb
 
-       t3d['matched'] = [it.match_ID[i] >= 0 for i in range(cf.n_view)]
+       t3d['ID'] = it.ID_3D
+       t3d['matched_2D'] = [it.match_ID[i] for i in range(cf.n_view)]
        t3d['n_matched'] = sum([it.match_ID[i] >= 0 for i in range(cf.n_view)])
+
 
        t3d['x_ini'] = it.ini_x
        t3d['y_ini'] = it.ini_y
@@ -484,13 +522,15 @@ def store_tracks3D(h5file):
 
 def store_ghost(h5file):
     tgh = h5file.root.ghost.row
-    vl_h = h5file.get_node('/ghost_tracks')#llll
+    vl_h = h5file.get_node('/ghost_tracks')
 
     for it in dc.ghost_list:
        tgh['event'] = dc.evt_list[-1].evt_nb
        tgh['trigger'] = dc.evt_list[-1].trigger_nb
 
-       
+       tgh['match_3D'] = it.trk3D_ID
+       tgh['match_2D'] = it.trk2D_ID
+
        tgh['x_anode'] = it.anode_x
        tgh['y_anode'] = it.anode_y
        tgh['z_anode'] = it.anode_z

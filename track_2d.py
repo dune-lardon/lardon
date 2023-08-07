@@ -61,7 +61,6 @@ def dump_track(idx):
 
 def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
 
-
     """error on y axis, error on slope, pbeta hyp"""
     filt = pf.PFilter(y_err, slope_err, pbeta)
     n_NN = 4
@@ -73,7 +72,7 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
     else:
         track = track[0]
 
-    hits = [x for x in dc.hits_list if x.matched==idtrk]
+    hits = [x for x in dc.hits_list if x.match_2D==idtrk]
 
     """sort by decreasing Z and increasing channel """
     hits.sort()
@@ -119,19 +118,18 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
         for i in p[1:]:
             drays.append(i)
 
-    #print("FOUND ", len(drays), " DELTA RAYS")
+
     for l in drays:
         h = hits[l]
-        if(h.matched >= 0):
-            track.add_drays(h.X, h.Z, h.charge)
-            h.set_match(-1*h.matched)
+        track.add_drays(h.X, h.Z, h.charge, h.ID)
+        h.set_match_dray(idtrk)
 
 
     drays.clear()
 
     #reversed because spline wants an increasing x only
-    x_r = [x.X for x in reversed(hits) if x.matched > 0]
-    z_r = [x.Z for x in reversed(hits) if x.matched > 0]
+    x_r = [x.X for x in reversed(hits) if x.match_2D > 0]
+    z_r = [x.Z for x in reversed(hits) if x.match_2D > 0]
 
     """ spline needs unique 'x' points to work --> remove duplicate """
     z_r_unique, idx = np.unique(z_r, return_index=True)
@@ -158,9 +156,8 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
 
         for l in drays:
             h = hits[l]
-            if(h.matched >= 0):
-                track.add_drays(h.X, h.Z, h.charge)
-                h.set_match(-1*h.matched)
+            track.add_drays(h.X, h.Z, h.charge, h.ID)
+            h.set_match_dray(idtrk)
 
 
 
@@ -169,85 +166,6 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
         track.update_backward(spline.get_residual(), deriv(z_r[-1]), deriv(z_r[-1])*0.05)
 
 
-
-
-    """ Forward filter the track with w/o drays """
-    """
-    tot_fwd_chi2 = -1
-    i=0
-    while(i in drays):
-        i+=1
-    x0, y0 = coord[i][1], coord[i][0]
-    x1 = x0
-
-
-    while(x1 == x0):
-        i+=1
-        while(i in drays):
-            i+=1
-        x1, y1 = coord[i][1], coord[i][0]
-
-
-    slope = (y1-y0)/(x1-x0)
-    intercept = y1 - slope * x1
-    ystart = slope * x0 + intercept
-
-    filt.initiate(ystart, slope)
-
-    x0, y0 = x1, y1
-    maxchi = -1
-    for label, ih in enumerate(coord[i+1:]):
-        label += i+1
-        if(label in drays):
-            continue
-        x1, y1 = ih[1], ih[0]
-        chi2_up = filt.update(y1, x1-x0)
-        tot_fwd_chi2 = filt.getChi2()
-        x0, y0 = x1, y1
-
-    track.update_forward(tot_fwd_chi2, filt.getSlope(), filt.getSlopeErr())
-    print(" from fwd filter slope ", filt.getSlope(), " +/- ", filt.getSlopeErr())
-    """
-
-    """ Backward filter the track with w/o drays """
-
-    """
-    tot_bkd_chi2 = -1
-    i=len(coord)-1
-    while(i in drays):
-        i-=1
-    x0, y0 = coord[i][1], coord[i][0]
-    x1 = x0
-
-
-    while(x1 == x0):
-        i-=1
-        while(i in drays):
-            i-=1
-        x1, y1 = coord[i][1], coord[i][0]
-
-
-    slope = (y1-y0)/(x1-x0)
-    intercept = y1 - slope * x1
-    ystart = slope * x0 + intercept
-
-    filt.initiate(ystart, slope)
-
-    x0, y0 = x1, y1
-    maxchi = -1
-    for label, ih in enumerate(coord[i-1::-1]):
-        label = i-1-label
-        if(label in drays):
-            continue
-        x1, y1 = ih[1], ih[0]
-        chi2_up = filt.update(y1, x1-x0)
-        tot_bkd_chi2 = filt.getChi2()
-        x0, y0 = x1, y1
-
-    track.update_backward(tot_bkd_chi2, filt.getSlope(), filt.getSlopeErr())
-
-    print(" from bkw filter slope ", filt.getSlope(), " +/- ", filt.getSlopeErr())
-    """
     track.finalize_track()
 
 
@@ -343,16 +261,15 @@ def find_tracks_rtree():
     filt = pf.PFilter(y_err, slope_err, pbeta)
 
     """track ID starts at 1 """
-    trackID = len(dc.tracks2D_list)+1
+    trackID = len(dc.tracks2D_list)
 
     """ initialize the R-tree """
     tt = myrtree.R_tree(rcut)
 
 
     for iview in range(cf.n_view):
-        icl=0
-        hits = [x for x in dc.hits_list if x.view==iview and x.matched == -9999]
 
+        hits = [x for x in dc.hits_list if x.view==iview and x.is_free == True]
         n_hits = len(hits)
 
         if(n_hits < min_hits):
@@ -413,7 +330,7 @@ def find_tracks_rtree():
                     intercept = fit[2]
                     ystart  = slope*x0 + intercept
                     filt.initiate(ystart, slope)
-                    track = dc.trk2D(trackID, iview, slope, slope_err, y0, x0, t0, hits[idx].charge, hits[idx].ID, filt.getChi2(), icl)
+                    track = dc.trk2D(trackID, iview, slope, slope_err, y0, x0, t0, hits[idx].charge, hits[idx].ID, filt.getChi2())
 
                     for i in [fit[3], fit[4]]:
                         """ add the seeding hits to the filter and remove them from the index """
@@ -449,7 +366,7 @@ def find_tracks_rtree():
 
                     if(track.n_hits >= min_hits):
                         dc.tracks2D_list.append(track)
-                        [hits[i].set_match(trackID) for i in idx_list]
+                        [hits[i].set_match_2D(trackID) for i in idx_list]
 
 
                         refilter_and_find_drays(trackID,
@@ -529,7 +446,7 @@ def find_tracks_rtree():
 
                     if(track.n_hits >=  min_hits):
                         dc.tracks2D_list.append(track)
-                        [hits[i].set_match(trackID) for i in idx_list]
+                        [hits[i].set_match_2D(trackID) for i in idx_list]
 
                         refilter_and_find_drays(trackID,
                                                 y_err, slope_err, pbeta)

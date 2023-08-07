@@ -220,7 +220,8 @@ def complete_trajectories(tracks):
                 
 
             dr = cf.view_pitch[v_track]/cosgamma if cosgamma != 0 else 9999.
-
+            
+            """ debug """
             if(v_track >2):
                 print('----- at z=', z)
                 print(v_track, " at ", pos, " with ", v_other, " at ", pos_spl)
@@ -339,11 +340,7 @@ def find_tracks_rtree():
     for idx, ID in enumerate(idx_to_ID):
         ID_to_idx[ID] = idx
 
-    #print('id to index')
-    #print(ID_to_idx)
 
-    #print('index to ID')
-    #print(idx_to_ID)
     ''' search for the best matching track in the other view '''
 
     for ti in dc.tracks2D_list:
@@ -360,13 +357,8 @@ def find_tracks_rtree():
             else:
                 overlaps.append(list(rtree_idx.intersection((iview, ti_stop, iview, ti_start))))
 
-        #print("\nNEW TRACK ")
-        #ti.mini_dump()
-        #print(overlaps)
-
 
         for ov in overlaps:
-            #print(ov)
             matches = []
             for j_ID in ov:
                 j_idx = ID_to_idx[j_ID]
@@ -375,9 +367,6 @@ def find_tracks_rtree():
                     continue
                 if(ti.module_end != tj.module_end):
                     continue
-
-                #print("...overlaps with, ", j_ID, ' idx ', j_idx)
-                #tj.mini_dump()
 
                 tj_start = tj.path[0][1]
                 tj_stop  = tj.path[-1][1]
@@ -393,11 +382,7 @@ def find_tracks_rtree():
                     balance = 9999.
                 dmin = min(math.fabs(ti_start- tj_start), math.fabs(ti_stop - tj_stop))
 
-                #print("balance : ", balance)
-                #print("dmin : ", dmin)
-                #print(" ID ", j_ID)
                 if(balance < qfrac and dmin < ztol):
-                #if(dmin < ztol):
                     matches.append( (j_ID, balance, dmin) )
 
             if(len(matches) > 0):
@@ -411,41 +396,40 @@ def find_tracks_rtree():
     for i_idx in range(len(dc.tracks2D_list)):
         ti = dc.tracks2D_list[i_idx]
         i_ID = idx_to_ID[i_idx]
-        #print('-> ID ', i_ID, " index ", i_idx, " with ", ti.matched)
-        #print('track ', i_idx, ' matches with ', ti.matched)
         trks = [ti]
         for iview in range(ti.view+1, cf.n_view):
             j_ID = ti.matched[iview]
-            #print('  -> track in view ', iview, ' has ID ', j_ID)
+
             if(j_ID>0):
                 j_idx = ID_to_idx[j_ID]
                 tj = dc.tracks2D_list[j_idx]
                 if(tj.matched[ti.view] == i_ID):
                     trks.append(tj)
         if(len(trks) > 1):
-            #print("it's a match <3")
-            #print("idx : ", i_idx, ' with ', len(trks))
             t3D = complete_trajectories(trks)
 
 
             n_fake = t3D.check_views()
             if(n_fake > 1):
                 continue
-            #print(t3D.path)
+
             t3D.boundaries()
-            #print("\nFINALIZE TRACK")
+
             isok = finalize_3d_track(t3D, 10)
             if(isok == False):
                 continue
-            #t3D.angles(tv0, tv1)
+
             correct_timing(t3D, dx_tol, dy_tol, dz_tol)
-            trk_ID = dc.evt_list[-1].n_tracks3D+1
+            trk_ID = dc.evt_list[-1].n_tracks3D #+1
             t3D.ID_3D = trk_ID
 
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
-            #dc.tracks3D_list[-1].dump()
+
             for t in trks:
                 for i in range(cf.n_view):
-                    t.matched[i] = -1
+                    #t.matched[i] = -1
                     t.match_3D = trk_ID
+                    t.set_match_hits_3D(trk_ID)
+
+                        
