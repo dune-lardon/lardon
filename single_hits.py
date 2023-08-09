@@ -82,10 +82,10 @@ def veto(hits, nchan, nticks, nchan_int, nticks_int):
     daqch_neighbours[nchan] = daqchan
 
     for i in range(nchan):
-        daqch_neighbours[nchan-i-1] = dc.chmap[daq_neighbours[nchan-i]].prev_daqch
-        daqch_neighbours[nchan+i+1] = dc.chmap[daq_neighbours[nchan+i]].next_daqch
+        daqch_neighbours[nchan-i-1] = dc.chmap[daqch_neighbours[nchan-i]].prev_daqch
+        daqch_neighbours[nchan+i+1] = dc.chmap[daqch_neighbours[nchan+i]].next_daqch
     
-    for i in daq_neighbours:
+    for i in daqch_neighbours:
         if(i in cf.broken_channels):
             continue
         if(i < 0):
@@ -95,12 +95,12 @@ def veto(hits, nchan, nticks, nchan_int, nticks_int):
         index = np.where(roi==True)[0]
             
         for ir in index:
-            vetoed = vetoed | in_veto_region(chan, ir+tmin, best_hit.channel, best_hit.max_t, nchan_int, nticks_int)
+            vetoed = vetoed | in_veto_region(dc.chmap[i].vchan, ir+tmin, best_hit.channel, best_hit.max_t, nchan_int, nticks_int)
 
 
     if(vetoed == False):
         int_q, int_pos_q, int_neg_q = 0., 0., 0.
-        for i in daq_neighbours:
+        for i in daqch_neighbours:
             g = dc.chmap[i].gain
             d = dc.data_daq[i, best_hit.start-nticks_int:best_hit.stop+nticks_int+1]
             int_q += np.sum(d)*g
