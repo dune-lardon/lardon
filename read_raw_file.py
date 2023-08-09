@@ -212,8 +212,10 @@ class top_decoder(decoder):
 
 
     def get_filename(self):
-        path = f"{cf.data_path}/{self.run}/{self.run}_{self.sub}"
+        run_path = fname.get_run_directory(self.run)
+        path = f"{cf.data_path}/{run_path}/{self.run}_{self.sub}"
         fl = glob.glob(path+"_*")
+        
         if(len(fl) != 1):
             print('none or more than one file matches ... : ', fl)
             exit()
@@ -708,6 +710,7 @@ class dp_decoder(decoder):
 
     def get_filename(self):
         run_path = fname.get_run_directory(self.run)
+        
         path = f"{cf.data_path}/{run_path}/{self.run}_{self.sub}"
         fl = glob.glob(path+".*")
         if(len(fl) != 1):
