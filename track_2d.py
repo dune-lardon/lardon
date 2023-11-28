@@ -23,6 +23,8 @@ def linear_reg(X, Y, cut):
         for j in range(i+1, N):
             x = [x0, X[i], X[j]]
             y = [y0, Y[i], Y[j]]
+            if x[0] == x[1]:
+                x[0] += 0.00000000001
             slope, intercept, r, p, s = stat.linregress(x, y)
             if(r**2 > cut):
                 fits.append( (r**2, slope, intercept, i, j) )
