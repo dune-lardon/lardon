@@ -25,8 +25,7 @@ Check and modify **config.py** and files in `settings/` :
 ## To run lardon on data
 To launch lardon, type `python lardon.py` with the following arguments:<br/>
 **Mandatory**:<br/>
-* `-det <cb/cb1/dp/50l>` which detector [default is cb, the 60-degree CRP]
-* `-elec <top/tde/bot/bde>` which electronics is used
+* `-det <cb1top/cb1bot/cbtop/cbbot/dp/50l>` which detector<br/>
 * `-run <run nb>` which run number
 * `-sub <subfile name>` which subfile (*e.g.* 1_a, 0)<br/>
 *Optional*:<br/>
@@ -38,15 +37,15 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 
 *e.g. 1* : To run the first 10 events of top electronics run 1740 subfile 5_b, type :
 
-`python lardon.py -det cb -elec top -run 1740 -sub 5_b -n 10 -out example`
+`python lardon.py -det cbtop -run 1740 -sub 5_b -n 10 -out example`
 
-the output h5file will be **store_path/top_1740_5_b_example.h5**
+the output h5file will be **store_path/cbtop_1740_5_b_example.h5**
 
 *e.g. 2* : To run the first all events of bottom electronics run 20199 subfile 0, type :
 
-`python lardon.py -det cb -elec bot -run 20199 -sub 0 -out full_example`
+`python lardon.py -det cbbot -run 20199 -sub 0 -out full_example`
 
-the output h5file will be **store_path/bot_20199_0_full_example.h5**
+the output h5file will be **store_path/cbbot_20199_0_full_example.h5**
 
 ## lardon Convention
 # Coldbox 2nd period
