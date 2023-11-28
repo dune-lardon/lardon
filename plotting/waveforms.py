@@ -28,6 +28,7 @@ def draw_current_waveform(daqch, view, ch, ax=None, **kwargs):
 
 def plot_wvf_current_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
     chmap.arange_in_view_channels()
+
     n_wvf = len(vch_list)
 
     fig = plt.figure(figsize=(12, 3*n_wvf))
@@ -60,7 +61,7 @@ def plot_wvf_current_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sam
 
         
     save_with_details(fig, option, 'waveforms')
-    #plt.savefig(cf.plot_path+'/waveforms'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+
 
     if(to_be_shown):
         plt.show()
@@ -212,6 +213,7 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
 
         for ih in dc.hits_list:
             if(ih.daq_channel == daq_ch):
+                ih.dump()
                 t_start, t_stop = ih.start,ih.stop
                 ax[i].fill_between(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], ped_mean, step='mid',color='r', alpha=0.25,zorder=200)
                 ax[i].step(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], linewidth=1, c='r',zorder=250,where='mid')
@@ -219,12 +221,12 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
                 ax[i].axvline(t_start, ls='dashed',c='r',lw=.5,zorder=300)
                 ax[i].axvline(t_stop, ls='dotted',c='r',lw=.5,zorder=300)
 
-            for j in range(1,6):
-                ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.1)
-                if(cf.view_type[view] == "Induction"):
-                    ax[i].axhline(ped_mean-j*ped_rms, ls='dashdot',c='orange',lw=.1)
-            ax[i].axhline(ped_mean, ls='solid',c='orange',lw=1)
-
+        for j in [2, 3.5]:
+            ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
+            if(cf.view_type[view] == "Induction"):
+                ax[i].axhline(ped_mean-j*ped_rms, ls='dashdot',c='orange',lw=.5)
+        ax[i].axhline(ped_mean, ls='solid',c='orange',lw=1)
+        #print("v", view," ch", ch, " ped = ", ped_mean, " rms = ", ped_rms)
         ax[i].set_xlim([tmin, tmax])
         ax[i].set_ylim([ymin, ymax])
             
@@ -237,7 +239,6 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
     plt.subplots_adjust(top=0.95)
 
     save_with_details(fig, option, 'waveforms_roi_hits')
-    #plt.savefig(cf.plot_path+'/waveforms'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
 
     if(to_be_shown):
         plt.show()
@@ -300,6 +301,46 @@ def plot_wvf_diff_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample
     plt.subplots_adjust(top=0.95)
 
     save_with_details(fig, option, 'waveforms_diff')
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
+
+
+
+def draw_data(data, ax=None, **kwargs):
+    
+    ax = plt.gca() if ax is None else ax    
+    ax.step(np.linspace(0,cf.n_sample-1,cf.n_sample), data, where='mid',**kwargs)
+    return ax
+    
+
+def plot_wvf_evo(data, title="", legends=[], adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+
+    fig = plt.figure(figsize=(12, 3))
+    ax = plt.gca()
+
+    for d in range(len(data)):
+        ax = draw_data(data[d], ax=ax, label=legends[d])
+        
+    ax.set_xlabel('Time')
+    ax.set_ylabel('ADC')
+    ax.legend(loc='upper right')
+
+    if(adc_min > -1):
+        ax.set_ybound(lower=adc_min)
+    if(adc_max > -1):
+        ax.set_ybound(upper=adc_max)
+
+    ax.set_xlim([tmin, tmax])
+    
+    ax.set_title(title)
+    
+
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.92)
+
+    save_with_details(fig, option, 'waveforms_evo')
     if(to_be_shown):
         plt.show()
 
