@@ -26,7 +26,7 @@ def plot_3d(option=None, to_be_shown=True):
 
     for iv in range(cf.n_view):
         x, y, z = list(flatten(get_3dtracks_x(iv))), list(flatten(get_3dtracks_y(iv))), list(flatten(get_3dtracks_z(iv)))
-        
+
         if(len(x) == 0):
             continue
         
@@ -49,12 +49,23 @@ def plot_3d(option=None, to_be_shown=True):
                    z, 
                    c=color[iv], s=4)
 
+    
+
+    """ single hits"""
+    sh = get_3dsingle_hits()
+    if(len(sh)>0):
+        ax.scatter(*zip(*sh), c='k', s=6)
+
+    """ghosts"""
+    ghost = get_3dghost()
+    if(len(ghost)>0):
+        ax.scatter(*zip(*ghost), c='silver', s=5)
 
 
     v = lar.drift_velocity()
     ax.set_xlim3d(cf.x_boundaries[0])
     ax.set_ylim3d(cf.y_boundaries[0])
-    ax.set_zlim3d(cf.anode_z - v*cf.n_sample/cf.sampling, cf.anode_z)
+    ax.set_zlim3d(min(cf.anode_z) - v*cf.n_sample/cf.sampling, max(cf.anode_z))
 
 
     ax.set_xlabel('x [cm]')
