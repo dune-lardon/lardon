@@ -217,7 +217,7 @@ class SingleHits(IsDescription):
     trigger = UInt32Col()
 
     n_hits = UInt32Col(shape=(cf.n_view))
-    hit_IDs = UInt32Col(shape=(cf.n_view,3))
+    hit_IDs = Int32Col(shape=(cf.n_view,3))
 
     ID = UInt32Col()
 
@@ -283,11 +283,11 @@ def create_tables_pulsing(h5file):
     t = h5file.create_vlarray("/", 'neg_pulse', Float32Atom(shape=(10)), "Negative Pulses (start, tmin, vmin, A, Aerr, tau, tauerr, area, fit_area, rchi2)")
 
 
-def store_run_infos(h5file, run, sub, elec, nevent, time):
+def store_run_infos(h5file, run, sub, nevent, time):
     inf = h5file.root.infos.row
     inf['run']           = run
     inf['sub']           = sub
-    inf['elec']          = elec
+    inf['elec']          = cf.elec[0]
     inf['n_evt']         = nevent
     inf['process_date']  = time
     inf['n_channels']    = cf.n_tot_channels
@@ -624,7 +624,7 @@ def dictToGroup(f, parent, groupname, dictin, force=False, recursive=True):
         else:
             raise ne
     for key, item in dictin.items():
-        if(key=="plot"):
+        if(key=="plot" or "store"):
             continue
         if isinstance(item, dict):
             if recursive:
