@@ -5,7 +5,6 @@ ana/
 tools/
 *~
 *.sh
-*.txt
 *.dat
 settings/*~
 settings/chmap/*~
