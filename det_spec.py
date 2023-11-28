@@ -20,9 +20,9 @@ def is_concerned(key, run):
         
         
 
-def configure(detector, elec, run):
+def configure(detector, run):
     """ access to files """    
-    with open(cf.lardon_path+'/settings/'+detector+'_'+elec+'/path.json','r') as f:
+    with open(cf.lardon_path+'/settings/'+detector+'/path.json','r') as f:
         locations = json.load(f)
         key = fname.get_data_path(locations)
         cf.domain = key
@@ -30,7 +30,7 @@ def configure(detector, elec, run):
     
 
     """ long term parameters """
-    with open(cf.lardon_path+'/settings/'+detector+'_'+elec+'/geo.json','r') as f:
+    with open(cf.lardon_path+'/settings/'+detector+'/geo.json','r') as f:
            
         param = json.load(f)
         to_be_used = is_concerned(param.keys(), int(run))
@@ -59,18 +59,12 @@ def configure(detector, elec, run):
         cf.view_capa  = [float(x) for x in data['view_capa']]
         
         cf.n_tot_channels = int(data['n_tot_channels'])
+        cf.module_nchan = int(cf.n_tot_channels/cf.n_module)
+
         cf.n_sample = int(data['n_sample'])
         cf.sampling = float(data['sampling'])
-        cf.e_per_ADCtick = float(data['e_per_ADCtick'])
-        
-        """
-        cf.data_path = data['data_path']
+        cf.e_per_ADCtick = [float(x) for x in data['e_per_ADCtick']]
 
-        if (os.path.exists(cf.data_path) == False):
-            print('ERROR : the directory for data does not exist ')
-            print(cf.data_path)
-            exit()
-        """
         cf.view_chan_repet  = [int(x) for x in data['view_chan_repet']]
         cf.view_offset_repet  = [[[float(x) for x in xv] for xv in xm] for xm in data['view_offset_repet']]
         
@@ -78,7 +72,7 @@ def configure(detector, elec, run):
         
         cf.drift_length = float(data['drift_length'])
 
-        cf.anode_z = float(data['anode_z'])
+        cf.anode_z = [float(x) for x in data['anode_z']]
         cf.view_length = [float(x) for x in data["view_length"]]
 
         cf.view_offset = [[float(x) for x in xv ] for xv in data['view_offset']]
@@ -105,3 +99,7 @@ def configure(detector, elec, run):
             cf.channel_calib = cf.lardon_path+"/settings/calib/"+data['channel_calib']
         except KeyError:
             print('No Channel Calibration available - Constant value will be used')
+
+        cf.drift_direction = [float(x) for x in data["drift_direction"]]
+        cf.elec = [x for x in data["elec"]]
+        cf.daq = data["daq"]
