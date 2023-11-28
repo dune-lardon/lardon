@@ -11,7 +11,7 @@ dependencies:
   - scikit-learn
   - scipy
   - uproot 
-  - numexpr
+  - numexpr=2.8.4
   - pytables
   - vitables
   - colorcet
