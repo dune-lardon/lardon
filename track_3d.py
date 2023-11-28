@@ -240,40 +240,56 @@ def complete_trajectories(tracks):
 
 
 def correct_timing(trk, xtol, ytol, ztol):
+    """to add : possible track matching with the beam timing """
+
     vdrift = lar.drift_velocity()
-    z_top = cf.anode_z
+    z_anode = cf.anode_z[trk.module_ini]
 
     ''' maximum drift distance given the time window '''
-    z_max = z_top - cf.n_sample*vdrift/cf.sampling
-    z_cath = z_top - cf.drift_length
+    max_drift = cf.anode_z[trk.module_end] - cf.drift_direction[trk.module_end] * vdrift /cf.sampling
 
+    z_top = max(z_anode, max_drift)
+    z_max = min(z_anode, max_drift)
+
+    #z_cath = z_anode - cf.drift_direction[trk.module_ini]*cf.drift_length
+    z_bot = z_top - cf.drift_direction[trk.module_ini]*cf.drift_length
+
+    
     from_top =  (z_top - trk.ini_z) < ztol
     exit_bot = (math.fabs(z_max - trk.end_z)) < ztol
 
-    from_wall_x = np.asarray([ math.fabs(trk.ini_x-s)<t for t, s in zip(xtol,cf.x_boundaries[trk.module_ini])], dtype=bool)
-    from_wall_y = np.asarray([ math.fabs(trk.ini_y-s)<t for t,s in zip(ytol,cf.y_boundaries[trk.module_ini])], dtype=bool)
+    from_wall_x = np.asarray([ math.fabs(trk.ini_x-s)<t for t, s in zip(xtol[trk.module_ini],cf.x_boundaries[trk.module_ini])], dtype=bool)
+    from_wall_y = np.asarray([ math.fabs(trk.ini_y-s)<t for t,s in zip(ytol[trk.module_ini],cf.y_boundaries[trk.module_ini])], dtype=bool)
 
     from_wall = np.any(np.concatenate((from_wall_x, from_wall_y), axis=None))
 
-    exit_wall_x = np.asarray([ math.fabs(trk.end_x-s)<t for t, s in zip(xtol,cf.x_boundaries[trk.module_end])], dtype=bool)
-    exit_wall_y = np.asarray([ math.fabs(trk.end_y-s)<t for t, s in zip(ytol, cf.y_boundaries[trk.module_end])], dtype=bool)
+    exit_wall_x = np.asarray([ math.fabs(trk.end_x-s)<t for t, s in zip(xtol[trk.module_end],cf.x_boundaries[trk.module_end])], dtype=bool)
+    exit_wall_y = np.asarray([ math.fabs(trk.end_y-s)<t for t, s in zip(ytol[trk.module_end], cf.y_boundaries[trk.module_end])], dtype=bool)
+
     exit_wall = np.any(np.concatenate((exit_wall_x, exit_wall_y), axis=None))
 
     z0 = 9999.
     t0 = 9999.
 
-    """ unknown case is when track enters through wall """
-    if(from_wall):
-        trk.set_t0_z0(t0, z0)
-        return
 
-    #early track case
+    if(from_wall):
+        if(exit_wall or exit_bot):
+            """ unknown case is when track goes wall to wall or wall->bottom """
+            trk.set_t0_z0(t0, z0)
+            return
+        else:
+            """ it's an early track """
+            z0 = (z_bot - trk.end_z)
+            if(z0 > 0.): z0 *= -1.
+            t0 = z0/vdrift
+            trk.set_t0_z0(t0, z0)
+            return
+
+    """ enters from the upper side: early track """
     if(from_top):
-        #print('early case!')
         if(exit_wall == False):
-            #then it exits through the cathode
-            #print('exits through cathode')
-            z0 = (z_cath - trk.end_z)
+            #then it exits through the bottom side of the drift volume
+            z0 = (z_bot - trk.end_z)
             if(z0 > 0.): z0 *= -1.
             t0 = z0/vdrift
             trk.set_t0_z0(t0, z0)
@@ -281,12 +297,10 @@ def correct_timing(trk, xtol, ytol, ztol):
         else:
             #exits through the wall, we don't know then
             trk.set_t0_z0(t0, z0)
-            #print('but exits through wall')
             return
 
 
-    #print('is a late track!')
-    #later track case
+    """ what's left is a late track, entering from the upper side """
     z0 = (z_top-trk.ini_z)
     t0 = z0/vdrift
     trk.set_t0_z0(t0, z0)
@@ -344,6 +358,7 @@ def find_tracks_rtree():
     ''' search for the best matching track in the other view '''
 
     for ti in dc.tracks2D_list:
+
         if(ti.len_straight < len_min):
             continue
 
@@ -395,6 +410,8 @@ def find_tracks_rtree():
 
     for i_idx in range(len(dc.tracks2D_list)):
         ti = dc.tracks2D_list[i_idx]
+        if(ti.match_3D >=0):
+            continue
         i_ID = idx_to_ID[i_idx]
         trks = [ti]
         for iview in range(ti.view+1, cf.n_view):
@@ -403,11 +420,10 @@ def find_tracks_rtree():
             if(j_ID>0):
                 j_idx = ID_to_idx[j_ID]
                 tj = dc.tracks2D_list[j_idx]
-                if(tj.matched[ti.view] == i_ID):
+                if(tj.matched[ti.view] == i_ID and tj.match_3D < 0):
                     trks.append(tj)
         if(len(trks) > 1):
             t3D = complete_trajectories(trks)
-
 
             n_fake = t3D.check_views()
             if(n_fake > 1):
@@ -426,10 +442,9 @@ def find_tracks_rtree():
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
 
+
             for t in trks:
-                for i in range(cf.n_view):
-                    #t.matched[i] = -1
-                    t.match_3D = trk_ID
-                    t.set_match_hits_3D(trk_ID)
+                t.match_3D = trk_ID
+                t.set_match_hits_3D(trk_ID)
 
                         
