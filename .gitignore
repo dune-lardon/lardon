@@ -2,9 +2,14 @@ results/
 __pycache__/
 reco/
 ana/
+tools/
 *~
+*.sh
+*.txt
+*.dat
 settings/*~
 settings/chmap/*~
 setting/calib/*~
+utils/*~
 plotting/*~
 *pyc
