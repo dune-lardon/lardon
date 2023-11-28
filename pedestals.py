@@ -17,14 +17,19 @@ def compute_pedestal_nb(data, mask):
 
     mean  = np.zeros(shape[:-1])
     res   = np.zeros(shape[:-1])
-    for idx,r in np.ndenumerate(res):
+
+    #for idx,r in np.ndenumerate(res):
+    for idx in range(shape[0]):
         ch = data[idx]
         ma  = mask[idx]
+
         """ use the assumed mean method """
-        K = 1.*ch[0] #make it float
+        #make it float
+        K = 1.*ch[0] if np.isnan(ch[0])==False else 0.
+
         n, Ex, Ex2, tmp = 0., 0., 0., 0.
         for x,v in zip(ch,ma):
-            if(v == True):
+            if(np.isnan(x) == False and v == True):
                 n += 1
                 tmp += x
                 Ex += x-K
@@ -62,7 +67,12 @@ def compute_pedestal(noise_type='None'):
 
         inv = np.array([-1 if cf.signal_is_inverted[x.module]==True else 1 for x in dc.chmap])
 
-        dc.data_daq = dc.data_daq*inv[:,None] + mean[:,None]*inv[:,None]
+        """ remove the nans introduced to align the frames """
+        dc.data_daq = np.where(np.isnan(dc.data_daq), mean[:,None]*inv[:,None], dc.data_daq)
+
+        """ subtract the mean pedestal """
+        dc.data_daq = dc.data_daq*inv[:,None] - mean[:,None]*inv[:,None]
+
 
 
     elif(noise_type=='filt'): 
