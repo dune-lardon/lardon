@@ -36,7 +36,7 @@ def previous_and_next(some_iterable):
     
 def is_true_channel(x):
     (module, view, channel, daq) = x
-    if(module < 0 or view < 0 or channel < 0):    
+    if(module < 0 or view < 0 or channel < 0 or view >= cf.n_view):    
         return False
     else:
         return True
@@ -52,27 +52,25 @@ def get_neighbour(chan, other):
         else:
             return -1
     
-def get_mapping(detector, elec):
+def get_mapping(detector):
     if(os.path.exists(cf.channel_map) is False):
         print('the channel mapping file ', fmap, ' does not exists')
         exit()
-
-    if(detector == "cb1" or detector == 'cb2' or detector == 'cb'):
-        if(elec == "top"):
-            get_cb_top_mapping()
-        elif(elec == "bot"):
-            get_cb_bot_mapping()
-        else : 
-            print("the electronic ",elec, " for ", detector, " is not recognized")
-            exit()
-    elif(detector == "dp" and elec == "top"):
+    if(detector == "cb1top"):
+        get_cb_top_mapping()
+    elif(detector == "cbtop"):
+        get_cb_top_mapping()
+    elif(detector == "cb1bot"):
+        get_cb_bot_mapping()
+    elif(detector == "cbbot"):
+        get_cb_bot_mapping()
+    elif(detector == "dp"):
         get_dp_mapping()
-
-    elif(detector == "50l" and elec== "bot"):
+    elif(detector == "50l"):
         get_50l_bot_mapping()
-
-    else :
-        print("the electronic ",elec, " for ", detector, " is not recognized")
+        
+    else:
+        print("the detector ", detector, " is not recognized by the channel mapping")
         exit()
         
     """ get the previous and next physical channel """
@@ -105,7 +103,6 @@ def get_cb_top_mapping():
     strip = get_strip_length()
     calib  = get_calibration()
 
-    # TO BE UPDATED IN THE FUTURE
     module = 0
 
     with open(cf.channel_map, 'r') as f:
@@ -121,7 +118,7 @@ def get_cb_top_mapping():
             view =  int(li[7])
             channel =  int(li[8])
             globch = int(li[9])
-            gain = calib[daqch]
+            gain = calib[daqch] if len(calib)==cf.n_tot_channels else calib[module]
 
 
 
@@ -131,7 +128,7 @@ def get_cb_top_mapping():
                 
                 nrepet = int(np.floor(channel/cf.view_chan_repet[view]))
                 pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet] +  cf.view_pitch[view]/2.
-                #print('view ', view, ' channel ', channel, ' at ', pos)
+
             else:
                 length, capa = -1, -1
                 pos=-9999.
@@ -155,8 +152,7 @@ def get_cb_bot_mapping():
             asic_ch = int(li[5])        
             view = int(li[6])
             channel = int(li[7])
-            gain = calib[daqch]
-
+            gain = calib[daqch] if len(calib)==cf.n_tot_channels else calib[module]
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
                 length, capa = strip[globch]
@@ -189,8 +185,7 @@ def get_50l_bot_mapping():
             asic_ch = int(li[5])        
             view = int(li[6])
             channel = int(li[7])
-            gain = calib[daqch]
-
+            gain = calib[daqch] if len(calib)==cf.n_tot_channels else calib[module]
             if(globch >= 0 and view >= 0 and view < cf.n_view):
                 length, capa = strip[globch]
 
@@ -217,7 +212,7 @@ def get_dp_mapping():
             crp   =  int(li[1])
             view =  int(li[2])
             channel =  int(li[3])
-            gain = calib[daqch]
+            #gain = calib[daqch]
             
             globch = 3840*view + 960*crp + channel
 
@@ -230,6 +225,7 @@ def get_dp_mapping():
                     pos -= 300.
 
             length, capa = 300., 1.
+            gain = calib[daqch] if len(calib)==cf.n_tot_channels else calib[crp-1]
             c = dc.channel(daqch, globch, crp, view, channel, length, capa, gain, pos)
             dc.chmap.append(c)
 
@@ -263,6 +259,7 @@ def get_calibration():
                 g = float(li[7])
                 gain.append(g*fC_per_e)
     else:
-        gain = [cf.e_per_ADCtick*fC_per_e for x in range(cf.n_tot_channels)]
+        #gain = [cf.e_per_ADCtick*fC_per_e for x in range(cf.n_tot_channels)]
+        gain = [cf.e_per_ADCtick[x]*fC_per_e for x in range(cf.n_module)]
     return gain
             
