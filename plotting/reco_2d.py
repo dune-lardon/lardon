@@ -116,7 +116,7 @@ def template_data_view():
         axs[iv].set_title('View '+str(iv)+"/"+cf.view_name[iv])
         axs[iv].set_xlabel(cf.view_name[iv]+' [cm]')
         axs[iv].set_xlim(cf.view_offset[mod][iv], cf.view_offset[mod][iv]+cf.view_length[iv])
-        axs[iv].set_ylim(cf.anode_z - v*cf.n_sample/cf.sampling, cf.anode_z)
+        axs[iv].set_ylim(min(cf.anode_z) - v*cf.n_sample/cf.sampling, max(cf.anode_z))
 
 
         if(iv == 0):
@@ -198,24 +198,24 @@ def plot_2dview_hits_tracks(draw_2D=True, draw_3D=True, option=None, to_be_shown
     leg_handle = []
     leg_label = []
     """ unmatched hits """
-    sel = 'x.matched == -9999'    
+    sel = 'x.ID >=0'    
     axs = draw_all_hits(axs, sel, c=color_noise, s=marker_size, marker='o', label='Noise Hits')
     leg_handle.append(mlines.Line2D([], [], color=color_noise, marker='o', linestyle='None', markersize=10, label='Noise'))
 
 
     """ hits attached to track """
-    sel = 'x.matched >= 0'
+    sel = 'x.match_2D >= 0'
     axs = draw_all_hits(axs, sel, c=color_matched1, s=marker_size, marker='o', label='Hits Attached to Track')
     leg_handle.append(mlines.Line2D([], [], color=color_matched1, marker='o', linestyle='None', markersize=10, label='Track Hits'))
 
     """ delta_ray hits attached to track """
-    sel = 'x.matched <0 and x.matched > -5555'
+    sel = 'x.match_dray >=0'
     axs = draw_all_hits(axs, sel, c=color_matched2, s=marker_size, marker='o', label='Delta Rays')
     leg_handle.append(mlines.Line2D([], [], color=color_matched2, marker='o', linestyle='None', markersize=10, label=r'$\delta_{ray}$'))
 
 
     """ single hits """
-    sel = 'x.matched == -5555'
+    sel = 'x.match_sh >=0'
     axs = draw_all_hits(axs, sel, c=color_singlehits, s=marker_size, marker='o', label='Single Hits')    
     leg_handle.append(mlines.Line2D([], [], color=color_singlehits, marker='o', linestyle='None', markersize=10, label='Single'))  
 
