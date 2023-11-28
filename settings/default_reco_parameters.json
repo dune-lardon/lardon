@@ -101,6 +101,10 @@
 	"int_nchan":3,
 	"int_nticks":50
     },
+
+    "store":{
+	"coord":"lardon"
+    },
     
     "plot":{
         "noise":{
