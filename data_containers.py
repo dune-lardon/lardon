@@ -195,9 +195,9 @@ class hits:
         """ for CB it does not mean someting concrete """
         """ correct Z with PCB positions """
 
-        self.Z = cf.anode_z - v * self.t / cf.sampling - cf.view_z_offset[self.view]
-        self.Z_start = cf.anode_z - v * self.start /cf.sampling -  cf.view_z_offset[self.view]
-        self.Z_stop  = cf.anode_z - v * self.stop / cf.sampling - cf.view_z_offset[self.view]
+        self.Z = cf.anode_z[self.module] - cf.drift_direction[self.module]*(v * self.t / cf.sampling - cf.view_z_offset[self.view])
+        self.Z_start = cf.anode_z[self.module] - cf.drift_direction[self.module]*(v * self.start /cf.sampling -  cf.view_z_offset[self.view])
+        self.Z_stop  = cf.anode_z[self.module] - cf.drift_direction[self.module]*(v * self.stop / cf.sampling - cf.view_z_offset[self.view])
 
 
 
@@ -578,6 +578,8 @@ class trk2D:
         return sum([q for q, (x, z) in zip(self.dQ, self.path) if z >= start and z <= stop])
 
     def set_match_hits_3D(self, ID):
+        self.match_3D = ID
+        
         for x in self.hits_ID:
             hits_list[x-n_tot_hits].set_match_3D(ID)
         for x in self.drays_ID:
