@@ -17,6 +17,9 @@ cmap_fft = cc.cm.CET_CBL2_r
 cmap_corr = cc.cm.CET_D9
 cmap_ed = cc.cm.linear_tritanopic_krjcw_5_95_c24_r
 
+def gaussian(x, mu, sig):
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
 
 def plot_noise_daqch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
     if(noise_type==""):
@@ -258,7 +261,18 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
             
 
     proj_max=[0.3, 0.2, 0.1]
+
+    freq = np.linspace(0, cf.sampling/2., int(cf.n_sample/2) + 1)
+
+    """define gaussian low pass filter"""
+    gauss_cut = np.where(freq < 0.6, 1., gaussian(freq, 0.6, 0.02))
+
+
     for i in range(3):
+        if(cf.view_type[i] == 'Induction'):
+            vname = "Ind."
+        else:
+            vname = "Coll."
 
         axs_2D[i].imshow(ps_v[i,:cf.view_nchan[i]].transpose(), 
                          origin = 'lower', 
@@ -266,12 +280,12 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
                          interpolation='none',
                          cmap   = cmap_fft,
                          extent=[0, cf.view_nchan[i], 0., cf.sampling/2.], 
-                         norm=LogNorm(vmin=1e-2, vmax=2e-1))
+                         norm=LogNorm(vmin=5e-2, vmax=8e-1))
     
-        axs_2D[i].set_ylim(0., 1.25)
+        axs_2D[i].set_ylim(0., cf.sampling/2.)
 
-        axs_2D[i].set_xlabel('Channels')
-        axs_2D[i].set_title('View '+str(i)+'/'+cf.view_name[i])
+        axs_2D[i].set_xlabel('View Channel')
+        axs_2D[i].set_title('View '+str(i)+'/'+cf.view_name[i]+' ('+vname+')')
 
         if(i==0):
             ax_col.set_title('FFT Amplitude')
@@ -280,7 +294,9 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
             cb.ax.xaxis.set_ticks_position('top')
             cb.ax.xaxis.set_label_position('top')
 
-        axs_proj[i].plot(np.mean(ps_v[i,:cf.view_nchan[i]], axis=0), freq,c='k')
+        axs_proj[i].plot(np.mean(ps_v[i,:cf.view_nchan[i]], axis=0), freq,c='k', zorder=100)
+        vmin, vmax = axs_proj[i].get_xlim()
+        axs_proj[i].plot(gauss_cut*vmax, freq,c='r', zorder=-100)
         #if(i==0):
             #axs_proj[i].set_xlim(0, 0.5)#0.4)
         #axs_proj[i].set_xlim(0, proj_max[i])#0.5)#0.4)
