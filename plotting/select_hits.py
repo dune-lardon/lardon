@@ -30,7 +30,7 @@ def get_2dtracks_z(view, selection="True"):
 
 
 def get_3dtracks(view, axis, selection="True"):
-    return [[p[axis] for p in t.path[view]] if t.match_ID[view]>0 else [] for t in dc.tracks3D_list if eval(selection)] 
+    return [[p[axis] for p in t.path[view]] for t in dc.tracks3D_list if eval(selection)] 
     
 
 def get_3dtracks_x(view, selection="True"):
@@ -41,3 +41,9 @@ def get_3dtracks_y(view, selection="True"):
 
 def get_3dtracks_z(view, selection="True"):
     return get_3dtracks(view, 2, selection)
+
+def get_3dsingle_hits():
+    return [(h.X, h.Y, h.Z) for h in dc.single_hits_list]
+
+def get_3dghost():
+    return [p for t in dc.ghost_list for p in t.path] 
