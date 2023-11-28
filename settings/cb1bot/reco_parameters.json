@@ -80,11 +80,15 @@
 	    "ztol":3.0,
 	    "qfrac":5.0, 
 	    "len_min":2.0, 
-	    "dx_tol":[0.5,3.0],
-	    "dy_tol":[3.0,3.0],
+	    "dx_tol":[[0.5,3.0]],
+	    "dy_tol":[[3.0,3.0]],
 	    "dz_tol":2.0
 	},
 
+	"store":{
+	    "coord":"lardon"
+	},
+	
         "plot":{
             "noise":{
 		"zrange": [0,15]

@@ -16,7 +16,7 @@
 	"n_tot_channels":"3840",
 	"sampling":"2.5",
 	"n_sample":"10000",
-	"e_per_ADCtick":"32",
+	"e_per_ADCtick":["32"],
 	"view_offset":[["-218.79","-218.79","-148.92"]],
 	"view_offset_repet":[[["-218.79","-144.585"],["-144.585","-218.79"],["-148.92","-148.92","0.","0."]]],
 	"x_boundaries":[["-168.","168."]],
@@ -26,7 +26,10 @@
 	"signal_is_inverted":"1",
 	"e_drift":"0.447",
 	"drift_length":"23.4",
-	"anode_z":"11.5"
+	"anode_z":["11.5"],
+	"drift_direction":["1"],
+	"elec":["top"],
+	"daq":"lyon_2_blocks"
 	},
     "1520-1568":
     {

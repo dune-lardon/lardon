@@ -1,37 +1,37 @@
 {
   "default":{
-      "pedestal":{
+      "pedestal":{ 
 	  "raw_rms_thr":3,
           "n_iter":2 
       },
 	 
       "mask":{
 	  "coll":{
-	      "min_dt":8,
-	      "low_thr":[2.5,2.5],
-	      "high_thr":[4.0,3.0],
+	      "min_dt":5,
+	      "low_thr":[1.5,2.0],
+	      "high_thr":[2.0,2.5],
 	      "min_rise":2,
-	      "min_fall":4,
+	      "min_fall":2,
 	      "pad_bef":10,
 	      "pad_aft":15
 	  },
 	  
 	  "ind":{
-	      "max_dt_pos_neg":15,
+	      "max_dt_pos_neg":5,
 	      "pad_bef":10,
 	      "pad_aft":15,
 	      "pos":{
 		  "min_dt":4,
-		  "low_thr":[2.0,2.0],
-		  "high_thr":[3.0,3.0],
+		  "low_thr":[1.5,2.0],
+		  "high_thr":[2.0,2.5],
 		  "min_rise":2,
 		  "min_fall":2
 	      },
 	      
 	      "neg":{
 		  "min_dt":4,
-		  "low_thr":[-2.0,-1.8],
-		  "high_thr":[-3.0,-2.5],
+		  "low_thr":[-1.5,-2.0],
+		  "high_thr":[-2.0,-2.5],
 		  "min_rise":2,
 		  "min_fall":2
 	      }
@@ -51,27 +51,27 @@
               "low_cut":0.6
           },
 	  "microphonic":{
-	      "window":300
+	      "window":-1
 	  }
       },
       
       "hit_finder":{
           "coll":{
-              "amp_sig": [2.5,5.5],
-              "dt_min": 9
+              "amp_sig": [2.0,2.5],
+              "dt_min": 6
           },
           "ind":{
-              "amp_sig": [2,3],
-              "dt_min": 10
+              "amp_sig": [1.5,2.0],
+              "dt_min": 6
           },
           "pad":{
-              "left": 12,
-              "right": 20
+              "left": 6,
+              "right": 10
           }
       },
 
       "track_2d":{
-	  "min_nb_hits": 5,
+	  "min_nb_hits": 6,
 	  "rcut": 6.0,
 	  "chi2cut": 8.0,
 	  "y_error": 0.5,
@@ -81,10 +81,10 @@
       
       "track_3d":{
 	  "ztol":3.0,
-	  "qfrac":5.0, 
+	  "qfrac":2.0, 
 	  "len_min":2.0, 
-	  "dx_tol": [3.0,0.5],
-	  "dy_tol": [3.0,3.0],
+	  "dx_tol": [[3.0,3.0]],
+	  "dy_tol": [[3.0,3.0]],
 	  "dz_tol": 2.0
       },
 
@@ -93,12 +93,16 @@
       },
 
       "single_hit":{
-	  "max_per_view":3,
-	  "outlier_dmax":2.5,
-	  "veto_nchan":16,
-	  "veto_nticks":150,
+	  "time_tol":9,
+	  "outlier_dmax":5,
+	  "veto_nchan":4,
+	  "veto_nticks":70,
 	  "int_nchan":3,
-	  "int_nticks":50
+	  "int_nticks":40
+      },
+
+      "store":{
+	  "coord":"lardon"
       },
       
       "plot":{
@@ -107,11 +111,11 @@
           },
           "evt_display":{
               "daqch":{
-                  "zrange":[-200,200]
+                  "zrange":[-50,50]
               },
               "viewch":{
-                  "ind_zrange":[-100,100],
-                  "col_zrange":[-10,300]
+                  "ind_zrange":[-50,50],
+                  "col_zrange":[-10,100]
               }
           }
       }
