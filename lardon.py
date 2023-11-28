@@ -12,49 +12,36 @@ print("\nWelcome to LARDON !\n")
 tstart = time.time()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-elec', help='Which electronics are used [tde, top, bde, bot]',default="top", choices=["bot", "bde", "top", "tde"])#, required=True
+#parser.add_argument('-elec', help='Which electronics are used [tde, top, bde, bot]',default="top", choices=["bot", "bde", "top", "tde"])#, required=True
+
 parser.add_argument('-run', help='Run number to be processed', required=True)
 parser.add_argument('-sub', help='Subfile to read', type=str, required=True)
 parser.add_argument('-n', '--nevent', type=int, help='number of events to process in the file [default (or -1) is all]', default=-1)
-parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='cb', choices=['cb1','dp','cb2', 'cb', '50l'])
+
+parser.add_argument('-det', dest='detector', help='which detector is looked at [default is coldbox]', default='cb', choices=['cb1top', 'cb1bot','dp', 'cbtop', 'cbbot', '50l'])
 parser.add_argument('-out', dest='outname', help='extra name on the output', default='')
+
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
 parser.add_argument('-f', '--file', help="Custom input filename")
+
 parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used for pulsing data')
+
 parser.add_argument('-flow', type=str, default="-1", help="dataflow number (bde-only)", dest='dataflow')
 parser.add_argument('-writer', type=str, default="-1", help="datawriter number (bde-only)", dest='datawriter')
 parser.add_argument('-job', dest='is_job', action='store_true', help='Flag that lardon is running on a job')
 
 args = parser.parse_args()
 
-if(args.elec == 'top' or args.elec == 'tde'):
-    elec = 'top'
-elif(args.elec == 'bot' or args.elec == 'bde'):
-    elec = 'bot'
-
-print('Looking at ',args.detector, ' data with ', args.elec, ' electronics')
-
-if(args.detector == 'dp' and args.elec == 'bot'):
-    print(args.detector, " in ", args.elec, " electronics")
-    print(' ... is not possible!')
-    sys.exit()
-
-if(args.detector == '50l' and args.elec == 'top'):
-    print(args.detector, " in ", args.elec, " electronics")
-    print(' ... is not possible!')
-    sys.exit()
-
+print('Looking at ',args.detector, ' data' )
 
 run = args.run
 sub = args.sub
 nevent = args.nevent
 detector = args.detector
-if(detector == 'cb2'):
-    detector = 'cb'
 
 outname_option = args.outname
 evt_skip = args.evt_skip
-det.configure(detector, elec, run)
+det.configure(detector, run)
 
 is_pulse = args.is_pulse
 
@@ -67,7 +54,7 @@ is_job = args.is_job
 
 import config as cf
 import data_containers as dc
-import read_raw_file as read
+import decode_data as decoder
 import channel_mapping as cmap
 
 if(is_job == False):
@@ -83,8 +70,6 @@ import track_2d as trk2d
 import track_3d as trk3d
 import single_hits as sh
 import ghost as ghost
-
-
 
 
 
@@ -114,11 +99,14 @@ if(outname_option):
 else:
     outname_option = ""
 
-if(is_job == False):
-    name_out = f"{cf.store_path}/{elec}_{run}_{sub}{multipass_daqname}{outname_option}.h5"
-else:
-    name_out = f"{elec}_{run}_{sub}{multipass_daqname}{outname_option}.h5"
 
+
+if(is_job == False):
+    name_out = f"{cf.store_path}/{detector}_{run}_{sub}{multipass_daqname}{outname_option}.h5"
+else:
+    name_out = f"{detector}_{run}_{sub}{multipass_daqname}{outname_option}.h5"
+
+print('Output name is : ', name_out)
 output = tab.open_file(name_out, mode="w", title="Reconstruction Output")
 
 
@@ -133,24 +121,18 @@ else:
 
 """ set analysis parameters """
 params.build_default_reco()
-params.configure(detector, elec)
+params.configure(detector)
 #params.dump()
 
 
 """ set the channel mapping """
-cmap.get_mapping(detector, elec)
+cmap.get_mapping(detector)
 cmap.set_unused_channels()
 
 
 
 """ setup the decoder """
-if(detector=="dp"):
-    reader = read.dp_decoder(run, str(sub), args.file)
-elif(detector=="50l"):
-    reader = read._50l_decoder(run, str(sub), args.file)
-else:
-    reader = (read.top_decoder if elec == "top" else read.bot_decoder)(run, str(sub), args.file, detector, dataflow+"-"+datawriter)
-
+reader = decoder.decoder(detector, run, str(sub), dataflow+"-"+datawriter, args.file)
 reader.open_file()
 nb_evt = reader.read_run_header()
 
@@ -176,7 +158,7 @@ else:
 
 
 """ store basic informations """
-store.store_run_infos(output, int(run), str(sub), elec, nevent, time.time())
+store.store_run_infos(output, int(run), str(sub), nevent, time.time())
 store.store_chan_map(output)
 store.save_reco_param(output)
 
@@ -200,10 +182,10 @@ for ievent in range(nevent):
     reader.read_evt(ievent)
 
 
-    if(cf.n_sample == 0):
+    if(cf.n_sample <= 0):
         ''' some self-trigger event have no samples? '''
         store.store_event(output)
-        cf.n_sample = 999 #will be changed at the next event
+        cf.n_sample = 0 #will be changed at the next event
         print(' EVENT HAS NO SAMPLE ... Skipping')
         continue
 
@@ -218,7 +200,12 @@ for ievent in range(nevent):
     """ update the pedestal """
     ped.compute_pedestal(noise_type='filt')
 
-    #plot.event_display_per_view(adc_ind=[-100,100],adc_coll=[-10, 500], option='raw', to_be_shown=True)
+    #plot.event_display_per_view(adc_ind=[-1000,1000],adc_coll=[-10, 2500], option='raw', to_be_shown=True)
+    #plot.event_display_per_daqch(adc_range=[-100,100], option='raw', to_be_shown=True)
+    #print('nb of sample is ', cf.n_sample)
+    #plot.event_display_per_view(adc_ind=[-100, 100],adc_coll=[-10, 500], option='raw', to_be_shown=True)
+
+    #plot.plot_wvf_current_vch([(2, 39), (0, 20), (1, 20)],to_be_shown=True)
     #plot.event_display_per_view(adc_ind=[-50,50],adc_coll=[-10, 100], option='raw', to_be_shown=True)
     
 
@@ -278,7 +265,7 @@ for ievent in range(nevent):
 
 
     #plot.event_display_per_view_noise([-40,40],[-50, 100],option='noise_cnr', to_be_shown=True)
-    #plot.event_display_per_view_hits_found([-50,50],[-10, 100],option='hits', to_be_shown=True)    
+    #plot.event_display_per_view_hits_found([-100,100],[-10, 150],option='hits', to_be_shown=True)    
         #[-100,100],[-50, 300],option='hits', to_be_shown=True)    
     #plot.plot_2dview_hits(to_be_shown=True)
 
@@ -303,17 +290,17 @@ for ievent in range(nevent):
     ghost.ghost_trajectory()
 
     
-    #plot.plot_3d(to_be_shown=True)
+
     
     sh.single_hit_finder()
 
     """
     if(len(dc.tracks3D_list) > 0):
         [t.dump() for t in dc.tracks3D_list]
-        plot.event_display_per_view_hits_found([-50,50],[-10, 100],option='hits', to_be_shown=True)            
+        plot.event_display_per_view_hits_found([-100,100],[-10, 250],option='hits', to_be_shown=True)            
         plot.plot_2dview_hits_3dtracks(to_be_shown=True)
+        plot.plot_3d(to_be_shown=True)
     """
-
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
     print('- Found ', len(dc.ghost_list), ' Ghosts!')
