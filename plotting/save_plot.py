@@ -13,13 +13,12 @@ def details(fig, is3D):
     evt_nb = str(dc.evt_list[-1].evt_nb)
     trig_nb = str(dc.evt_list[-1].trigger_nb)
     det    = dc.evt_list[-1].det
-    elec   = dc.evt_list[-1].elec
     evt_time = dc.evt_list[-1].time_s
 
     sub_nb = sub_nb.replace('_','')
     run_nb = run_nb.replace('_','')
 
-    infos = '['+det+elec+r'] \textbf{Run '+run_nb+'-'+sub_nb+' event '+evt_nb+' (trigger '+trig_nb+')}'
+    infos = '['+det+r'] \textbf{Run '+run_nb+'-'+sub_nb+' event '+evt_nb+' (trigger '+trig_nb+')}'
 
     infos += '\n'
     infos += r'\textit{'+time.ctime(evt_time)+'}'
