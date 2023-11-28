@@ -29,9 +29,9 @@ def set_param(key, val, ref):
         print('FIY, the reco parameter ', key, ' is not an official parameter ...')
 
 
-def configure(detector, elec, custom=""):
+def configure(detector, custom=""):
 
-    the_file = cf.lardon_path+'/settings/'+detector+'_'+elec+'/reco_parameters.json' if custom == "" else custom
+    the_file = cf.lardon_path+'/settings/'+detector+'/reco_parameters.json' if custom == "" else custom
 
     try:
         with open(the_file,'r') as f:        
