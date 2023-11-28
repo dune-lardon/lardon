@@ -17,14 +17,19 @@
 	"n_tot_channels":"1792",
 	"sampling":"2",
 	"n_sample":"8192",
-	"e_per_ADCtick":"22.95",
+	"e_per_ADCtick":["22.95"],
 	"view_offset":[["-111.296","0.","-148.896"]],
 	"view_offset_repet":[[["-111.296"],["0.", "0."],["-148.896"]]],	
 	"x_boundaries":[["0", "168."]],
 	"y_boundaries":[["-148.896","148.896"]],
-	"anode_z":"11.5",
+	"anode_z":["11.5"],
 	"chmap":"cb_bde_chmap_v19.txt",
-	"channel_calib":""
+	"channel_calib":"",
+	"drift_direction":["1"],
+	"drift_length":"22.6",
+	"e_drift":"0.415",
+	"elec":["bot"],
+	"daq":"wib_1"
     },
     "12301-99999":{
 	"channel_calib":"bde_calib_area_2021.txt",
