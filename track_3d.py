@@ -209,8 +209,8 @@ def complete_trajectories(tracks):
             dxdz, dydz = dxdy[0], dxdy[1]
 
 
-            a0 = 0. if dxdz == 0 else 1/dxdz
-            a1 = 0. if dydz == 0 else 1/dydz
+            a0 = 0. if np.fabs(dxdz) < 1e-6 else 1/dxdz
+            a1 = 0. if np.fabs(dydz) < 1e-6 else 1/dydz
 
 
             ux =  -1.*np.sign(a0)/math.sqrt(1. + pow(a0, 2)*(1./pow(a1, 2) + 1.)) if a1!=0 else 0.
@@ -218,8 +218,8 @@ def complete_trajectories(tracks):
 
             cosgamma = math.fabs(np.sin(ang_track-np.pi)*ux - np.cos(ang_track-np.pi)*uy)
                 
-
-            dr = cf.view_pitch[v_track]/cosgamma if cosgamma != 0 else 9999.
+            
+            dr = cf.view_pitch[v_track]/cosgamma if cosgamma != 0 else np.sqrt(pow(x-xp,2)+pow(y-yp,2)+pow(z-zp,2))
             
             """ debug """
             if(v_track >2):
@@ -227,7 +227,17 @@ def complete_trajectories(tracks):
                 print(v_track, " at ", pos, " with ", v_other, " at ", pos_spl)
                 print("%.3f, %.3f"%(x, y))
                 print('PITCH : %.2f'%dr)
-
+                print('PREV ', xp, yp, zp)
+                print('  -> naive ds = ', np.sqrt(pow(x-xp,2)+pow(y-yp,2)+pow(z-zp,2)))
+                print('  -> dx = ', x-xp, ' dy ', y-yp, ' dz ', z-zp)
+                
+                print('dxdz : ', dxdz, " -> a0 = ", a0)
+                print('dydz : ', dydz, " -> a1 = ", a1)
+                print('ux = ', ux, ', uy = ', uy)
+                print(ang_track, np.sin(ang_track-np.pi), np.cos(ang_track-np.pi))
+                print(np.sin(ang_track-np.pi)*ux, ' - ', np.cos(ang_track-np.pi)*uy)
+                print('cosgamma = ', cosgamma)
+            xp, yp, zp = x, y, z
             trajectory.append( (x,y,z) )
             dQ.append(track.dQ[p])
             ds.append(dr)
