@@ -343,11 +343,11 @@ def plot_correlation_globch(option=None, to_be_shown=False):
             continue
         data_globch[gch] = dc.data_daq[i]
 
-    plot_correlation(np.corrcoef(data_globch),"glob",option,to_be_shown)
+    return plot_correlation(np.corrcoef(data_globch),"glob",option,to_be_shown)
 
 
 def plot_correlation_daqch(option=None, to_be_shown=False):
-    plot_correlation(np.corrcoef(dc.data_daq),"daq",option,to_be_shown)
+    return plot_correlation(np.corrcoef(dc.data_daq),"daq",option,to_be_shown)
 
 
 
@@ -391,7 +391,7 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
             ax_corr.axhline(nprev + cf.view_nchan[i], lw=.4,c='k')
             nprev += cf.view_nchan[i]
     elif(corr_type=='daq'):
-        jump = 640 if dc.evt_list[-1].elec == "top" else 256
+        jump = 640 if dc.evt_list[-1].elec == "top" else 128
         for i in range(0,cf.n_tot_channels,jump):
             ax_corr.axvline(i, ls='--',lw=.4,c='k')
             ax_corr.axhline(i, ls='--',lw=.4,c='k')
@@ -405,18 +405,15 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
     cb.ax.xaxis.set_label_position('top')
 
     plt.tight_layout()
-    save_with_details(fig, option, 'correlation_'+corr_type+'ch')
-
-
-    #plt.savefig(cf.plot_path+'/correlation_'+corr_type+'ch'+option+'_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
+    #save_with_details(fig, option, 'correlation_'+corr_type+'ch')
 
 
     if(to_be_shown):
         plt.show()
 
     plt.close()
-
-    #return corr
+    
+    return corr
 
 
 def plot_sticky_finder_daqch(option='', to_be_shown=False):
