@@ -13,19 +13,46 @@ def get_unix_time_wib_2(t):
     return t*16/1e9
     
 
+
+def get_daq_eth_infos(x):
+
+    x = int(x)
+    infos = {}
+    infos['version']   = (x      ) & 0x3f
+    infos['det_id']    = (x >>  6) & 0x3f
+    infos['crate']     = (x >> 12) & 0x3ff
+    infos['slot']      = (x >> 22) & 0xf
+    infos['stream']    = (x >> 26) & 0xff
+    infos['reserved']  = (x >> 34) & 0x3f
+    infos['seq_id']    = (x >> 40) & 0xfff
+    infos['block_len'] = (x >> 52) & 0xfff
+    
+    #print(infos)
+    return infos
+
+
+
 def get_wib_2_eth_infos(x):
 
     x = int(x)
-    version = (x      ) & 0x3f
-    det_id  = (x >> 6 ) & 0x3f
-    crate   = (x >> 12) & 0x3ff
-    slot    = (x >> 22) & 0xf
-    strm    = (x >> 26) & 0xff
-    rsvd    = (x >> 34) & 0x3f
-    seqid   = (x >> 40) & 0xfff
-    b_len   = (x >> 52) & 0xfff
+    infos = {}
+    infos['channel'] = (x >> 56) & 0xff
+    infos['version'] = (x >> 52) & 0xf
+    infos['context'] = (x >> 44) & 0xff
+    infos['ready']   = (x >> 43) & 0x1
+    infos['calib']   = (x >> 42) & 0x1
+    infos['pulser']  = (x >> 41) & 0x1
+    infos['femb_s']  = (x >> 39) & 0x3
+    infos['wib_s']   = (x >> 37) & 0x1
+    infos['lol']     = (x >> 36) & 0x1
+    infos['link_v']  = (x >> 35) & 0x3
+    infos['crc_err'] = (x >> 33) & 0x3
+    infos['cd']      = (x >> 32) & 0x1
+    infos['ts1']     = (x >> 16) & 0x7fff
+    infos['ts2']     = (x      ) & 0x7fff
 
-    return crate, slot, strm
+    return infos
+    
 
 def get_wib_2_infos(x):
 
@@ -194,8 +221,9 @@ def get_component_header(daq):
         component_header_type = np.dtype([
             ('version','<u4'),        #4
             ('unused','<u4'),         #8
-            ('source_version','<u4'), #12
-            ('source_elemID','<u4'),  #16
+            #('source_version','<u4'), #12
+            #('source_elemID','<u4'),  #16
+            ('source', '<u8'),        #16
             ('window_begin','<u8'),   #24
             ('window_end','<u8')      #32                
         ])
@@ -306,7 +334,7 @@ def get_wib_header(daq):
 
     elif(daq == "wib_2_eth"):
         wib_header_type = np.dtype([
-            ('unknown', '<u8'),  #8
+            ('daqethinfos', '<u8'),  #8
             ('ts',    '<u8'),    #16
             ('wibinfos', '<u8'), #24
             ('reserved', '<u8')  #32
@@ -453,20 +481,31 @@ class wib:
 
 
         self.nlinks = head['n_component'][0]
+        #print("number of links: ", self.nlinks)
 
-        if(self.det == '50l'):
-            self.nlinks = 2
-        
-
+        """
         self.links = []        
-
+        
         for i in range(self.nlinks):
             s = self.trigger_header_size + i*self.component_header_size
             t = s + self.component_header_size
             comp = np.frombuffer(trig_rec[s:t], dtype=self.component_header_type)
-            self.links.append(comp['source_elemID'][0])
+            #self.links.append(comp['source_elemID'][0])
+            print('Link ', i)
+            print('version' , comp['version'], 'source ', comp['source'], ' wbeg ', comp['window_begin'], ' wend', comp['window_end'])
+            slot = (comp['source'] >> 32) & 0xffff
+            print(slot)
+        """
 
-        t_unix = get_unix_time_wib_2(head['timestamp'][0]) ##lllll
+
+        """ nb of links have to be hard-coded as the number of components is wrong """
+        if(self.det == '50l'):
+            self.nlinks = 2
+        elif(self.det == 'cbbot'):
+            self.nlinks = 48
+
+        
+        t_unix = get_unix_time_wib_2(head['timestamp'][0])
         t_s = int(t_unix)
         t_ns = (t_unix - t_s) * 1e9
 
@@ -600,7 +639,7 @@ class wib:
 
             wib_head = np.frombuffer(link_data[self.fragment_header_size:self.fragment_header_size+self.wib_header_size], dtype = self.wib_header_type)
 
-
+            
             crate, link, slot = get_wib_2_infos(wib_head['wibinfos'][0])
 
             # remove the fragment header
@@ -633,7 +672,11 @@ class wib:
 
         if(self.det == '50l'):
            names = ["0x%08d"%(64+ilink) for ilink in range(self.nlinks)]
-        
+
+        if(self.det == 'cbbot'):
+            names = ["0x"+format(ilink+100, '08x') for ilink in range(self.nlinks)]
+
+
         cf.n_sample = -1
         tstart_link = []
         tstop_link  = []
@@ -724,12 +767,22 @@ class wib:
                 cf.n_sample = int(event_end-event_begin)+64
 
             """
-            wib_head = np.frombuffer(link_data[self.fragment_header_size:self.fragment_header_size+self.wib_header_size], dtype = self.wib_header_type)
+            wib_head = np.frombuffer(link_data[:self.wib_header_size], dtype = self.wib_header_type)
+            
+            print('\n',ilink, name,'\n')
+            print('DAQ and WIB INFOS') #llllllll
+            # to get the detector, crate, slot, (etc) informations
+            # detdataformats/include/detdataformats/DAQEthHeader.hpp
+            daq_infos = get_daq_eth_infos(wib_head['daqethinfos'][0])
+            print(daq_infos)
 
-            crate, link, slot = get_wib_2_eth_infos(wib_head['wibinfos'][0])
-            print('crate: ', crate, 'link ', link, ' slot ', slot)
+            #To get the WIB infos like pulser/calibration/?
+            #fddetdataformats/include/fddetdataformats/WIBEthFrame.hpp
+            # cf https://edms.cern.ch/document/2088713/9 'deimos'
+            wib_infos = get_wib_2_eth_infos(wib_head['wibinfos'][0])
+            print(wib_infos)
+            print('---')
             """
-
 
             #remove the wib header  (size32, once per wib frame of size 7200)
             link_data = link_data.reshape(-1,self.wib_frame_size)[:,self.wib_header_size:self.wib_frame_size].flatten()
@@ -769,6 +822,8 @@ class wib:
 
         self.nlinks = 0
         self.links = []
+
+        print('number of samples: ', cf.n_sample)
 
         if(cf.n_sample > 0):
             dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
