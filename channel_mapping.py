@@ -16,9 +16,11 @@ def set_unused_channels():
         if(view >= cf.n_view or view < 0 or i in cf.broken_channels or cf.module_used[module]==False):
             dc.alive_chan[i,:] = False
 
+            '''
             if(i in cf.broken_channels):
                 print(i, ' [m',module,' v',view,' ch',chan,'], ',sep='',end='')
-    print('\n')
+            '''
+    #print('\n')
 
 def arange_in_view_channels():
     for i in range(cf.n_tot_channels):
