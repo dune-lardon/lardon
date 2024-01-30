@@ -27,12 +27,14 @@ class Event(IsDescription):
     trigger_nb    = UInt32Col()
     time_s        = UInt32Col()
     time_ns       = UInt32Col()
+    n_sample      = UInt32Col()
     n_hits        = UInt32Col(shape=(cf.n_view))
     n_tracks2D    = UInt32Col(shape=(cf.n_view))
     n_tracks3D    = UInt32Col()
     n_single_hits = UInt32Col()
     n_ghosts      = UInt32Col()
 
+    
 
 class Pedestal(IsDescription):
     raw_mean   = Float32Col(shape=(cf.n_tot_channels))
@@ -312,11 +314,13 @@ def store_event(h5file):
     evt['trigger_nb']    = dc.evt_list[-1].trigger_nb
     evt['time_s']        = dc.evt_list[-1].time_s
     evt['time_ns']       = dc.evt_list[-1].time_ns
+    evt['n_sample']      = cf.n_sample
     evt['n_hits']        = dc.evt_list[-1].n_hits
     evt['n_tracks2D']    = dc.evt_list[-1].n_tracks2D
     evt['n_tracks3D']    = dc.evt_list[-1].n_tracks3D
     evt['n_single_hits'] = dc.evt_list[-1].n_single_hits
     evt['n_ghosts']      = dc.evt_list[-1].n_ghosts
+
     evt.append()
 
 
