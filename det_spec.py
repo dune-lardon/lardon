@@ -24,7 +24,11 @@ def configure(detector, run):
     """ access to files """    
     with open(cf.lardon_path+'/settings/'+detector+'/path.json','r') as f:
         locations = json.load(f)
-        key = fname.get_data_path(locations)
+        key = fname.get_data_path(locations, run)
+
+        if(key == "none"):
+            print("sorry but the data does not seem to exists in the paths provided ... bye")
+            exit()        
         cf.domain = key
         cf.data_path = locations[key]
     
