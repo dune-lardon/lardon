@@ -162,7 +162,6 @@ store.store_run_infos(output, int(run), str(sub), nevent, time.time())
 store.store_chan_map(output)
 store.save_reco_param(output)
 
-
 for ievent in range(nevent):
 
     t0 = time.time()
@@ -200,14 +199,7 @@ for ievent in range(nevent):
     """ update the pedestal """
     ped.compute_pedestal(noise_type='filt')
 
-    #plot.event_display_per_view(adc_ind=[-1000,1000],adc_coll=[-10, 2500], option='raw', to_be_shown=True)
-    #plot.event_display_per_daqch(adc_range=[-100,100], option='raw', to_be_shown=True)
-    #print('nb of sample is ', cf.n_sample)
-    #plot.event_display_per_view(adc_ind=[-100, 100],adc_coll=[-10, 500], option='raw', to_be_shown=True)
-
-    #plot.plot_wvf_current_vch([(2, 39), (0, 20), (1, 20)],to_be_shown=True)
-    #plot.event_display_per_view(adc_ind=[-50,50],adc_coll=[-10, 100], option='raw', to_be_shown=True)
-    
+    #plot.event_display_per_view([-100,100],[-10, 150],option='raw', to_be_shown=True) 
 
     #plot.event_display_per_view_noise([-100,100],[-50, 150],option='noise_raw', to_be_shown=True)
 
@@ -221,7 +213,6 @@ for ievent in range(nevent):
         store.store_pulse(output)
         #store.store_avf_wvf(output)
         continue
-
 
     """ low pass FFT cut """
     ps = noise.FFT_low_pass(False)
@@ -246,11 +237,16 @@ for ievent in range(nevent):
 
 
     """ special microphonic noise study """
-    #ped.study_noise()
+    ped.study_noise()
+
+    
 
     """ CNR """
     noise.coherent_noise()
-
+    """
+    aft_corr_glob += plot.plot_correlation_globch(option='afterCNR',to_be_shown=False)
+    aft_corr_daq += plot.plot_correlation_daqch(option='afterCNR', to_be_shown=False)
+    """
     """ microphonic noise """
     noise.median_filter()
 
@@ -259,6 +255,9 @@ for ievent in range(nevent):
     ped.refine_mask(n_pass=2)
     ped.compute_pedestal(noise_type='filt')
 
+    
+    #plot.event_display_per_view_noise([-100,100],[-50, 150],option='noise_filt', to_be_shown=True)
+    #plot.event_display_per_view([-100,100],[-10, 150],option='filt', to_be_shown=True) 
     hf.find_hits()
 
     print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits)
@@ -266,9 +265,8 @@ for ievent in range(nevent):
 
     #plot.event_display_per_view_noise([-40,40],[-50, 100],option='noise_cnr', to_be_shown=True)
     #plot.event_display_per_view_hits_found([-100,100],[-10, 150],option='hits', to_be_shown=True)    
-        #[-100,100],[-50, 300],option='hits', to_be_shown=True)    
-    #plot.plot_2dview_hits(to_be_shown=True)
 
+    #plot.plot_2dview_hits(to_be_shown=True)
 
     
 
@@ -293,14 +291,17 @@ for ievent in range(nevent):
 
     
     sh.single_hit_finder()
+    
 
     """
     if(len(dc.tracks3D_list) > 0):
         [t.dump() for t in dc.tracks3D_list]
-        plot.event_display_per_view_hits_found([-100,100],[-10, 250],option='hits', to_be_shown=True)            
-        plot.plot_2dview_hits_3dtracks(to_be_shown=True)
-        plot.plot_3d(to_be_shown=True)
+        #plot.plot_2dview_hits_3dtracks(to_be_shown=True)
+        #plot.event_display_per_view_hits_found([-400,400],[-10, 600],option='hits', to_be_shown=True)            
+
+        #plot.plot_3d(to_be_shown=True)
     """
+
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
     print('- Found ', len(dc.ghost_list), ' Ghosts!')
@@ -310,7 +311,7 @@ for ievent in range(nevent):
 
     store.store_event(output)
     store.store_pedestals(output)
-    #store.store_noisestudy(output)
+    store.store_noisestudy(output)
     store.store_hits(output)
     store.store_tracks2D(output)
     store.store_tracks3D(output)
@@ -328,4 +329,3 @@ if(is_pulse==True):
 reader.close_file()
 output.close()
 print('it took %.2f s to run'%(time.time()-tstart))
-
