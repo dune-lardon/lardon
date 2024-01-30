@@ -132,7 +132,7 @@ def plot_track_wvf_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sampl
             legend = "v"+str(view)+" ch"+str(ch)
             ax[i] = draw_current_waveform(-1, view, ch, ax=ax[i], label=legend, c=colors[k])
         ax[i].set_ylabel('ADC')
-        ax[i].legend(loc='upper right')
+        #ax[i].legend(loc='upper right')
         ax[i].set_xlim([tmin, tmax])
         if(adc_min > -1):
             ax[i].set_ybound(lower=adc_min)
@@ -341,6 +341,68 @@ def plot_wvf_evo(data, title="", legends=[], adc_min=-1, adc_max=-1, tmin=0, tma
     plt.subplots_adjust(top=0.92)
 
     save_with_details(fig, option, 'waveforms_evo')
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
+
+
+
+def plot_cumsum_wvf(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+    n_wvf = len(vch_list)
+
+    fig = plt.figure(figsize=(12, 3*n_wvf))
+    gs = gridspec.GridSpec(nrows=n_wvf, ncols=1)
+    ax = [fig.add_subplot(gs[0,0])]
+    ax.extend([fig.add_subplot(gs[i,0], sharex=ax[0]) for i in range(1,n_wvf)])
+    axy = []
+    
+    for i in range(n_wvf):
+        view, ch = vch_list[i]
+
+        """ ugly but it works """
+        for k in dc.chmap:
+            if(k.view == view and k.vchan == ch):
+                daq_ch = k.daqch
+                break        
+
+        legend = "v"+str(view)+" ch"+str(ch)
+        ax[i] = draw_current_waveform(daq_ch, -1, -1, ax=ax[i], label=legend, c='gray',lw=.5)
+        axy.append(ax[i].twinx())
+        csum = np.cumsum(dc.data_daq[daq_ch])
+        """
+        filt_low = np.zeros(cf.n_sample)
+        filt_low += -0.999
+        filt_low = np.exp(filt_low)
+        print(filt_low[:5])
+        csum_filt_low = np.cumsum(dc.data_daq[daq_ch]*filt_low)
+        """
+        
+        #axy[i] = draw_current_waveform(csum, -1, -1, ax=axy[i], c='r',lw=.5)
+        axy[i].step(np.linspace(0,cf.n_sample,cf.n_sample), csum, where='mid', c='darkred',lw=.5)
+        #axy[i].step(np.linspace(0,cf.n_sample,cf.n_sample), csum_filt_low, where='mid', c='r',lw=.5)
+        ax[i].set_ylabel('ADC')
+        axy[i].set_ylabel('ADC Cum Sum', color='r')
+        axy[i].tick_params(axis='y', labelcolor='r')
+        ax[i].legend(loc='upper right')
+
+        if(adc_min > -1):
+            ax[i].set_ybound(lower=adc_min)
+        if(adc_max > -1):
+            ax[i].set_ybound(upper=adc_max)
+
+        ax[i].set_xlim([tmin, tmax])
+
+            
+    for a in ax[:-1]:
+        a.tick_params(labelbottom=False)
+    ax[-1].set_xlabel('Time')
+    
+
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.95)
+
+    save_with_details(fig, option, 'waveforms_cumsum')
     if(to_be_shown):
         plt.show()
 
