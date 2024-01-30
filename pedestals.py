@@ -8,7 +8,7 @@ import numexpr as ne
 import time
 
 @nb.jit(nopython = True)
-def compute_pedestal_nb(data, mask):
+def compute_pedestal_nb(data, mask, is_raw):
     """ do not remove the @jit above, the code would then take ~40 s to run """
     shape = data.shape
 
@@ -22,13 +22,14 @@ def compute_pedestal_nb(data, mask):
     for idx in range(shape[0]):
         ch = data[idx]
         ma  = mask[idx]
-
         """ use the assumed mean method """
         #make it float
         K = 1.*ch[0] if np.isnan(ch[0])==False else 0.
 
         n, Ex, Ex2, tmp = 0., 0., 0., 0.
         for x,v in zip(ch,ma):
+            if(is_raw == True):
+                v = True
             if(np.isnan(x) == False and v == True):
                 n += 1
                 tmp += x
@@ -49,19 +50,18 @@ def compute_pedestal_nb(data, mask):
 
 def compute_pedestal(noise_type='None'):
     t0 = time.time()
-    mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq)
 
     if(noise_type=='raw'):
         ''' As nothing is masked yet, the computed raw pedestal is biased when there is signal '''
         ''' a rough mask is computed from the RMS '''
         ''' and pedestal and rms are computed again '''
 
-
+        mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq, True)
         thresh = dc.reco['pedestal']['raw_rms_thr']
         n_iter = dc.reco['pedestal']['n_iter']
         for i in range(n_iter):
             update_mask_inputs(thresh, mean, std)
-            mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq)
+            mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq, True)
         ped = dc.noise( mean, std )
         dc.evt_list[-1].set_noise_raw(ped)
 
@@ -75,7 +75,8 @@ def compute_pedestal(noise_type='None'):
 
 
 
-    elif(noise_type=='filt'): 
+    elif(noise_type=='filt'):
+        mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq, False)
         ped = dc.noise( mean, std )
         dc.evt_list[-1].set_noise_filt(ped)
         dc.data_daq -= mean[:,None]
@@ -268,7 +269,7 @@ def study_noise():
     std = [[-999 for x in range(cf.n_tot_channels)] for i in range(nchunks)]
 
     for i in range(nchunks):
-        mean[i], std[i] = compute_pedestal_nb(dc.data_daq[:,i,:], dc.mask_daq[:,i,:])
+        mean[i], std[i] = compute_pedestal_nb(dc.data_daq[:,i,:], dc.mask_daq[:,i,:], False)
     
     mean = np.asarray(mean)
     delta_mean = np.max(mean, axis=0) - np.min(mean, axis=0)
