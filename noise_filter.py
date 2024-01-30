@@ -182,6 +182,9 @@ def median_filter():
     if(window < 0):
         return
 
+    if(window > cf.n_sample):
+        return
+    
     """ apply median filter on data to remove microphonic noise """    
 
     """ mask the data with nan where potential signal is (ROI)"""
