@@ -6,7 +6,7 @@ import numpy as np
 import numba as nb
 
 
-def hit_search(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3, test=False):
+def hit_search(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3):
 
     ll = []
 
@@ -22,7 +22,7 @@ def hit_search(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3, te
         return ll
 
 
-    else: #elif(cf.view_type[view] == "Induction"):
+    else: 
         """ look for collection-like signal in the cumulative sum of the waveforms """        
         csum = np.cumsum(data)
         c_n, c_h_start, c_h_stop, c_h_max_t, c_h_max_adc = hit_search_collection_nb(csum, start, dt_min, thr1, thr2, cf.n_sample)
@@ -71,53 +71,6 @@ def search_induction(data, module, view, daq_chan, start, dt_min, thr1, thr2, th
     return ll
 
     
-def temp_test(data, daq_ch, start, dt_min, thr1, thr2, thr3):
-    csum = np.cumsum(data)
-    n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(csum,start, dt_min, thr1, thr2, cf.n_sample)
-
-    
-    import matplotlib.pyplot as plt
-    fig = plt.figure()
-    fig.suptitle('Channel '+str(daq_ch))
-    ax_r = fig.add_subplot(211)
-    ax_r.plot(data)
-    ax_r.axhline(0, c='k')
-    
-    ax_c = fig.add_subplot(212)
-    ax_c.plot(csum)
-
-    print('sub waveform channel ', daq_ch, ' from t = ', start)
-    print('CUM SUM Found ', n, ' coll-hits')
-    for i in range(n):
-        print(i, ' from ', h_start[i], ' to ', h_stop[i])
-        #for a in [ax_r, ax_c]:
-        ax_c.axvline(h_max_t[i]-start, c='r')
-        ax_c.axvline(h_start[i]-start, c='orange', ls='dashed')
-        ax_c.axvline(h_stop[i]-start, c='cyan', ls='dashdot')
-
-        ib, ie = h_start[i]-start, h_stop[i]-start
-        print(' sub hit at ', ib, ' to ', ie, ' == ', start+ib)
-        n_p, h_start_p, h_stop_p, h_max_t_p, h_max_adc_p, h_min_t_p, h_min_adc_p, h_zero_t_p = hit_search_induction_nb(data[ib:ie], start+ib, dt_min, thr3)
-        print('INDUCTION FOUND --> ', n_p, 'induction hits')
-        for k in range(n_p):
-            print('from ', h_start_p[k], ' to ', h_stop_p[k], ' max ', h_max_t_p[k], ' min ', h_min_t_p[k], ' zero ', h_zero_t_p[k])
-            ax_r.axvline(h_zero_t_p[k]-start, c='k')
-            ax_r.axvline(h_start_p[k]-start, c='silver', ls='dashed')
-            ax_r.axvline(h_stop_p[k]-start, c='dimgray', ls='dashdot')
-        
-        
-    """
-    print('INDUCTION SEARCH FOUND ', n_p, 'induction hits')
-    for i in range(n_p):
-        print(i, ' from ', h_start_p[i], ' to ', h_stop_p[i])
-        for a in [ax_r, ax_c]:
-            a.axvline(h_max_t_p[i]-start, c='k')
-            a.axvline(h_start_p[i]-start, c='silver', ls='dashed')
-            a.axvline(h_stop_p[i]-start, c='dimgray', ls='dashdot')
-    """
-
-    plt.show()
-    plt.close()
 
 @nb.njit('Tuple((int64,int32[:],int32[:],int32[:],float64[:],int32[:],float64[:],int32[:]))(float64[:],int64,int64,float64)')
 def hit_search_induction_nb(data, start, dt_min, thr):
@@ -416,14 +369,8 @@ def find_hits():
             if(thr3 < 0.5): thr3 = 0.5
 
             
-
-            if(daq_chan == 733):#>=723 and daq_chan <= 743):# in [731, 732, 733]):#
-                print(' WILL SEARCH HITS IN THE TIME RANGE ', tdc_start, ' -- ', tdc_stop)
-                test=True
-            else:
-                test=False
                 
-            hh = hit_search(adc, module, view, daq_chan, tdc_start, dt_min, thr1, thr2, thr3, False)#daq_chan==733)
+            hh = hit_search(adc, module, view, daq_chan, tdc_start, dt_min, thr1, thr2, thr3)
 
             
             """add padding to found hits"""
