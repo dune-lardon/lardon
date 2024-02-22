@@ -11,6 +11,7 @@ tracks3D_list = []
 single_hits_list = []
 ghost_list = []
 pulse_fit_res = []
+pds_peak_list = []
 wvf_pos = [[] for x in range(cf.n_tot_channels)]
 wvf_neg = [[] for x in range(cf.n_tot_channels)]
 
@@ -28,8 +29,11 @@ False : broken
 """
 alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
 
+data_pds = np.zeros((cf.n_pds_channels, cf.n_pds_sample), dtype=np.float32)
+mask_pds = np.ones((cf.n_pds_channels, cf.n_pds_sample), dtype=bool)
+chmap_daq_pds = []
+chmap_pds = []
 
-reco = {}
 
 data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
 
@@ -38,7 +42,9 @@ n_tot_hits = 0
 def reset_event():
     mask_daq[:,:] = True
     data_daq[:,:] = 0.
-
+    data_pds[:,:] = 0.
+    mask_pds[:,:] = True
+    
     data[:,:,:,:] = 0.
 
     hits_list.clear()
@@ -47,7 +53,8 @@ def reset_event():
     evt_list.clear()
     single_hits_list.clear()
     ghost_list.clear()
-
+    pds_peak_list.clear()
+    
     pulse_fit_res.clear()
 
 class channel:
@@ -82,6 +89,18 @@ class channel:
         return self.globch
 
 
+class channel_pds:
+    def __init__(self, daqch, globch, det, chan):
+        self.daqch = daqch
+        self.globch = globch
+        self.det = det
+        self.chan = chan
+
+
+    def __str__(self):
+        return "DAQ "+str(self.daqch)+"-> "+self.det+" global "+str(self.globch)+ ", "+str(self.chan)
+
+    
 class fit_pulse:
     def __init__(self, idaq, v, chan, np_pos, np_neg, fit_pos, fit_neg):
         self.daq_channel = idaq
@@ -92,6 +111,8 @@ class fit_pulse:
         
         self.fit_pos = fit_pos
         self.fit_neg = fit_neg
+
+        
 
 
 
@@ -110,6 +131,8 @@ class event:
         self.trigger_nb = trigger
         self.time_s = t_s
         self.time_ns = t_ns
+        self.charge_time_s = t_s
+        self.charge_time_ns = t_ns        
         self.n_hits = np.zeros((cf.n_view), dtype=int)
         self.n_tracks2D = np.zeros((cf.n_view), dtype=int)
         self.n_tracks3D = 0
@@ -118,7 +141,12 @@ class event:
         self.noise_raw = None
         self.noise_filt = None
         self.noise_study = None
+        self.noise_pds = None
 
+        self.pds_time_s = t_s
+        self.pds_time_ns = t_ns
+        self.n_pds_peak = np.zeros((cf.n_pds_channels), dtype=int)
+        
     def set_noise_raw(self, noise):
         self.noise_raw = noise
 
@@ -128,6 +156,18 @@ class event:
     def set_noise_study(self, noise):
         self.noise_study = noise
 
+    def set_noise_pds(self, noise):
+        self.noise_pds = noise
+
+    def set_pds_timestamp(self, t_s, t_ns):
+        self.pds_time_s = t_s
+        self.pds_time_ns = t_ns
+
+    def set_charge_timestamp(self, t_s, t_ns):
+        self.charge_time_s = t_s
+        self.charge_time_ns = t_ns
+
+        
     def dump(self):
         print("RUN ",self.run_nb, " of ", self.elec, " EVENT ", self.evt_nb, " TRIGGER ", self.trigger_nb,)
         print("Taken at ", time.ctime(self.time_s), " + ", self.time_ns, " ns ")
@@ -146,6 +186,8 @@ class hits:
         self.channel = chmap[daq_channel].vchan
         self.start   = start
         self.stop    = stop
+        self.pad_start = start
+        self.pad_stop  = stop        
         self.Z_start = -1
         self.Z_stop  = -1
         self.signal = signal
@@ -207,7 +249,7 @@ class hits:
         self.charge_neg *= chmap[self.daq_channel].gain
 
 
-        """ I'm not sure this is good """
+        """ I'm not sure this is correct for the induction hits """
         self.charge = self.charge_pos if self.signal == "Collection" else self.charge_pos + np.fabs(self.charge_neg)
 
 
@@ -252,6 +294,7 @@ class hits:
         print("channel gain ", chmap[self.daq_channel].gain)
 
         print(" from t ", self.start, " to ", self.stop, " dt = ", self.stop-self.start)
+        print(" padded t ", self.pad_start, " to ", self.pad_stop, " dt = ", self.pad_stop-self.pad_start)
         print(" tmax ", self.max_t, " tmin ", self.min_t, ' dt = ', self.min_t-self.max_t)
         print("zero time ", self.zero_t)
         print(" ref time ", self.t)
@@ -260,7 +303,7 @@ class hits:
         print(" adc max ", self.max_adc, " adc min ", self.min_adc)
         print(" fC max ", self.max_fC, " fC min ", self.min_fC)
         print(" charges pos : ", self.charge_pos, " neg : ", self.charge_neg)
-        print(" Is free ", self.is_free)
+        print(" Is free ?", self.is_free)
         print(" Match in 2D with trk ", self.match_2D)
         print(" Match in 3D with trk ", self.match_3D)
         print(" Match as dray with trk ", self.match_dray)
@@ -628,9 +671,10 @@ class trk3D:
 
         self.t0_corr = 0.
         self.z0_corr = 0.
-
-        #self.ini_time = min([t.ini_time for t in trks])
-        #self.end_time = max([t.end_time for t in trks])
+        
+        
+        self.ini_time = cf.n_sample+1
+        self.end_time = -1
 
 
         ''' track boundaries '''
@@ -667,6 +711,9 @@ class trk3D:
             self.len_straight[view] = math.sqrt( sum([pow(path[0][i]-path[-1][i], 2) for i in range(3)]))
             self.len_path[view] = 0.
 
+            self.ini_time = trk.ini_time if trk.ini_time < self.ini_time else self.ini_time
+            self.end_time = trk.end_time if trk.end_time > self.end_time else self.end_time
+            
             for i in range(len(path)-1):
                 self.len_path[view] +=  math.sqrt( pow(path[i][0]-path[i+1][0], 2) + pow(path[i][1]-path[i+1][1],2)+ pow(path[i][2]-path[i+1][2],2) )
 
@@ -718,6 +765,7 @@ class trk3D:
         print('\n----')
         print('Track with ID ', self.ID_3D)
         print(" From (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f)"%(self.ini_x, self.ini_y, self.ini_z, self.end_x, self.end_y, self.end_z))
+        print("Time start ", self.ini_time, ' stop ', self.end_time)
         print('z-overlap ', self.ini_z_overlap, ' to ', self.end_z_overlap)
         print("N Hits ", self.n_hits)
         print(" theta, phi: [ini] %.2f ; %.2f"%(self.ini_theta, self.ini_phi), " -> [end] %.2f ; %.2f "%( self.end_theta, self.end_phi))
@@ -770,3 +818,25 @@ class ghost:
 
         self.t0_corr = t0
         self.z0_corr = z0
+
+        
+class pds_peak:
+    def __init__(self, glob_ch, chan, start, stop, max_t, max_adc):
+
+        """Each hit should have a unique ID per event"""
+        self.ID = -1
+        self.glob_ch = glob_ch
+        self.channel = chan
+        self.start   = start
+        self.stop    = stop
+        self.pad_start   = start
+        self.pad_stop    = stop
+
+        """ time is in time bin number """
+        self.max_t   = max_t
+        self.charge = 0.        
+        self.max_adc = max_adc
+
+
+    def dump(self):
+        print('Glob Channel ', self.glob_ch, ' detector : ', self.channel, ' peak from ', self.start, ' to ', self.stop, ' max at ', self.max_t, ' ADC : ', self.max_adc)
