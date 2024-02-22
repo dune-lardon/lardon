@@ -102,6 +102,26 @@
 	"int_nticks":50
     },
 
+    "pds":{
+	/* for the light reconstruction */
+	"pedestal":{
+	    "raw_adc_thresh":200,
+	    "rms_thresh":3,
+	    "n_iter":3
+	},
+	
+        "hit_finder":{
+            "amp_sig": [15, 20],
+            "dt_min": 50,
+	    "pad":{
+		"left":20,
+		"right":40
+	    },		 
+        },
+	
+    },
+      
+    
     "store":{
 	"coord":"lardon"
     },
