@@ -96,11 +96,13 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
             if(draw_hits):
                 for h in dc.hits_list:
                     if(h.view==iv and h.module==im):
-                        if(h.signal != cf.view_type[h.view]):
+                        color = 'k'
+                        #if(h.signal != cf.view_type[h.view]):
+                        if(h.match_2D != -9999):
+                            color = 'gold'
+                        if(h.match_3D != -9999):
                             color = 'r'
-                        else:
-                            color='k'
-
+                        
                         r = patches.Rectangle((h.channel-0.5,h.start),1,h.stop-h.start,linewidth=.5,edgecolor=color,facecolor='none')
 
                         axs[iv][-1].add_patch(r)
@@ -285,6 +287,103 @@ def event_display_per_view_dp(adc_coll=[-5,30], option=None, to_be_shown=False, 
 
 
     save_with_details(fig, option, 'ED_daqch')
+
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
+
+
+
+def event_display_coll_pds(adc_coll=[-5,150], option=None, to_be_shown=False, draw_trk_t0 = False):
+    chmap.arange_in_view_channels()
+    cmap = cmap_ed_coll
+    adc_min, adc_max = adc_coll[0], adc_coll[1]
+    fig = plt.figure(figsize=(8, 8))
+
+    gs = gridspec.GridSpec(nrows=3, ncols=2, height_ratios = [1, 10, 10])
+    axs_region = []
+
+    ax_col = fig.add_subplot(gs[0,:])
+    axs_data = []
+    axs_pds_1 = []
+    axs_pds_2 = []
+
+    ts_pds = dc.evt_list[-1].pds_time_s + dc.evt_list[-1].pds_time_ns*1e-9
+    ts_charge = dc.evt_list[-1].charge_time_s + dc.evt_list[-1].charge_time_ns*1e-9
+    tns_pds_delay = dc.evt_list[-1].pds_time_ns-dc.evt_list[-1].charge_time_ns
+    print('TS PDS = ', ts_pds, ' ----- ', dc.evt_list[-1].pds_time_ns)
+    print('TS WIB = ', ts_charge, ' ------ ', dc.evt_list[-1].charge_time_ns)
+    print('nanosecond delays : ', tns_pds_delay)
+    ts_pds_delay = (ts_pds - ts_charge)*1e6
+    tick_pds_delay = int(ts_pds_delay*cf.pds_sampling)
+    print('---> ts_pds_delay = ', ts_pds_delay, ' mus')
+    print(' === ', ts_pds_delay*cf.pds_sampling, ' pds ticks')
+    print('nb of charge sample = ', cf.n_sample, ' nb of light sample = ', cf.n_pds_sample, ' nb of pds samples to have same wib window = ', cf.n_sample*32)
+    #n_pds_ticks_window = cf.n_sample*32
+
+    #if(tick_pds_delay >=0):
+        #idx_start = tick_pds_delay
+    
+    k = 0
+    for irow in range(2):
+        for icol in range(2):
+            axs_region.append(fig.add_subplot(gs[irow+1, icol]))
+            axs_region[-1].set_xticks([])
+            axs_region[-1].set_yticks([])
+            
+            gsgs = gridspec.GridSpecFromSubplotSpec(1, 2, wspace=0, subplot_spec=gs[irow+1, icol], width_ratios=[2, 1])
+            axs_data.append(fig.add_subplot(gsgs[0,0]))
+            gsgsgs = gridspec.GridSpecFromSubplotSpec(1, 2, wspace=0, subplot_spec=gsgs[0, 1])
+            axs_pds_1.append(fig.add_subplot(gsgsgs[0,0]))
+            axs_pds_2.append(fig.add_subplot(gsgsgs[0,1], sharey=axs_pds_1[k]))
+            k += 1
+
+    k = 0
+    ch_pds = [0, 6, 2, 4]
+    for i in [2, 3, 0, 1]:
+        im = axs_data[i].imshow(dc.data[0, 2, k*292:(k+1)*292, :].transpose(), 
+                                aspect = 'auto', 
+                                interpolation='none',
+                                cmap   = cmap,
+                                vmin   = adc_min, 
+                                vmax   = adc_max,
+                                extent=[k*292, (k+1)*292-1, cf.n_sample, 0])
+        #print(dc.data_pds[k*2].shape, cf.n_pds_sample)
+
+        if(draw_trk_t0 == True):
+            for trk in dc.tracks3D_list:
+                if(trk.t0_corr > 0):
+                    tick_t0_corr = trk.t0_corr*cf.sampling
+                    axs_data[i].axhline(tick_t0_corr, c='r', lw=1)
+
+                    
+        axs_pds_1[i].plot(dc.data_pds[ch_pds[k]], np.linspace(0, cf.n_pds_sample, cf.n_pds_sample), c='k')
+                
+        axs_pds_2[i].plot(dc.data_pds[ch_pds[k]+1], np.linspace(0, cf.n_pds_sample, cf.n_pds_sample), c='k')
+
+        axs_region[i].set_title('Around '+dc.chmap_pds[ch_pds[k]].det)
+        
+        for a in [axs_pds_1[i], axs_pds_2[i]]:
+
+            a.set_ylim(0, cf.n_pds_sample)
+            a.invert_yaxis()
+            a.set_yticks([])
+            a.set_xlim(-1000, 10000)
+            a.set_xticks([])
+        if(k == 0):
+            cb = fig.colorbar(im, cax=ax_col, orientation='horizontal')
+            cb.ax.xaxis.set_ticks_position('top')
+            cb.ax.xaxis.set_label_position('top')
+            ax_col.set_title(r'Charge Collected on View 2 [ADC]')
+        
+        k = k+1
+
+
+    plt.tight_layout()
+
+
+    save_with_details(fig, option, 'ED_coll_pds')
 
     if(to_be_shown):
         plt.show()
