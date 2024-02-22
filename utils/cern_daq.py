@@ -110,6 +110,9 @@ class cern:
         dc.data_daq = out
         dc.data_daq[:64,:] *= 2
 
+    def read_pds_evt(self, ievt):
+        print('no such feature exists')
+
     def close_file(self):
         self.f_in.close()
         #print('file closed!')

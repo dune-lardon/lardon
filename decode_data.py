@@ -21,7 +21,7 @@ class decoder:
         self.daq = cf.daq
         self.flow = flow_writer[:flow_writer.find("-")]
         self.writer = flow_writer[flow_writer.find("-")+1:]
-        self.daq = cf.daq
+
 
 
 
@@ -83,6 +83,8 @@ class decoder:
     def read_evt(self, ievt):
         self.daq_decoder.read_evt(ievt)
 
+    def read_pds_evt(self, ievt):
+        self.daq_decoder.read_pds_evt(ievt)
 
     def close_file(self):
         self.daq_decoder.close_file()
