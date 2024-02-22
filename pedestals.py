@@ -5,6 +5,8 @@ import numpy as np
 import numba as nb
 import numexpr as ne
 
+import bottleneck as bn
+
 import time
 
 @nb.jit(nopython = True)
@@ -49,7 +51,6 @@ def compute_pedestal_nb(data, mask, is_raw):
     return mean, res
 
 def compute_pedestal(noise_type='None'):
-    t0 = time.time()
 
     if(noise_type=='raw'):
         ''' As nothing is masked yet, the computed raw pedestal is biased when there is signal '''
@@ -255,7 +256,7 @@ def mask_induction_signal(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, hi
 
 def study_noise():
     """ some attempt at caracterizing the microphonic noise """
-    t_test = time.time()
+
 
     nchunks = 16
     if(cf.n_sample%nchunks != 0):
@@ -282,3 +283,33 @@ def study_noise():
     """ restore original data shape """
     dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, cf.n_sample))
     dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
+
+
+
+
+
+
+def compute_pedestal_pds():
+
+    adc_thresh = dc.reco['pds']['pedestal']['raw_adc_thresh']
+    rms_thresh = dc.reco['pds']['pedestal']['rms_thresh']
+    n_iter = dc.reco['pds']['pedestal']['n_iter']
+    
+    """ very simple raw mean pedestal computation atm, 
+    remove the median value of the waveform """
+    med = bn.median(dc.data_pds, axis=1)
+    dc.data_pds -= med[:,None]
+
+
+    dc.mask_pds = ne.evaluate( "where((abs(data) >  adc_thresh) , 0, 1)", global_dict={'data':dc.data_pds}).astype(bool)
+    mean, std = compute_pedestal_nb(dc.data_pds, dc.mask_pds, False)
+    dc.data_pds -= mean[:,None]
+
+
+    for i in range(n_iter):
+        dc.mask_pds = ne.evaluate( "where((abs(data) >  rms_thresh*rms) , 0, 1)", global_dict={'data':dc.data_pds,'rms':std[:,None]}).astype(bool)
+        mean, std = compute_pedestal_nb(dc.data_pds, dc.mask_pds, False)
+        dc.data_pds -= mean[:,None]
+
+    ped = dc.noise( med, std )
+    dc.evt_list[-1].set_noise_pds(ped)
