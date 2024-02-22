@@ -32,6 +32,8 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 * `-n <nb of events>` how many events to process, default is -1 = all file
 * `-out <output file option>` optional extra name for the output
 * `-skip <nb to skip>` number of events to skip
+* `-pulse` To analyse charge pulsing (calibration) data
+* `-pds` To also reconstruct the PDS data
 
 
 
@@ -41,11 +43,18 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 
 the output h5file will be **store_path/cbtop_1740_5_b_example.h5**
 
-*e.g. 2* : To run the first all events of bottom electronics run 20199 subfile 0, type :
+*e.g. 2* : To run all events of bottom electronics run 20199 subfile 0, type :
 
 `python lardon.py -det cbbot -run 20199 -sub 0 -out full_example`
 
 the output h5file will be **store_path/cbbot_20199_0_full_example.h5**
+
+*e.g. 3* : To run the 5th event of bottom electronics run 23868 subfile 23 with the PDS reconstruction, type:
+
+`python lardon.py -det cbbot -run 23868 -sub 23 -n 6 -skip 5 -pds -out one_event`
+
+the output h5file will be **store_path/cbbot_23868_23_one_event.h5**
+
 
 ## lardon Convention
 # Coldbox 2nd period
@@ -99,3 +108,5 @@ The found hits on the ED: `plot.event_display_per_view_hits_found()`<br/>
 `plot.plot_2dview_hits_and_3dtracks()` <- see the 3D tracks projected in 2D<br/>
 `plot.plot_3d()` <- see the 3D tracks in 3D<br/>
 
+### To plot the PDS waveforms:<br/>
+`plot.draw_pds_ED(draw_peak=True, roi=True)` <- also shows the reconstructed PDS peaks and ROI
