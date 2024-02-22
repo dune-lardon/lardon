@@ -7,11 +7,18 @@ import data_containers as dc
 import tables as tab
 
 def get_unix_time_wib_1(t):
-    return t*20/1e9
+    ts = t*20 # in units of nanoseconds
+    ts_s = int(ts/1e9)
+    ts_ns = ts-ts_s*1e9
+    return ts_s, ts_ns
+
 
 def get_unix_time_wib_2(t):
-    return t*16/1e9
-    
+    #return t*16/1e9
+    ts = t*16 # in units of nanoseconds
+    ts_s = int(ts/1e9)
+    ts_ns = ts-ts_s*1e9
+    return ts_s, ts_ns
 
 
 def get_daq_eth_infos(x):
@@ -347,6 +354,47 @@ def get_wib_header(daq):
         return -1
 
 
+def decode_daphne_daq(x):
+    x = int(x)
+    infos = {}
+
+    infos['version'] = x & 0x3f
+    infos['det_id']  = (x >> 6 ) & 0x3f
+    infos['crate']   = (x >> 12) & 0x3ff
+    infos['slot']    = (x >> 22) & 0xf
+    infos['link']    = (x >> 26) & 0x3f
+    return infos
+
+def decode_daphne_channels(x):
+    chan1 = x & 0x3f
+    chan2 = (x>>6) & 0x3f
+    chan3 = (x>>12) & 0x3f
+    chan4 = (x>>18) & 0x3f    
+    return [chan1[0], chan2[0], chan3[0], chan4[0]]
+
+    
+def get_daphne_header(daq):
+    if(daq != 'wib_2_eth'):
+        print('ERROR, not pds streamed')
+        return -1
+    else:
+        daphne_header_type = np.dtype([
+            ('infos',    '<u4'), #4
+            ('timestamp','<u8'), #12
+            ('channels', '<u4'), #16   
+            ('tbd',      '<u4')  #20
+        ])
+        return daphne_header_type
+
+def get_daphne_trailer(daq):
+    if(daq != 'wib_2_eth'):
+        print('ERROR, not pds streamed')
+        return -1
+    else:
+        daphne_trailer_type = np.dtype([
+            ('tbd',      '<u4')  #4
+        ])
+        return daphne_trailer_type
 
 
 class wib:
@@ -388,7 +436,13 @@ class wib:
         
         self.wib_header_type = get_wib_header(self.daq)
         self.wib_header_size = self.wib_header_type.itemsize
-        
+
+
+        self.daphne_header_type = get_daphne_header(self.daq)
+        self.daphne_header_size = self.daphne_header_type.itemsize        
+
+        self.daphne_trailer_type = get_daphne_trailer(self.daq)
+        self.daphne_trailer_size = self.daphne_trailer_type.itemsize        
 
         if(self.daq == 'wib_1'):
             self.cb_header_size = get_colddata_header_type(self.daq).itemsize            
@@ -456,10 +510,8 @@ class wib:
             comp = np.frombuffer(trig_rec[s:t], dtype=self.component_header_type)
             self.links.append(comp['geo_ID'][0])
 
-        t_unix = get_unix_time_wib_1(head['timestamp'][0])
+        t_s, t_ns = get_unix_time_wib_1(head['timestamp'][0])
 
-        t_s = int(t_unix)
-        t_ns = (t_unix - t_s) * 1e9
         dc.evt_list.append( dc.event(self.det, "bot", head['run_nb'][0], sub, ievt, head['trig_num'][0], t_s, t_ns) )
 
 
@@ -505,10 +557,7 @@ class wib:
             self.nlinks = 48
 
         
-        t_unix = get_unix_time_wib_2(head['timestamp'][0])
-        t_s = int(t_unix)
-        t_ns = (t_unix - t_s) * 1e9
-
+        t_s, t_ns = get_unix_time_wib_2(head['timestamp'][0])
         dc.evt_list.append( dc.event(self.det, "bot", head['run_nb'][0], sub, ievt, head['trig_num'][0], t_s, t_ns) )
 
 
@@ -770,7 +819,7 @@ class wib:
             wib_head = np.frombuffer(link_data[:self.wib_header_size], dtype = self.wib_header_type)
             
             print('\n',ilink, name,'\n')
-            print('DAQ and WIB INFOS') #llllllll
+            print('DAQ and WIB INFOS') 
             # to get the detector, crate, slot, (etc) informations
             # detdataformats/include/detdataformats/DAQEthHeader.hpp
             daq_infos = get_daq_eth_infos(wib_head['daqethinfos'][0])
@@ -819,7 +868,7 @@ class wib:
                     out = np.insert(out, [p-1 for x in range(skipped[i])], np.nan, axis=1)
 
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
-
+        
         self.nlinks = 0
         self.links = []
 
@@ -830,9 +879,71 @@ class wib:
             dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
             cmap.set_unused_channels()
             dc.mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+
+
+
+        #llll
+        charge_tstart = min(tstart_link)*32
+        #print(type(charge_tstart))
+        #print('ALL LINK STARTS')
+        #print([t*32 for t in tstart_link])
+        t_s, t_ns = get_unix_time_wib_2(charge_tstart)
+        #print('ts = ', t_s, ' ns = ', t_ns)
+
+        dc.evt_list[-1].set_charge_timestamp(t_s, t_ns)
+
+    def read_pds_evt(self, ievt):
+        self.n_samples_per_frame   = 64
+        self.n_channels_per_stream = 4
+        self.daphne_data_size = int(self.n_samples_per_frame * self.n_channels_per_stream * 14/8)
+        self.daphne_frame_size = self.daphne_header_size + self.daphne_data_size + self.daphne_trailer_size
+
+
+        """ Hard coded at the moment for CB BOT data """
+        self.n_stream = 4
+        names = ["0x"+format(istream+1, '08x') for istream in range(self.n_stream)]
+        pds_tstart = []
+        for istream in range(self.n_stream):
+            name = names[istream]
+            stream_data = self.f_in.get_node("/"+self.events_list[ievt]+"/RawData", name='Detector_Readout_'+name+'_DAPHNEStream',classname='Array').read()
+
+            """ don't read the fragment header """
+            daphne = np.frombuffer(stream_data[self.fragment_header_size:self.fragment_header_size+self.daphne_header_size], dtype=self.daphne_header_type)
+
+            channels = decode_daphne_channels(daphne['channels'])
+            pds_tstart.append(daphne['timestamp'][0])
+            
+            """ remove the headers and trailers """
+            stream_data = stream_data[self.fragment_header_size:]
+            stream_data = stream_data.reshape(-1,self.daphne_frame_size)[:,self.daphne_header_size:self.daphne_frame_size-self.daphne_trailer_size].flatten()
+
+
+            cf.n_pds_sample = int(len(stream_data)/self.daphne_data_size)*64
+
+
+            if(cf.n_pds_sample != dc.data_pds.shape[-1]):
+                dc.data_pds = np.zeros((cf.n_pds_channels, cf.n_pds_sample), dtype=np.float32)
+                
+            out = read_eth_evt_uint14_nb(stream_data)
+            out = np.reshape(out, (-1,self.n_channels_per_stream)).T
+            out = out.astype(np.float32)
+
+
+            for ichan in range(self.n_channels_per_stream):
+                daq = self.n_channels_per_stream*istream + ichan
+                glob = dc.chmap_daq_pds[daq].globch
+                if(glob < 0):
+                    continue
+                else:
+                    assert dc.chmap_daq_pds[daq].chan == channels[ichan]
+                    dc.data_pds[glob] = out[ichan]
+
+        #print('all pds start')
+        #print(pds_tstart)
+        t_s, t_ns = get_unix_time_wib_2(min(pds_tstart))
+        #print(t_s, t_ns)
+        dc.evt_list[-1].set_pds_timestamp(t_s, t_ns)
         
-
-
     def close_file(self):
         self.f_in.close()
         #print('file closed!')
