@@ -25,8 +25,12 @@ class ChanMap(IsDescription):
 
 class Event(IsDescription):
     trigger_nb    = UInt32Col()
-    time_s        = UInt32Col()
-    time_ns       = UInt32Col()
+    time_s        = UInt64Col()
+    time_ns       = UInt64Col()
+    charge_time_s        = UInt64Col()
+    charge_time_ns       = UInt64Col()
+    pds_time_s        = UInt64Col()
+    pds_time_ns       = UInt64Col()
     n_sample      = UInt32Col()
     n_hits        = UInt32Col(shape=(cf.n_view))
     n_tracks2D    = UInt32Col(shape=(cf.n_view))
@@ -42,6 +46,11 @@ class Pedestal(IsDescription):
     filt_mean  = Float32Col(shape=(cf.n_tot_channels))
     filt_rms   = Float32Col(shape=(cf.n_tot_channels))
 
+
+class PDSPedestal(IsDescription):
+    mean   = Float32Col(shape=(cf.n_pds_channels))
+    rms    = Float32Col(shape=(cf.n_pds_channels))
+    
 class NoiseStudy(IsDescription):
     delta_mean  = Float32Col(shape=(cf.n_tot_channels))
     rms         = Float32Col(shape=(cf.n_tot_channels))
@@ -73,6 +82,27 @@ class Pulse(IsDescription):
     n_pulse_pos = UInt16Col()
     n_pulse_neg = UInt16Col()
 
+class PDSInfos(IsDescription):
+    run          = UInt16Col()
+    sub          = StringCol(6)
+    elec         = StringCol(3)
+    n_evt        = UInt8Col()
+    process_date = UInt32Col()
+    n_channels   = UInt16Col()
+    sampling     = Float32Col()
+    n_samples    = Float32Col()
+    e_drift      = Float32Col()
+
+
+class PDSEvent(IsDescription):
+    event         = UInt32Col()
+    trigger_nb    = UInt32Col()
+    time_s        = UInt64Col()
+    time_ns       = UInt64Col()
+    n_sample      = UInt32Col()
+    n_peak        = UInt32Col(shape=(cf.n_pds_channels))
+
+    
 
 class Hits(IsDescription):
     event   = UInt32Col()
@@ -159,11 +189,13 @@ class Tracks3D(IsDescription):
     x_ini   = Float32Col()
     y_ini   = Float32Col()
     z_ini   = Float32Col()
+    t_ini   = Float32Col()
     x_end   = Float32Col()
     y_end   = Float32Col()
     z_end   = Float32Col()
+    t_end   = Float32Col()
     chi2    = Float32Col(shape=(cf.n_view))
-
+    
 
     z_ini_overlap = Float32Col()
     z_end_overlap = Float32Col()
@@ -245,7 +277,23 @@ class SingleHits(IsDescription):
     d_track_2D = Float64Col()
 
     veto = BoolCol(shape=(cf.n_view))
+
+
+class PDS_Peak(IsDescription):
+
+    event   = UInt32Col()
+    trigger = UInt32Col()
+
+    ID = UInt32Col()
+    glob_ch = UInt32Col()
+    channel = UInt32Col()
+    start   = UInt32Col()
+    stop    = UInt32Col()
     
+    max_t   = UInt32Col()
+    charge  = Float64Col()
+    max_adc = Float64Col()
+
 
 def create_tables(h5file):
     table = h5file.create_table("/", 'infos', Infos, 'Infos')
@@ -284,6 +332,12 @@ def create_tables_pulsing(h5file):
     t = h5file.create_vlarray("/", 'pos_pulse', Float32Atom(shape=(10)), "Positive Pulses (start, tmax, vmax, A, Aerr, tau, tauerr, area, fit_area, rchi2)")
     t = h5file.create_vlarray("/", 'neg_pulse', Float32Atom(shape=(10)), "Negative Pulses (start, tmin, vmin, A, Aerr, tau, tauerr, area, fit_area, rchi2)")
 
+def create_tables_pds(h5file):
+    table = h5file.create_table("/", 'pds_infos', PDSInfos, 'PDSInfos')
+    table = h5file.create_table("/", 'pds_event', PDSEvent, 'PDSEvent')
+    table = h5file.create_table("/", 'pds_pedestals', PDSPedestal, 'PDSPedestals')
+    table = h5file.create_table("/", "pds_peaks", PDS_Peak, "PDSPeak")
+    
 
 def store_run_infos(h5file, run, sub, nevent, time):
     inf = h5file.root.infos.row
@@ -314,6 +368,10 @@ def store_event(h5file):
     evt['trigger_nb']    = dc.evt_list[-1].trigger_nb
     evt['time_s']        = dc.evt_list[-1].time_s
     evt['time_ns']       = dc.evt_list[-1].time_ns
+    evt['charge_time_s'] = dc.evt_list[-1].charge_time_s
+    evt['charge_time_ns']= dc.evt_list[-1].charge_time_ns
+    evt['pds_time_s']    = dc.evt_list[-1].pds_time_s
+    evt['pds_time_ns']   = dc.evt_list[-1].pds_time_ns
     evt['n_sample']      = cf.n_sample
     evt['n_hits']        = dc.evt_list[-1].n_hits
     evt['n_tracks2D']    = dc.evt_list[-1].n_tracks2D
@@ -330,6 +388,12 @@ def store_pedestals(h5file):
     ped['raw_rms']    = dc.evt_list[-1].noise_raw.ped_rms
     ped['filt_mean']  = dc.evt_list[-1].noise_filt.ped_mean
     ped['filt_rms']   = dc.evt_list[-1].noise_filt.ped_rms
+    ped.append()
+
+def store_pds_pedestals(h5file):
+    ped = h5file.root.pds_pedestals.row
+    ped['mean']   = dc.evt_list[-1].noise_pds.ped_mean
+    ped['rms']    = dc.evt_list[-1].noise_pds.ped_rms
     ped.append()
 
 def store_noisestudy(h5file):
@@ -494,9 +558,11 @@ def store_tracks3D(h5file):
        t3d['x_ini'] = it.ini_x
        t3d['y_ini'] = it.ini_y
        t3d['z_ini'] = it.ini_z
+       t3d['t_ini'] = it.ini_time
        t3d['x_end'] = it.end_x
        t3d['y_end'] = it.end_y
        t3d['z_end'] = it.end_z
+       t3d['t_end'] = it.end_time
        t3d['chi2']  = it.chi2
 
 
@@ -605,6 +671,50 @@ def store_pulse(h5file):
         tpul.append()
     
 
+def store_pds_infos(h5file, run, sub, nevent, time):
+    inf = h5file.root.pds_infos.row
+    inf['run']           = run
+    inf['sub']           = sub
+    inf['elec']          = cf.elec[0]
+    inf['n_evt']         = nevent
+    inf['process_date']  = time
+    inf['n_channels']    = cf.n_pds_channels
+    inf['sampling']      = cf.pds_sampling
+    inf['n_samples']     = cf.n_pds_sample
+    inf['e_drift']       = cf.e_drift
+    inf.append()
+
+def store_pds_event(h5file):
+    evt = h5file.root.pds_event.row
+
+    evt['event']        = dc.evt_list[-1].evt_nb
+    evt['trigger_nb'] = dc.evt_list[-1].trigger_nb
+    evt['time_s']     = dc.evt_list[-1].pds_time_s
+    evt['time_ns']    = dc.evt_list[-1].pds_time_ns
+    evt['n_sample']   = cf.n_pds_sample
+    evt['n_peak']     = dc.evt_list[-1].n_pds_peak
+
+    evt.append()
+
+def store_pds_peak(h5file):
+    pds = h5file.root.pds_peaks.row
+    
+    for p in dc.pds_peak_list:
+        pds['event']   = dc.evt_list[-1].evt_nb
+        pds['trigger'] = dc.evt_list[-1].trigger_nb
+
+        pds['ID'] = p.ID
+        
+        pds['glob_ch'] = p.glob_ch
+        pds['channel'] = p.channel
+        pds['start']   = p.start
+        pds['stop']    = p.stop
+        
+        pds['max_t']   = p.max_t
+        pds['charge']  = p.charge
+        pds['max_adc'] = p.max_adc
+        pds.append()
+        
 def dictToGroup(f, parent, groupname, dictin, force=False, recursive=True):
     """
     From https://stackoverflow.com/questions/18071075/saving-dictionaries-to-file-numpy-and-python-2-3-friendly
