@@ -324,7 +324,7 @@ def find_tracks_rtree():
                 """ returns the sorted fit results """
                 fit = linear_reg(X, Y, 0.9)
 
-                x0, y0, t0 = hits[idx].Z, hits[idx].X, hits[idx].t
+                x0, y0, t0 = hits[idx].Z, hits[idx].X, hits[idx].start #
 
                 if(fit[0] != 9999):
                     seeded = True
@@ -337,7 +337,7 @@ def find_tracks_rtree():
                     for i in [fit[3], fit[4]]:
                         """ add the seeding hits to the filter and remove them from the index """
                         nn_idx = nn[i-1][0]
-                        x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].t
+                        x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].stop #t
                         chi2_up = filt.update(y1, x1-x0)
                         track.add_hit_update(slope, filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
                         idx_list.append(nn_idx)
@@ -416,7 +416,7 @@ def find_tracks_rtree():
                     for j,t in ok_idx:
 
                         nn_idx = j
-                        x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].t
+                        x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].stop #t
 
 
                         d = filt.delta_y(y1, x1-x0)
