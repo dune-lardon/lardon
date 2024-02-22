@@ -56,7 +56,7 @@ def get_neighbour(chan, other):
     
 def get_mapping(detector):
     if(os.path.exists(cf.channel_map) is False):
-        print('the channel mapping file ', fmap, ' does not exists')
+        print('the channel mapping file ', cf.channel_map, ' does not exists')
         exit()
     if(detector == "cb1top"):
         get_cb_top_mapping()
@@ -101,6 +101,29 @@ def get_mapping(detector):
             dc.chmap[daqch].set_prev_next(prev_daqch, next_daqch)
 
 
+def get_pds_mapping(detector):
+    """ not the best channel mapping, to be improved """
+    if(os.path.exists(cf.pds_channel_map) is False):
+        print('the channel mapping file ', cf.pds_channel_map, ' does not exists')
+        exit()
+
+    with open(cf.pds_channel_map, 'r') as f:
+        for line in f.readlines()[1:]:
+            li = line.split()
+            daqch  =  int(li[0])
+            globch = int(li[1])
+            det    = li[2]
+            chan   = int(li[3])
+
+            c = dc.channel_pds(daqch, globch, det, chan)
+            dc.chmap_daq_pds.append(c)
+
+            if(globch >= 0):
+                dc.chmap_pds.append(c)
+    dc.chmap_pds.sort(key=lambda x: x.globch)
+
+    
+    
 def get_cb_top_mapping():
     strip = get_strip_length()
     calib  = get_calibration()
