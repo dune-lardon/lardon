@@ -29,6 +29,7 @@ parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used f
 parser.add_argument('-flow', type=str, default="-1", help="dataflow number (bde-only)", dest='dataflow')
 parser.add_argument('-writer', type=str, default="-1", help="datawriter number (bde-only)", dest='datawriter')
 parser.add_argument('-job', dest='is_job', action='store_true', help='Flag that lardon is running on a job')
+parser.add_argument('-pds', dest='do_pds', action='store_true', help='Flag that lardon is also looking at the PDS data')
 
 args = parser.parse_args()
 
@@ -41,7 +42,9 @@ detector = args.detector
 
 outname_option = args.outname
 evt_skip = args.evt_skip
-det.configure(detector, run)
+do_pds = args.do_pds
+
+det.configure(detector, run, do_pds)
 
 is_pulse = args.is_pulse
 
@@ -51,6 +54,7 @@ datawriter = args.datawriter
 
 
 is_job = args.is_job
+
 
 import config as cf
 import data_containers as dc
@@ -118,7 +122,13 @@ if(is_pulse):
 else:
     store.create_tables(output)
 
+if(do_pds):
+    store.create_tables_pds(output)
+    cmap.get_pds_mapping(detector)
 
+
+
+    
 """ set analysis parameters """
 params.build_default_reco()
 params.configure(detector)
@@ -128,6 +138,7 @@ params.configure(detector)
 """ set the channel mapping """
 cmap.get_mapping(detector)
 cmap.set_unused_channels()
+
 
 
 
@@ -162,6 +173,10 @@ store.store_run_infos(output, int(run), str(sub), nevent, time.time())
 store.store_chan_map(output)
 store.save_reco_param(output)
 
+
+if(do_pds):
+    store.store_pds_infos(output, int(run), str(sub), nevent, time.time())
+    
 for ievent in range(nevent):
 
     t0 = time.time()
@@ -199,7 +214,7 @@ for ievent in range(nevent):
     """ update the pedestal """
     ped.compute_pedestal(noise_type='filt')
 
-    #plot.event_display_per_view([-100,100],[-10, 150],option='raw', to_be_shown=True) 
+    #plot.event_display_per_view([-500,500],[-10, 150],option='raw', to_be_shown=True) 
 
     #plot.event_display_per_view_noise([-100,100],[-50, 150],option='noise_raw', to_be_shown=True)
 
@@ -214,6 +229,22 @@ for ievent in range(nevent):
         #store.store_avf_wvf(output)
         continue
 
+
+    if(do_pds == True):
+        """ decode the light """
+        reader.read_pds_evt(ievent)
+        
+        
+        """ compute the pedestal """
+        ped.compute_pedestal_pds()
+        #plot.event_display_coll_pds(draw_trk_t0 = True, to_be_shown=True)
+
+                
+        hf.find_pds_peak()
+        
+        #plot.draw_pds_ED(to_be_shown=True, draw_peak=True, roi=True)
+
+        
     """ low pass FFT cut """
     ps = noise.FFT_low_pass(False)
     
@@ -258,8 +289,10 @@ for ievent in range(nevent):
     
     #plot.event_display_per_view_noise([-100,100],[-50, 150],option='noise_filt', to_be_shown=True)
     #plot.event_display_per_view([-100,100],[-10, 150],option='filt', to_be_shown=True) 
-    hf.find_hits()
 
+    
+    hf.find_hits()
+    
     print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits)
 
 
@@ -293,14 +326,16 @@ for ievent in range(nevent):
     sh.single_hit_finder()
     
 
-    """
+    '''
     if(len(dc.tracks3D_list) > 0):
         [t.dump() for t in dc.tracks3D_list]
-        #plot.plot_2dview_hits_3dtracks(to_be_shown=True)
-        #plot.event_display_per_view_hits_found([-400,400],[-10, 600],option='hits', to_be_shown=True)            
 
+        #plot.event_display_coll_pds(draw_trk_t0 = True, to_be_shown=True)
+        #plot.plot_2dview_hits_3dtracks(to_be_shown=True)
+        plot.event_display_per_view_hits_found([-400,400],[-10, 600],option='hits', to_be_shown=True)            
+    
         #plot.plot_3d(to_be_shown=True)
-    """
+    '''
 
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
@@ -320,7 +355,10 @@ for ievent in range(nevent):
 
     dc.n_tot_hits += sum(dc.evt_list[-1].n_hits)
 
-    
+    if(do_pds == True):
+        store.store_pds_event(output)
+        store.store_pds_pedestals(output)
+        store.store_pds_peak(output)
 
 
 if(is_pulse==True):
