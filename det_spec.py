@@ -20,7 +20,7 @@ def is_concerned(key, run):
         
         
 
-def configure(detector, run):
+def configure(detector, run, do_pds):
     """ access to files """    
     with open(cf.lardon_path+'/settings/'+detector+'/path.json','r') as f:
         locations = json.load(f)
@@ -107,3 +107,13 @@ def configure(detector, run):
         cf.drift_direction = [float(x) for x in data["drift_direction"]]
         cf.elec = [x for x in data["elec"]]
         cf.daq = data["daq"]
+
+        if(do_pds == True):
+            try :
+                cf.n_pds_channels = data['n_pds_channels']
+                cf.pds_sampling = data['pds_sampling']
+                cf.n_pds_sample = data['n_pds_sample']
+                cf.pds_channel_map = cf.lardon_path+"/settings/chmap/"+data['pds_channel_map']
+            except KeyError:
+                print('No pds information :-/')
+                

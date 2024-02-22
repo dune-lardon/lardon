@@ -1,7 +1,7 @@
 """ User's specific """
 
 """ Where is LARDON """
-lardon_path = "."
+lardon_path = "/eos/user/l/lzambell/analysis/coldbox/lardon"
 
 """ Where to store the reconstructed output file """
 store_path = lardon_path+"/reco"
@@ -51,5 +51,11 @@ view_length = []
 x_boundaries = []
 y_boundaries = []
 drift_direction = []
-elec=[]
-daq=""
+elec = []
+daq = ""
+
+""" pds variables """
+n_pds_channels = 1
+pds_sampling = 0
+n_pds_sample = 0
+pds_channel_map = ""
