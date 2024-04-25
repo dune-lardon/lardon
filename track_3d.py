@@ -85,6 +85,7 @@ def finalize_3d_track(track, npts):
     m_phi_end = sum(phi_end)/nv
 
     track.set_angles(m_theta_ini, m_phi_ini, m_theta_end, m_phi_end)
+    track.set_timestamp()
     track.d_match = dtot
     
     return True
@@ -256,14 +257,13 @@ def correct_timing(trk, xtol, ytol, ztol):
     z_anode = cf.anode_z[trk.module_ini]
 
     ''' maximum drift distance given the time window '''
-    max_drift = cf.anode_z[trk.module_end] - cf.drift_direction[trk.module_end] * vdrift /cf.sampling
+    max_drift = cf.anode_z[trk.module_end] - cf.n_sample*cf.drift_direction[trk.module_end] * vdrift /cf.sampling
 
     z_top = max(z_anode, max_drift)
     z_max = min(z_anode, max_drift)
 
     #z_cath = z_anode - cf.drift_direction[trk.module_ini]*cf.drift_length
     z_bot = z_top - cf.drift_direction[trk.module_ini]*cf.drift_length
-
     
     from_top =  (z_top - trk.ini_z) < ztol
     exit_bot = (math.fabs(z_max - trk.end_z)) < ztol
@@ -272,11 +272,11 @@ def correct_timing(trk, xtol, ytol, ztol):
     from_wall_y = np.asarray([ math.fabs(trk.ini_y-s)<t for t,s in zip(ytol[trk.module_ini],cf.y_boundaries[trk.module_ini])], dtype=bool)
 
     from_wall = np.any(np.concatenate((from_wall_x, from_wall_y), axis=None))
-
     exit_wall_x = np.asarray([ math.fabs(trk.end_x-s)<t for t, s in zip(xtol[trk.module_end],cf.x_boundaries[trk.module_end])], dtype=bool)
     exit_wall_y = np.asarray([ math.fabs(trk.end_y-s)<t for t, s in zip(ytol[trk.module_end], cf.y_boundaries[trk.module_end])], dtype=bool)
 
     exit_wall = np.any(np.concatenate((exit_wall_x, exit_wall_y), axis=None))
+
 
     z0 = 9999.
     t0 = 9999.
@@ -446,7 +446,7 @@ def find_tracks_rtree():
                 continue
 
             correct_timing(t3D, dx_tol, dy_tol, dz_tol)
-            trk_ID = dc.evt_list[-1].n_tracks3D #+1
+            trk_ID = dc.evt_list[-1].n_tracks3D + dc.n_tot_trk3d #+1
             t3D.ID_3D = trk_ID
 
             dc.tracks3D_list.append(t3D)
