@@ -114,6 +114,14 @@ def configure(detector, run, do_pds):
                 cf.pds_sampling = data['pds_sampling']
                 cf.n_pds_sample = data['n_pds_sample']
                 cf.pds_channel_map = cf.lardon_path+"/settings/chmap/"+data['pds_channel_map']
+                cf.pds_modules_type = [x for x in data['pds_modules_type']]
+                cf.pds_length = data['pds_length']
+                cf.pds_n_modules = data['pds_n_modules']
+                cf.pds_x_centers = [float(x) for x in data['pds_x_centers']]
+                cf.pds_y_centers = [float(y) for y in data['pds_y_centers']]
+                cf.pds_z_centers = [float(z) for z in data['pds_z_centers']]
+
+
             except KeyError:
                 print('No pds information :-/')
                 
