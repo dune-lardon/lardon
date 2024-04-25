@@ -12,6 +12,8 @@ single_hits_list = []
 ghost_list = []
 pulse_fit_res = []
 pds_peak_list = []
+pds_cluster_list = []
+
 wvf_pos = [[] for x in range(cf.n_tot_channels)]
 wvf_neg = [[] for x in range(cf.n_tot_channels)]
 
@@ -38,7 +40,11 @@ chmap_pds = []
 data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
 
 
-n_tot_hits = 0
+n_tot_hits, n_tot_pds_peaks = 0, 0
+n_tot_trk2d, n_tot_trk3d = 0, 0
+n_tot_ghosts, n_tot_sh = 0, 0
+n_tot_pds_clusters = 0
+
 def reset_event():
     mask_daq[:,:] = True
     data_daq[:,:] = 0.
@@ -54,6 +60,7 @@ def reset_event():
     single_hits_list.clear()
     ghost_list.clear()
     pds_peak_list.clear()
+    pds_cluster_list.clear()
     
     pulse_fit_res.clear()
 
@@ -131,8 +138,8 @@ class event:
         self.trigger_nb = trigger
         self.time_s = t_s
         self.time_ns = t_ns
-        self.charge_time_s = t_s
-        self.charge_time_ns = t_ns        
+        self.charge_time_s = -1#t_s
+        self.charge_time_ns = -1#t_ns        
         self.n_hits = np.zeros((cf.n_view), dtype=int)
         self.n_tracks2D = np.zeros((cf.n_view), dtype=int)
         self.n_tracks3D = 0
@@ -143,9 +150,10 @@ class event:
         self.noise_study = None
         self.noise_pds = None
 
-        self.pds_time_s = t_s
-        self.pds_time_ns = t_ns
-        self.n_pds_peak = np.zeros((cf.n_pds_channels), dtype=int)
+        self.pds_time_s = -1#t_s
+        self.pds_time_ns = -1#t_ns
+        self.n_pds_peaks = np.zeros((cf.n_pds_channels), dtype=int)
+        self.n_pds_clusters = 0
         
     def set_noise_raw(self, noise):
         self.noise_raw = noise
@@ -230,8 +238,10 @@ class hits:
         self.ID = idx + n_tot_hits
 
     def hit_positions(self, v):
-        self.t = self.max_t if self.signal == "Collection" else self.zero_t
-        
+        if(self.signal == "Induction"):
+            self.t = self.zero_t
+        else:
+            self.t = self.max_t if self.max_t >= 0 else self.min_t
 
         """ transforms time bins into distance from the anode """
         """ for CB it does not mean someting concrete """
@@ -313,7 +323,7 @@ class hits:
 
 
 class singleHits:
-    def __init__(self, ID_SH, n_hits, IDs, x, y, z, d_max_bary, d_min_3D, d_min_2D):
+    def __init__(self, ID_SH, module, n_hits, IDs, x, y, z, d_max_bary, d_min_3D, d_min_2D):
         self.ID_SH = ID_SH
         self.n_hits = n_hits
         self.IDs = IDs
@@ -332,11 +342,16 @@ class singleHits:
         self.X = x
         self.Y = y
         self.Z = z
+        self.module = module
+        
         self.d_bary_max = d_max_bary
         self.d_track_3D = d_min_3D
         self.d_track_2D = d_min_2D
 
         self.veto = [False, False, False]
+        self.timestamp = -1
+        self.match_pds_cluster = -1
+        self.Z_from_light = -9999
         
     def set_veto(self, view, veto, q, p, n):
         self.veto[view] = veto
@@ -354,6 +369,12 @@ class singleHits:
         self.max_t[view] = max_t
         self.zero_t[view] = zero_t
         self.min_t[view] = min_t
+
+    def set_timestamp(self):
+        frag_event_ts = 1e9*evt_list[-1].time_s + evt_list[-1].time_ns
+        charge_event_ts = 1e9*evt_list[-1].charge_time_s + evt_list[-1].charge_time_ns
+        self.timestamp = charge_event_ts - frag_event_ts + (min(self.start)/cf.sampling)*1e3
+        self.timestamp *= 1e-3 #in mus
 
 
     def dump(self):
@@ -374,6 +395,9 @@ class singleHits:
         print('Charge extended ', self.charge_extend)
         print('Charge extended pos ', self.charge_extend_pos)
         print('Charge extended neg ', self.charge_extend_neg)
+        print('Timestamp : ', self.timestamp, ' mus')
+        print('Matched with light cluster : ', self.match_pds_cluster)
+        print('Z estimated from light cluster : ', self.Z_from_light)
 
 class trk2D:
     def __init__(self, ID, view, ini_slope, ini_slope_err, x0, y0, t0, q0, hit_ID, chi2):
@@ -687,6 +711,9 @@ class trk3D:
         self.module_ini = -1
         self.module_end = -1
 
+        self.timestamp = -1
+        self.match_pds_cluster = -1
+        
     def set_view(self, trk, path, dq, ds, hits_id, isFake=False):
         view = trk.view
         trk.match_3D = self.ID_3D
@@ -755,6 +782,14 @@ class trk3D:
         self.t0_corr = t0
         self.z0_corr = z0
 
+
+    def set_timestamp(self):
+        frag_event_ts = 1e9*evt_list[-1].time_s + evt_list[-1].time_ns
+        charge_event_ts = 1e9*evt_list[-1].charge_time_s + evt_list[-1].charge_time_ns
+        self.timestamp = charge_event_ts - frag_event_ts + (self.ini_time/cf.sampling)*1e3
+        self.timestamp *= 1e-3
+
+        
     def set_angles(self, theta_ini, phi_ini, theta_end, phi_end):
         self.ini_phi = phi_ini
         self.ini_theta = theta_ini
@@ -765,15 +800,17 @@ class trk3D:
         print('\n----')
         print('Track with ID ', self.ID_3D)
         print(" From (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f)"%(self.ini_x, self.ini_y, self.ini_z, self.end_x, self.end_y, self.end_z))
-        print("Time start ", self.ini_time, ' stop ', self.end_time)
-        print('z-overlap ', self.ini_z_overlap, ' to ', self.end_z_overlap)
-        print("N Hits ", self.n_hits)
+        print(" Time start ", self.ini_time, ' stop ', self.end_time)
+        print(' z-overlap ', self.ini_z_overlap, ' to ', self.end_z_overlap)
+        print(" N Hits ", self.n_hits)
         print(" theta, phi: [ini] %.2f ; %.2f"%(self.ini_theta, self.ini_phi), " -> [end] %.2f ; %.2f "%( self.end_theta, self.end_phi))
         print(" Straight Lengths :  ", self.len_straight)
         print(" Path Lengths ", self.len_path)
         print(" Total charges ", self.tot_charge)
         print(" z0 ", self.z0_corr, " t0 ", self.t0_corr)
         print(" MATCHING DISTANCE SCORE : ", self.d_match)
+        print(" timestamp ", self.timestamp, ' mus')
+        print(" matched with light cluster ", self.match_pds_cluster)
         print('----\n')
 
 class ghost:
@@ -834,9 +871,87 @@ class pds_peak:
 
         """ time is in time bin number """
         self.max_t   = max_t
-        self.charge = 0.        
+        self.charge  = 0.        
         self.max_adc = max_adc
 
+        self.cluster_ID = -1
+        self.match_3D   = -9999
+        self.match_sh   = -9999
 
+    def set_index(self, idx):
+        self.ID = idx + n_tot_pds_peaks
+
+    def set_cluster_ID(self, idx):
+        self.cluster_ID = idx
+        
     def dump(self):
-        print('Glob Channel ', self.glob_ch, ' detector : ', self.channel, ' peak from ', self.start, ' to ', self.stop, ' max at ', self.max_t, ' ADC : ', self.max_adc)
+        print(self.ID, 'at Glob Channel ', self.glob_ch, ' detector : ', self.channel, ' peak from ', self.start, ' to ', self.stop, ' max at ', self.max_t, ' ADC : ', self.max_adc, 'Integral = ', self.charge, 'Cluster ID = ', self.cluster_ID)
+
+class pds_cluster:
+    def __init__(self, ID, peak_IDs, glob_chans, channels, t_starts, t_maxs, t_stops, max_adcs, charges):
+
+        self.ID   = ID #the ID of the cluster
+        self.size = len(peak_IDs)
+        self.peak_IDs  = peak_IDs
+        self.glob_chans = glob_chans
+        self.channels = channels
+        self.t_starts = t_starts
+        self.t_maxs = t_maxs
+        self.t_stops = t_stops
+        self.max_adcs = max_adcs
+        self.charges = charges
+
+        self.t_start  = min(self.t_starts)
+        self.t_stop  = max(self.t_stops)
+
+        self.set_timestamp()
+
+        self.match_trk3D  = -1
+        self.match_single = -1
+
+        self.dist_closest_strip  = []
+        self.id_closest_strip    = []
+        self.point_closest = []
+        self.point_impact = []
+        self.point_closest_above = []
+
+    def set_ID(self, idx):
+        self.ID = idx
+
+    def set_timestamp(self):
+        frag_event_ts = 1e9*evt_list[-1].time_s + evt_list[-1].time_ns
+        pds_event_ts = 1e9*evt_list[-1].pds_time_s + evt_list[-1].pds_time_ns
+        self.timestamp = pds_event_ts - frag_event_ts + (self.t_start/cf.pds_sampling)*1e3
+        self.timestamp *= 1e-3
+
+    def merge(self, other):
+        self.ID = min(self.ID, other.ID)
+        self.size += other.size
+
+        self.peak_IDs.extend(other.peak_IDs)
+        self.glob_chans.extend(other.glob_chans)
+        self.channels.extend(other.channels)
+        self.t_starts.extend(other.t_starts)
+        self.t_maxs.extend(other.t_maxs)
+        self.t_stops.extend(other.t_stops)
+        self.max_adcs.extend(other.max_adcs)
+        self.charges.extend(other.charges)
+
+        self.t_start = min(self.t_starts)
+        self.t_stop  = max(self.t_stops)
+
+        self.set_timestamp()
+        
+    def dump(self):
+        print('\n')
+        print('Cluster ', self.ID, ' has ', self.size, ' peaks')
+        print('start at ', self.t_start, ' stop ', self.t_stop)
+        print('Peak IDS ', self.peak_IDs)
+        print('Channels ', self.glob_chans)
+        print('Max ADC ', self.max_adcs)
+        print('Timestamp = ', self.timestamp, 'mus')
+        print('matched with trk ',self.match_trk3D, ' or single hit ', self.match_single)
+        print('closest dist. : ', self.dist_closest_strip)
+        print('closest SiPM strip. : ', self.id_closest_strip)
+        print('closest point : ', self.point_closest)
+        print('closest point inside ?', self.point_closest_above)
