@@ -123,8 +123,7 @@ def ghost_trajectory():
     for g in prev_ghost_list:
         ghost_track = find_2d_track(g.ghost_ID)
         t2d = find_2d_track(g.trk2D_ID)
-        if(ghost_track == None or t2d == None):
-            #print("There is an ID problem !!!!!!!")
+        if(ghost_track == None or t2d == None):        
             continue
 
         if(t2d.match_3D < 0):
