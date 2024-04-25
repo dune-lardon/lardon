@@ -12,8 +12,7 @@
 	"view_chan_repet":["476","476","292"],
 	"view_length":["437.58","437.58","297.84"],
 	"strips_length":"cb_2_strips.txt",
-	"view_z_offset":["1.32", "0.32", "0"],
-	"wrong_offset":["1.32","0.32","0"],
+	"view_z_offset":["1.32","0.32","0"],
 	"n_tot_channels":"3072",
 	"sampling":"1.953125",
 	"n_sample":"8192",
@@ -41,6 +40,7 @@
         "broken_channels":[2780, 501, 400],
 	"channel_calib":"bde_calib_area_crp4.txt"
     },
+
     "20940-21558":
     {
 	"e_drift":"0.438",
@@ -48,6 +48,7 @@
         "broken_channels":[322, 1647, 2415, 1659, 1558, 1557, 383, 959, 943, 1315, 1312, 400, 2679, 3060],
 	"channel_calib":"bde_calib_area_crp5.txt"
     },
+
     "21600-23680":
     {
 	"e_drift":"0.462",
@@ -58,7 +59,8 @@
 	"chmap":"cb_chmap_bde_crp6.txt",
 	"broken_channels":[2979, 609, 657, 400, 1224, 2203, 614, 747, 746, 743, 659, 657, 384, 1772, 2745, 2727, 1005, 1009, 784]
     },
-    "23681-999999":
+
+    "23681-24085":
     {
 	"e_drift":"0.452",
 	"drift_length":"22.6",
@@ -70,9 +72,80 @@
 	"pds_sampling":62.5,
 	"n_pds_sample":262144,
 	"pds_channel_map":"cb_pds_crp6.txt",
+	"pds_n_modules":4,
+	"pds_modules_type":["Cathode", "Cathode", "Cathode", "Cathode"],
+	"pds_x_centers":["-116.8", "-51.5", "116.8", "51.5"],
+	"pds_y_centers":["-42.05", "107.35", "42.05", "-107.35"],
+	"pds_z_centers":["-11.1", "-11.1", "-11.1", "-11.1"],
+	"pds_length":65.3,
+	"channel_calib":"bde_calib_area_crp6.txt",	
+    },
+    
+    "24086-25035":
+    {
+	"e_drift":"0.451",
+	"drift_length":"22.7",
+        "broken_channels":[34, 163, 277, 547, 659, 746, 748, 917, 937, 939, 967, 986, 1004, 1167, 1216, 1264, 1347, 1613, 1667, 1671, 1673, 1690, 1692, 1696, 1697, 1699, 1704, 1705, 1706, 1707, 1708, 1715, 1737, 1741, 1749, 1751, 1753, 1763, 1767, 1769, 1770, 1775, 1785, 1789, 1791, 2064, 2097, 2166, 2315, 2316, 2333, 2339, 2467, 2550, 2622, 2671, 2673, 2851, 2978, 2979, 3005],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"n_pds_channels":8,
+	"pds_sampling":62.5,
+	"n_pds_sample":262144,
+	"pds_n_modules":4,
+	"pds_modules_type":["Cathode", "Cathode", "Cathode", "Cathode"],
+	"pds_x_centers":["-116.8", "-51.5", "116.8", "51.5"],
+	"pds_y_centers":["-42.05", "107.35", "42.05", "-107.35"],
+	"pds_z_centers":["-11.1", "-11.1", "-11.1", "-11.1"],
+	"pds_length":65.3,
 	"channel_calib":"bde_calib_area_crp6.txt",
+	"pds_channel_map":"cb_pds_crp6_v3a.txt",
+    },
+    
+    "25036-25067":
+    {
+	"e_drift":"0.451",
+	"drift_length":"22.7",
+        "broken_channels":[34, 163, 277, 547, 659, 746, 748, 917, 937, 939, 967, 986, 1004, 1167, 1216, 1264, 1347, 1613, 1667, 1671, 1673, 1690, 1692, 1696, 1697, 1699, 1704, 1705, 1706, 1707, 1708, 1715, 1737, 1741, 1749, 1751, 1753, 1763, 1767, 1769, 1770, 1775, 1785, 1789, 1791, 2064, 2097, 2166, 2315, 2316, 2333, 2339, 2467, 2550, 2622, 2671, 2673, 2851, 2978, 2979, 3005],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"n_pds_channels":8,
+	"pds_sampling":62.5,
+	"n_pds_sample":262144,
+	"pds_channel_map":"cb_pds_crp6.txt",
+	"pds_n_modules":4,
+	"pds_modules_type":["Cathode", "Cathode", "Cathode", "Cathode"],
+	"pds_x_centers":["-116.8", "-51.5", "116.8", "51.5"],
+	"pds_y_centers":["-42.05", "107.35", "42.05", "-107.35"],
+	"pds_z_centers":["-11.1", "-11.1", "-11.1", "-11.1"],
+	"pds_length":65.3,
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"pds_channel_map":"cb_pds_crp6_v3b.txt",	
+    },
 
-    }
+    "25068-9999999":
+    {
+	"e_drift":"0.451",
+	"drift_length":"22.7",
+        "broken_channels":[34, 163, 277, 547, 659, 746, 748, 917, 937, 939, 967, 986, 1004, 1167, 1216, 1264, 1347, 1613, 1667, 1671, 1673, 1690, 1692, 1696, 1697, 1699, 1704, 1705, 1706, 1707, 1708, 1715, 1737, 1741, 1749, 1751, 1753, 1763, 1767, 1769, 1770, 1775, 1785, 1789, 1791, 2064, 2097, 2166, 2315, 2316, 2333, 2339, 2467, 2550, 2622, 2671, 2673, 2851, 2978, 2979, 3005],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"n_pds_channels":8,
+	"pds_sampling":62.5,
+	"n_pds_sample":262144,
+	"pds_n_modules":4,
+	"pds_modules_type":["Cathode", "Cathode", "Cathode", "Cathode"],
+	"pds_x_centers":["-116.8", "-51.5", "116.8", "51.5"],
+	"pds_y_centers":["-42.05", "107.35", "42.05", "-107.35"],
+	"pds_z_centers":["-11.1", "-11.1", "-11.1", "-11.1"],
+	"pds_length":65.3,
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"pds_channel_map":"cb_pds_crp6_v3c.txt",	
+    },
+
+
     
 
 }
