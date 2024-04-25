@@ -262,13 +262,13 @@ def find_tracks_rtree():
     """error on y axis, error on slope, pbeta hyp"""
     filt = pf.PFilter(y_err, slope_err, pbeta)
 
-    """track ID starts at 1 """
-    trackID = len(dc.tracks2D_list)
+    
+    trackID = len(dc.tracks2D_list) + dc.n_tot_trk2d
 
     """ initialize the R-tree """
     tt = myrtree.R_tree(rcut)
 
-
+    
     for iview in range(cf.n_view):
 
         hits = [x for x in dc.hits_list if x.view==iview and x.is_free == True]
@@ -456,5 +456,5 @@ def find_tracks_rtree():
                         trackID += 1
                     continue
 
-        print('view ',iview, ' has ', dc.evt_list[-1].n_tracks2D[iview], ' 2D tracks')
+
     return
