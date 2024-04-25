@@ -17,17 +17,18 @@ from .save_plot import *
 
 
 
-def draw_pds_ED( option=None, to_be_shown=False, draw_peak=False, roi=False):
+def draw_pds_ED( option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
 
     fig = plt.figure()
-    gs = gridspec.GridSpec(nrows=2, ncols=2)
+    n_pds = cf.pds_n_modules
+    gs = gridspec.GridSpec(nrows=int(n_pds/2), ncols=2)
 
     axs = []
     axs_pds = []
     k = 0
 
     xx = np.linspace(0,cf.n_pds_sample-1,cf.n_pds_sample)
-    for irow in range(2):
+    for irow in range(int(n_pds/2)):
         for icol in range(2):
             axs.append( fig.add_subplot(gs[irow, icol]) )
             gsgs = gridspec.GridSpecFromSubplotSpec(2, 1, hspace=0, subplot_spec=gs[irow, icol])
@@ -37,14 +38,24 @@ def draw_pds_ED( option=None, to_be_shown=False, draw_peak=False, roi=False):
             axs[k].set_xticks([])
             axs[k].set_yticks([])
             
+            #if('C' in dc.chmap_pds[chan].det):
             for j in range(2):
                 chan = k*2+j
                 label = dc.chmap_pds[chan].det+' Ch. '+str(dc.chmap_pds[chan].chan)
+
                 axs_pds[-1][j].step(xx, dc.data_pds[chan, :], where='mid',c="k", label=label)
                 axs_pds[-1][j].legend(frameon=False, loc='upper right')
                 axs_pds[-1][j].set_ylabel('ADC')
+
+                rms = dc.evt_list[-1].noise_pds.ped_rms[chan]
+                #print(chan, '--> ', rms)
+                axs_pds[-1][j].axhline(rms, c='orange', lw=0.5, zorder=100)
+                axs_pds[-1][j].axhline(-rms, c='orange', lw=0.5, zorder=100)
+                #axs_pds[-1][j].axhline(4*rms, c='r', ls='dotted')
+                #axs_pds[-1][j].axhline(-4*rms, c='r', ls='dotted')
+                
                 """ draw rois """
-                if(roi == True):
+                if(draw_roi == True):
                     ymin, ymax = axs_pds[k][j].get_ylim()
                     ROI = np.r_['-1',0,np.array(~dc.mask_pds[chan], dtype=int),0]
                     d = np.diff(ROI)
@@ -68,8 +79,22 @@ def draw_pds_ED( option=None, to_be_shown=False, draw_peak=False, roi=False):
                 if(draw_peak==True):
                     for p in dc.pds_peak_list:
                         if(p.glob_ch == chan):
-                            axs_pds[k][j].axvline(p.max_t, c='r', lw=0.5)
+                            axs_pds[k][j].axvline(p.max_t, c='coral', lw=0.4)
+
+
+
+                
+                if(draw_cluster==True):
+                    for cl in dc.pds_cluster_list:
+                        for icl in range(cl.size):
+                            if(cl.glob_chans[icl] == chan):
+                                axs_pds[k][j].axvline(cl.t_maxs[icl], c='tab:cyan', lw=cl.size, alpha=0.8, zorder=-100)
+                            
+
             axs_pds[k][1].set_xlabel('Time tick')
+            for j in range(2):
+                ymin, ymax = axs_pds[k][j].get_ylim()
+                axs_pds[k][j].set_ylim(-100, ymax)
             k = k+1
     
     plt.tight_layout()
@@ -116,11 +141,18 @@ def charge_pds_zoom(pds_chan, charge_ch_range, charge_t_range, option=None, to_b
         if(trk.t0_corr > 0):
             tick_t0_corr = trk.t0_corr*cf.sampling
             if(tick_t0_corr>tmin and tick_t0_corr<tmax):
-                ax_trk.axvline(tick_t0_corr, c='goldenrod', lw=1)
+                ax_trk.axvline(tick_t0_corr, c='limegreen', lw=1)
                 #print('track t0 = ', tick_t0_corr, trk.t0_corr)
+
+                tick_t0_corr_resamp = tick_t0_corr*32
+                ax_pds.axvline(tick_t0_corr_resamp,  c='limegreen', lw=1, ls='dotted')
                 
-            tick_t0_corr_resamp = tick_t0_corr*32
-            ax_pds.axvline(tick_t0_corr_resamp,  c='goldenrod', lw=1, ls='dotted')
+                tstart = trk.ini_time
+                ax_trk.axvline(tstart, c='r', lw=1)
+                
+
+                tstart_resamp = tstart*32
+                ax_pds.axvline(tstart_resamp,  c='r', lw=1, ls='dotted')
 
 
     
@@ -141,13 +173,16 @@ def charge_pds_zoom(pds_chan, charge_ch_range, charge_t_range, option=None, to_b
         ax_pds.step(xx, dc.data_pds[chan, tmin_pds:tmax_pds], where='mid',c=c, label='PDS Channel '+str(dc.chmap_pds[chan].chan))
         for p in dc.pds_peak_list:
             if(p.glob_ch == chan):
-                ax_pds.axvline(p.max_t, c='r', lw=1)
+                ax_pds.axvline(p.max_t, c='yellowgreen', lw=1)
                 ax_pds.axvline(p.start, c='coral', lw=1)
-                #print('pds peak = ', p.max_t, p.max_t/cf.pds_sampling)
+                
                 
                 tpds_resamp = p.max_t/32
+                tstart_pds_resamp = p.start/32
                 if(tpds_resamp>tmin and tpds_resamp < tmax):
-                    ax_trk.axvline(tpds_resamp, c='r', lw=1, ls='dotted')
+                    
+                    ax_trk.axvline(tstart_pds_resamp, c='coral', lw=1, ls='dotted')
+                    ax_trk.axvline(tpds_resamp, c='yellowgreen', lw=1, ls='dotted')
 
                 
     ax_pds.set_xlim(tmin_pds, tmax_pds)
