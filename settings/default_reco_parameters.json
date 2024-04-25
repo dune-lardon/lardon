@@ -118,7 +118,12 @@
 		"right":40
 	    },		 
         },
-	
+	"cluster":{
+	    "time_tol":5
+	},
+	"matching":{
+	    "time_tol":5
+	},	
     },
       
     

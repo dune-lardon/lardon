@@ -103,19 +103,24 @@
 
       "pds":{
 	  "pedestal":{
-	      "raw_adc_thresh":200,
+	      "raw_adc_thresh":150,
 	      "rms_thresh":3,
 	      "n_iter":3
 	  },
           "hit_finder":{
-              "amp_sig": [15, 20],
-              "dt_min": 50,
+              "amp_sig": [3.5, 200],
+              "dt_min": 40,
 	      "pad":{
 		  "left":20,
 		  "right":40
-	      },		 
+	      },
           },
-
+	  "cluster":{
+	      "time_tol":5
+	  },
+	  "matching":{
+	      "time_tol":5
+	  },
       },
       
       "store":{
