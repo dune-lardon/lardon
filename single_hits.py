@@ -179,6 +179,10 @@ def get_hit_xy(ha, hb):
     ang_b = np.radians(cf.view_angle[v_b])
     x_a, x_b = ha.X, hb.X
 
+    mod_a, mod_b = ha.module, hb.module
+    if(mod_a != mod_b):
+        return -9999, -9999
+    
     A = np.array([[-np.cos(ang_a), np.cos(ang_b)],
                   [-np.sin(ang_a), np.sin(ang_b)]])
     
@@ -306,8 +310,10 @@ def single_hit_finder():
 
         IDs = [[x.ID for x in ov] for ov in overlaps]
 
-        sh_ID = dc.evt_list[-1].n_single_hits
-        sh = dc.singleHits(sh_ID, nhits, IDs, bar_x, bar_y, bar_z, bar_dmax, d_min_3D, d_min_2D)
+        module = h.module 
+        sh_ID = dc.evt_list[-1].n_single_hits + dc.n_tot_sh
+        
+        sh = dc.singleHits(sh_ID, module, nhits, IDs, bar_x, bar_y, bar_z, bar_dmax, d_min_3D, d_min_2D)
         
         for iv in range(cf.n_view):
             v, q, p, n = veto(overlaps[iv], veto_nchan, veto_nticks, int_nchan, int_nticks)
@@ -322,6 +328,7 @@ def single_hit_finder():
                 start, stop = hit.start, hit.stop
                 rtree_idx.delete(hit.ID, (hit.view, start, hit.view, stop))
 
+        sh.set_timestamp()
         dc.single_hits_list.append(sh)
         dc.evt_list[-1].n_single_hits += 1
         #sh.dump()
