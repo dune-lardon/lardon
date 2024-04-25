@@ -28,30 +28,35 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 * `-det <cb1top/cb1bot/cbtop/cbbot/dp/50l>` which detector<br/>
 * `-run <run nb>` which run number
 * `-sub <subfile name>` which subfile (*e.g.* 1_a, 0)<br/>
+**Depending on the requested reconstruction**:<br/>
+* `-trk` if you want the **charge/TPC** reconstruction<br/>
+* `-pds` if you want the **PDS** reconstruction<br/>
+**You can ask both!**
+
 *Optional*:<br/>
 * `-n <nb of events>` how many events to process, default is -1 = all file
 * `-out <output file option>` optional extra name for the output
 * `-skip <nb to skip>` number of events to skip
+* `-event <event number>` to analyze only one event
 * `-pulse` To analyse charge pulsing (calibration) data
-* `-pds` To also reconstruct the PDS data
 
 
 
-*e.g. 1* : To run the first 10 events of top electronics run 1740 subfile 5_b, type :
+*e.g. 1* : To run TPC reco on the first 10 events of top electronics run 1740 subfile 5_b, type :
 
-`python lardon.py -det cbtop -run 1740 -sub 5_b -n 10 -out example`
+`python lardon.py -det cbtop -run 1740 -sub 5_b -n 10 -out example -trk`
 
 the output h5file will be **store_path/cbtop_1740_5_b_example.h5**
 
-*e.g. 2* : To run all events of bottom electronics run 20199 subfile 0, type :
+*e.g. 2* : To run TPC reco on all events of bottom electronics run 20199 subfile 0, type :
 
-`python lardon.py -det cbbot -run 20199 -sub 0 -out full_example`
+`python lardon.py -det cbbot -run 20199 -sub 0 -out full_example -trk`
 
 the output h5file will be **store_path/cbbot_20199_0_full_example.h5**
 
-*e.g. 3* : To run the 5th event of bottom electronics run 23868 subfile 23 with the PDS reconstruction, type:
+*e.g. 3* : To run TPC and PDS reco the 5th event of bottom electronics run 23868 subfile 23, type:
 
-`python lardon.py -det cbbot -run 23868 -sub 23 -n 6 -skip 5 -pds -out one_event`
+`python lardon.py -det cbbot -run 23868 -sub 23 -event 5 -trk -pds -out one_event`
 
 the output h5file will be **store_path/cbbot_23868_23_one_event.h5**
 
