@@ -51,7 +51,7 @@ def compute_pedestal_nb(data, mask, is_raw):
     return mean, res
 
 def compute_pedestal(noise_type='None'):
-
+        
     if(noise_type=='raw'):
         ''' As nothing is masked yet, the computed raw pedestal is biased when there is signal '''
         ''' a rough mask is computed from the RMS '''
