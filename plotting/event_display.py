@@ -97,12 +97,14 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
                 for h in dc.hits_list:
                     if(h.view==iv and h.module==im):
                         color = 'k'
-                        #if(h.signal != cf.view_type[h.view]):
+                        if(h.signal != cf.view_type[h.view]):
+                            color = 'r'
+                        '''
                         if(h.match_2D != -9999):
                             color = 'gold'
                         if(h.match_3D != -9999):
                             color = 'r'
-                        
+                        '''
                         r = patches.Rectangle((h.channel-0.5,h.start),1,h.stop-h.start,linewidth=.5,edgecolor=color,facecolor='none')
 
                         axs[iv][-1].add_patch(r)

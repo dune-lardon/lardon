@@ -163,7 +163,7 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
     #chmap.arange_in_view_channels()
     n_wvf = len(vch_list)
 
-    fig = plt.figure(figsize=(12, 3*n_wvf))
+    fig = plt.figure(figsize=(7, 3*n_wvf))#(12, 3*n_wvf))
     gs = gridspec.GridSpec(nrows=n_wvf, ncols=1)
     ax = [fig.add_subplot(gs[0,0])]
     ax.extend([fig.add_subplot(gs[i,0], sharex=ax[0]) for i in range(1,n_wvf)])
@@ -180,7 +180,7 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
         legend = "v"+str(view)+" ch"+str(ch)
         ax[i] = draw_current_waveform(daq_ch, -1, -1, ax=ax[i], label=legend, c='k')
         ax[i].set_ylabel('ADC')
-        ax[i].legend(loc='upper right')
+        #ax[i].legend(loc='upper right')
 
         if(adc_min > -1):
             ax[i].set_ybound(lower=adc_min)
@@ -351,7 +351,7 @@ def plot_wvf_evo(data, title="", legends=[], adc_min=-1, adc_max=-1, tmin=0, tma
 def plot_cumsum_wvf(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
     n_wvf = len(vch_list)
 
-    fig = plt.figure(figsize=(12, 3*n_wvf))
+    fig = plt.figure(figsize=(7, 3*n_wvf))#(12, 3*n_wvf))
     gs = gridspec.GridSpec(nrows=n_wvf, ncols=1)
     ax = [fig.add_subplot(gs[0,0])]
     ax.extend([fig.add_subplot(gs[i,0], sharex=ax[0]) for i in range(1,n_wvf)])
@@ -367,7 +367,7 @@ def plot_cumsum_wvf(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, 
                 break        
 
         legend = "v"+str(view)+" ch"+str(ch)
-        ax[i] = draw_current_waveform(daq_ch, -1, -1, ax=ax[i], label=legend, c='gray',lw=.5)
+        ax[i] = draw_current_waveform(daq_ch, -1, -1, ax=ax[i], label=legend, c='k',lw=1)
         axy.append(ax[i].twinx())
         csum = np.cumsum(dc.data_daq[daq_ch])
         """
@@ -379,7 +379,7 @@ def plot_cumsum_wvf(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, 
         """
         
         #axy[i] = draw_current_waveform(csum, -1, -1, ax=axy[i], c='r',lw=.5)
-        axy[i].step(np.linspace(0,cf.n_sample,cf.n_sample), csum, where='mid', c='darkred',lw=.5)
+        axy[i].step(np.linspace(0,cf.n_sample,cf.n_sample), csum, where='mid', c='r',lw=1)
         #axy[i].step(np.linspace(0,cf.n_sample,cf.n_sample), csum_filt_low, where='mid', c='r',lw=.5)
         ax[i].set_ylabel('ADC')
         axy[i].set_ylabel('ADC Cum Sum', color='r')
