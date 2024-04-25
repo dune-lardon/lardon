@@ -24,19 +24,19 @@ class ChanMap(IsDescription):
     channel = Int16Col(shape=(cf.n_tot_channels))
 
 class Event(IsDescription):
-    trigger_nb    = UInt32Col()
-    time_s        = UInt64Col()
-    time_ns       = UInt64Col()
-    charge_time_s        = UInt64Col()
-    charge_time_ns       = UInt64Col()
-    pds_time_s        = UInt64Col()
-    pds_time_ns       = UInt64Col()
-    n_sample      = UInt32Col()
-    n_hits        = UInt32Col(shape=(cf.n_view))
-    n_tracks2D    = UInt32Col(shape=(cf.n_view))
-    n_tracks3D    = UInt32Col()
-    n_single_hits = UInt32Col()
-    n_ghosts      = UInt32Col()
+    trigger_nb     = UInt32Col()
+    time_s         = UInt64Col()
+    time_ns        = UInt64Col()
+    charge_time_s  = Float64Col()
+    charge_time_ns = Float64Col()
+    pds_time_s     = Float64Col()
+    pds_time_ns    = Float64Col()
+    n_sample       = UInt32Col()
+    n_hits         = UInt32Col(shape=(cf.n_view))
+    n_tracks2D     = UInt32Col(shape=(cf.n_view))
+    n_tracks3D     = UInt32Col()
+    n_single_hits  = UInt32Col()
+    n_ghosts       = UInt32Col()
 
     
 
@@ -97,11 +97,11 @@ class PDSInfos(IsDescription):
 class PDSEvent(IsDescription):
     event         = UInt32Col()
     trigger_nb    = UInt32Col()
-    time_s        = UInt64Col()
-    time_ns       = UInt64Col()
+    time_s        = Float64Col()
+    time_ns       = Float64Col()
     n_sample      = UInt32Col()
     n_peak        = UInt32Col(shape=(cf.n_pds_channels))
-
+    n_cluster     = UInt32Col()
     
 
 class Hits(IsDescription):
@@ -116,12 +116,12 @@ class Hits(IsDescription):
 
     is_collection  = BoolCol()
 
-    tdc_start = UInt16Col()
-    tdc_stop = UInt16Col()
+    tdc_start = Int32Col()
+    tdc_stop  = Int32Col()
 
-    tdc_max  = UInt16Col()
-    tdc_min  = UInt16Col()
-    tdc_zero = UInt16Col()
+    tdc_max  = Int32Col()
+    tdc_min  = Int32Col()
+    tdc_zero = Int32Col()
 
     z       = Float32Col()
     x       = Float32Col()
@@ -189,11 +189,11 @@ class Tracks3D(IsDescription):
     x_ini   = Float32Col()
     y_ini   = Float32Col()
     z_ini   = Float32Col()
-    t_ini   = Float32Col()
+    t_ini   = Int32Col()
     x_end   = Float32Col()
     y_end   = Float32Col()
     z_end   = Float32Col()
-    t_end   = Float32Col()
+    t_end   = Int32Col()
     chi2    = Float32Col(shape=(cf.n_view))
     
 
@@ -214,7 +214,8 @@ class Tracks3D(IsDescription):
     t0_corr = Float32Col()
 
     d_match = Float32Col()
-
+    timestamp  = Float64Col()
+    cluster_ID = Int32Col()
 
 
 
@@ -278,6 +279,9 @@ class SingleHits(IsDescription):
 
     veto = BoolCol(shape=(cf.n_view))
 
+    timestamp  = Float64Col()
+    cluster_ID = Int32Col()
+    Z_light    = Float64Col()
 
 class PDS_Peak(IsDescription):
 
@@ -287,13 +291,30 @@ class PDS_Peak(IsDescription):
     ID = UInt32Col()
     glob_ch = UInt32Col()
     channel = UInt32Col()
-    start   = UInt32Col()
-    stop    = UInt32Col()
+    start   = Int32Col()
+    stop    = Int32Col()
     
-    max_t   = UInt32Col()
+    max_t   = Int32Col()
     charge  = Float64Col()
     max_adc = Float64Col()
 
+    cluster_ID = Int32Col()
+    
+    
+class PDS_Cluster(IsDescription):
+    event   = UInt32Col()
+    trigger = UInt32Col()
+
+    ID = UInt32Col()
+
+    size = UInt32Col()
+
+    start_t = Int32Col()
+    stop_t  = Int32Col()
+
+    timestamp = Float64Col()
+    match_trk3D  = Int32Col()
+    match_single = Int32Col()
 
 def create_tables(h5file):
     table = h5file.create_table("/", 'infos', Infos, 'Infos')
@@ -337,8 +358,12 @@ def create_tables_pds(h5file):
     table = h5file.create_table("/", 'pds_event', PDSEvent, 'PDSEvent')
     table = h5file.create_table("/", 'pds_pedestals', PDSPedestal, 'PDSPedestals')
     table = h5file.create_table("/", "pds_peaks", PDS_Peak, "PDSPeak")
-    
+    table = h5file.create_table("/", "pds_clusters", PDS_Cluster, "PDSCluster")
 
+    t = h5file.create_vlarray("/", 'pds_peakID_clusters', Float32Atom(shape=(1)), "Peak IDs")
+    t = h5file.create_vlarray("/", 'charge_pds_match', Float32Atom(shape=(9)), "(distance, SiPM strip nb, x_impact, y_impact, z_impact, isInside, x_closest, y_closest, z_closest)")
+    
+    
 def store_run_infos(h5file, run, sub, nevent, time):
     inf = h5file.root.infos.row
     inf['run']           = run
@@ -497,6 +522,10 @@ def store_single_hits(h5file):
         sh['charge_extend_pos'] = it.charge_extend_pos
         sh['charge_extend_neg'] = it.charge_extend_neg
 
+        sh['timestamp']  = it.timestamp
+        sh['cluster_ID'] = it.match_pds_cluster
+        sh['Z_light']    = it.Z_from_light
+
         sh.append()
 
 def store_tracks2D(h5file):
@@ -584,6 +613,9 @@ def store_tracks3D(h5file):
 
        t3d['d_match']  = it.d_match
 
+       t3d['timestamp'] = it.timestamp
+       t3d['cluster_ID'] = it.match_pds_cluster
+       
        for i in range(cf.n_view):
            pts = [[p[0], p[1], p[2], q, s, r] for p,q,s,r in zip(it.path[i], it.dQ[i], it.ds[i], it.hits_ID[i])]
            vl_h[i].append(pts)
@@ -687,12 +719,13 @@ def store_pds_infos(h5file, run, sub, nevent, time):
 def store_pds_event(h5file):
     evt = h5file.root.pds_event.row
 
-    evt['event']        = dc.evt_list[-1].evt_nb
+    evt['event']      = dc.evt_list[-1].evt_nb
     evt['trigger_nb'] = dc.evt_list[-1].trigger_nb
     evt['time_s']     = dc.evt_list[-1].pds_time_s
     evt['time_ns']    = dc.evt_list[-1].pds_time_ns
     evt['n_sample']   = cf.n_pds_sample
-    evt['n_peak']     = dc.evt_list[-1].n_pds_peak
+    evt['n_peak']     = dc.evt_list[-1].n_pds_peaks
+    evt['n_cluster']  = dc.evt_list[-1].n_pds_clusters
 
     evt.append()
 
@@ -713,7 +746,37 @@ def store_pds_peak(h5file):
         pds['max_t']   = p.max_t
         pds['charge']  = p.charge
         pds['max_adc'] = p.max_adc
+        
+        pds['cluster_ID'] = p.cluster_ID
         pds.append()
+
+
+def store_pds_cluster(h5file):
+    clu = h5file.root.pds_clusters.row
+
+    vl_ids = h5file.get_node('/pds_peakID_clusters')
+    vl_match = h5file.get_node('/charge_pds_match')
+
+    
+    for c in dc.pds_cluster_list:
+        clu['event']   = dc.evt_list[-1].evt_nb
+        clu['trigger'] = dc.evt_list[-1].trigger_nb
+
+        clu['ID'] = c.ID
+        clu['size'] = c.size
+        clu['start_t'] = c.t_start
+        clu['stop_t'] = c.t_stop
+        clu['timestamp'] = c.timestamp
+        clu['match_trk3D'] = c.match_trk3D
+        clu['match_single'] = c.match_single
+
+        vl_ids.append([[i] for i in c.peak_IDs])
+
+        pts = [[d, idx, p[0], p[1], p[2], tf, h[0], h[1], h[2]] for d, idx, p, tf,h in zip(c.dist_closest_strip, c.id_closest_strip, c.point_impact, c.point_closest_above, c.point_closest)]
+        vl_match.append(pts)
+        clu.append()
+
+
         
 def dictToGroup(f, parent, groupname, dictin, force=False, recursive=True):
     """
