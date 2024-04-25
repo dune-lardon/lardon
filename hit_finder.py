@@ -417,12 +417,14 @@ def find_hits():
     [recompute_hit_charge(x) for x in dc.hits_list]
     [x.hit_charge() for x in dc.hits_list]
 
-    """ debug """
-    #[x.dump() for x in dc.hits_list]
 
 
 
-
+def compute_pds_peak_charge(peak):
+    glob_ch, pad_start, pad_stop = peak.glob_ch, peak.pad_start, peak.pad_stop
+    val = sum(dc.data_pds[glob_ch, pad_start:pad_stop])
+    peak.charge = val
+    
 def find_pds_peak():
     
     pad_left = dc.reco['pds']['hit_finder']['pad']['left']
@@ -470,7 +472,7 @@ def find_pds_peak():
                     break
 
             for ir in range(0, pad_right):
-                if(tdc_stop+1 < cf.n_sample and not ROI[glob_chan,tdc_stop+1]):
+                if(tdc_stop+1 < cf.n_pds_sample and not ROI[glob_chan,tdc_stop+1]):
                     tdc_stop += 1
                 else:
                     break
@@ -523,8 +525,13 @@ def find_pds_peak():
                         hh[i].pad_stop = hh[i+1].pad_start - 1
 
 
-            dc.evt_list[-1].n_pds_peak[glob_chan] += len(hh)
+            dc.evt_list[-1].n_pds_peaks[glob_chan] += len(hh)
             dc.pds_peak_list.extend(hh)
 
-    print('found ', dc.evt_list[-1].n_pds_peak, ' PDS peaks')
-    #[x.dump() for x in dc.pds_peak_list]
+    print('found ', dc.evt_list[-1].n_pds_peaks, ' PDS peaks')
+
+    """ set peaks an index number """
+
+    [compute_pds_peak_charge(p) for p in dc.pds_peak_list]
+    """ shift of the ID done in the function """
+    [dc.pds_peak_list[i].set_index(i) for i in range(len(dc.pds_peak_list))]
