@@ -9,6 +9,9 @@ import bottleneck as bn
 
 import time
 
+
+
+
 @nb.jit(nopython = True)
 def compute_pedestal_nb(data, mask, is_raw):
     """ do not remove the @jit above, the code would then take ~40 s to run """
@@ -56,17 +59,19 @@ def compute_pedestal(noise_type='None'):
         ''' As nothing is masked yet, the computed raw pedestal is biased when there is signal '''
         ''' a rough mask is computed from the RMS '''
         ''' and pedestal and rms are computed again '''
-
+        
         mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq, True)
         thresh = dc.reco['pedestal']['raw_rms_thr']
         n_iter = dc.reco['pedestal']['n_iter']
+        
         for i in range(n_iter):
             update_mask_inputs(thresh, mean, std)
             mean, std = compute_pedestal_nb(dc.data_daq, dc.mask_daq, True)
+            
         ped = dc.noise( mean, std )
         dc.evt_list[-1].set_noise_raw(ped)
 
-        inv = np.array([-1 if cf.signal_is_inverted[x.module]==True else 1 for x in dc.chmap])
+        inv = np.array([-1 if cf.signal_is_inverted[cf.imod]==True else 1 for x in range(cf.module_nchan[cf.imod])]) #dc.chmap])
 
         """ remove the nans introduced to align the frames """
         dc.data_daq = np.where(np.isnan(dc.data_daq), mean[:,None]*inv[:,None], dc.data_daq)
@@ -88,19 +93,19 @@ def compute_pedestal(noise_type='None'):
 
 def update_mask(thresh):
     dc.mask_daq = ne.evaluate( "where((abs(data) > thresh*rms), 0, 1)", global_dict={'data':dc.data_daq, 'rms':dc.evt_list[-1].noise_filt.ped_rms[:,None]}).astype(bool)
-    dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan)
+    dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan[:,None])
 
 
 def update_mask_inputs(thresh, mean, rms):
     dc.mask_daq = ne.evaluate( "where((abs(data-baseline) >  thresh*std) , 0, 1)", global_dict={'data':dc.data_daq, 'baseline':mean[:,None],'std':rms[:,None]}).astype(bool)
-    dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan)
+    dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan[:,None])
 
 
 def refine_mask(n_pass = 1):
 
-    for ch in range(cf.n_tot_channels):
+    for ch in range(cf.module_nchan[cf.imod]):
 
-        if(dc.alive_chan[ch,0]==False):
+        if(dc.alive_chan[ch]==False):
             dc.mask_daq[ch,:] = False
             continue
 
@@ -108,9 +113,10 @@ def refine_mask(n_pass = 1):
         if(view >= cf.n_view or view < 0):
             continue
 
-        rms  = dc.evt_list[-1].noise_filt.ped_rms[ch]
+        rms  = dc.evt_list[-1].noise_filt[cf.imod].ped_rms[ch]
 
-        if(cf.view_type[view] == "Collection"): 
+        debug = False
+        if(cf.view_type[cf.imod][view] == "Collection"): 
             mask_collection_signal(dc.mask_daq[ch], dc.data_daq[ch],
                                    dc.reco['mask']['coll']['min_dt'],
                                    dc.reco['mask']['coll']['low_thr'][n_pass-1]*rms,
@@ -118,7 +124,7 @@ def refine_mask(n_pass = 1):
                                    dc.reco['mask']['coll']['min_rise'],
                                    dc.reco['mask']['coll']['min_fall'],
                                    dc.reco['mask']['coll']['pad_bef'],
-                                   dc.reco['mask']['coll']['pad_aft'])
+                                   dc.reco['mask']['coll']['pad_aft'], debug)
             
         else:
             mask_induction_signal(dc.mask_daq[ch], dc.data_daq[ch],
@@ -137,8 +143,8 @@ def refine_mask(n_pass = 1):
                                   dc.reco['mask']['ind']['pad_aft'])
             
             
-@nb.jit('(boolean[:],float64[:],int64,float64,float64,int64,int64,int64,int64)',nopython = True)
-def mask_collection_signal(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft):
+@nb.jit('(boolean[:],float64[:],int64,float64,float64,int64,int64,int64,int64,boolean)',nopython = True)
+def mask_collection_signal(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall_thr, pad_bef, pad_aft,debug):
     mask[:]=1
 
     start, stop, t_max, val_max, dt = -1, -1, -1, -1, 0
@@ -146,7 +152,10 @@ def mask_collection_signal(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall
 
     for x,val in np.ndenumerate(data):    
         t = x[0]
-        if(val > low_thr and start > 0):
+        if(debug and t < 100):
+            print(t, val, start, ' test', val > low_thr)
+            
+        if(val > low_thr and start >= 0):
             dt += 1
             stop = t
             
@@ -157,8 +166,8 @@ def mask_collection_signal(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall
         if(val > low_thr and start < 0):
             start = t
             
-        if(val <= low_thr and start > 0):
-            if(dt >= dt_thr and (t_max-start)>rise_thr and (stop-t_max)>fall_thr and val_max > high_thr):
+        if(val <= low_thr and start >= 0):                
+            if(dt >= dt_thr and (t_max-start)>=rise_thr and (stop-t_max)>=fall_thr and val_max >= high_thr):
                 start -= pad_bef
                 if(start < 0): start = 0
 
@@ -170,6 +179,7 @@ def mask_collection_signal(mask, data, dt_thr, low_thr, high_thr, rise_thr, fall
             start, stop, t_max, val_max, dt = -1, -1, -1, -1, 0
 
 
+            
 @nb.jit('(boolean[:],float64[:],int64,int64,float64,float64,int64,int64,int64,float64,float64,int64,int64,int64,int64)',nopython = True)
 def mask_induction_signal(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, high_pos_thr, rise_pos_thr, fall_pos_thr, dt_neg_thr, low_neg_thr, high_neg_thr, rise_neg_thr, fall_neg_thr, pad_bef, pad_aft):
 
@@ -199,7 +209,7 @@ def mask_induction_signal(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, hi
     for x,val in np.ndenumerate(data):    
         t = x[0]
         
-        if(val > low_pos_thr and start_pos > 0):
+        if(val > low_pos_thr and start_pos >= 0):
             dt_pos += 1
             stop_pos = t
             
@@ -210,8 +220,8 @@ def mask_induction_signal(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, hi
         if(val > low_pos_thr and start_pos < 0):
             start_pos = t
             
-        if(val <= low_pos_thr and start_pos > 0):
-            if(dt_pos >= dt_pos_thr and (t_max-start_pos)>rise_pos_thr and (stop_pos-t_max)>fall_pos_thr and val_max > high_pos_thr):
+        if(val <= low_pos_thr and start_pos >= 0):
+            if(dt_pos >= dt_pos_thr and (t_max-start_pos)>=rise_pos_thr and (stop_pos-t_max)>=fall_pos_thr and val_max >= high_pos_thr):
 
                 start_pos -= pad_bef
                 if(start_pos < 0): start_pos = 0
@@ -224,7 +234,7 @@ def mask_induction_signal(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, hi
                 
             start_pos, stop_pos, t_max, val_max, dt_pos = -1, -1, -1, -1, 0
 
-        if(val < low_neg_thr and start_neg > 0):
+        if(val < low_neg_thr and start_neg >= 0):
             dt_neg += 1
             stop_neg = t
             
@@ -235,8 +245,8 @@ def mask_induction_signal(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, hi
         if(val < low_neg_thr and start_neg < 0):
             start_neg = t
             
-        if(val >= low_neg_thr and start_neg > 0):
-            if(dt_neg >= dt_neg_thr and (t_min-start_neg)>rise_neg_thr and (stop_neg-t_min)>fall_neg_thr and val_min < high_neg_thr):
+        if(val >= low_neg_thr and start_neg >= 0):
+            if(dt_neg >= dt_neg_thr and (t_min-start_neg)>=rise_neg_thr and (stop_neg-t_min)>=fall_neg_thr and val_min <= high_neg_thr):
 
 
                 start_neg -= pad_bef
@@ -257,17 +267,22 @@ def mask_induction_signal(mask, data, dt_posneg_thr, dt_pos_thr, low_pos_thr, hi
 def study_noise():
     """ some attempt at caracterizing the microphonic noise """
 
-
-    nchunks = 16
-    if(cf.n_sample%nchunks != 0):
+    if(dc.reco['noise']['study']['to_be_done'] == 0):
         return
-    chunk = int(cf.n_sample/nchunks)
-
-    dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, nchunks, chunk))
-    dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, nchunks, chunk))
     
-    mean = [[-999 for x in range(cf.n_tot_channels)] for i in range(nchunks)]
-    std = [[-999 for x in range(cf.n_tot_channels)] for i in range(nchunks)]
+    if(dc.evt_list[-1].noise_study == None):
+        dc.evt_list[-1].noise_study = [[] for x in range(cf.n_module_used)]
+
+    nchunks = dc.reco['noise']['study']['nchunk']
+    if(cf.n_sample[cf.imod]%nchunks != 0):
+        return
+    chunk = int(cf.n_sample[cf.imod]/nchunks)
+
+    dc.data_daq = np.reshape(dc.data_daq, (cf.module_nchan[cf.imod], nchunks, chunk))
+    dc.mask_daq = np.reshape(dc.mask_daq, (cf.module_nchan[cf.imod], nchunks, chunk))
+    
+    mean = [[-999 for x in range(cf.module_nchan[cf.imod])] for i in range(nchunks)]
+    std = [[-999 for x in range(cf.module_nchan[cf.imod])] for i in range(nchunks)]
 
     for i in range(nchunks):
         mean[i], std[i] = compute_pedestal_nb(dc.data_daq[:,i,:], dc.mask_daq[:,i,:], False)
@@ -281,35 +296,52 @@ def study_noise():
 
 
     """ restore original data shape """
-    dc.data_daq = np.reshape(dc.data_daq, (cf.n_tot_channels, cf.n_sample))
-    dc.mask_daq = np.reshape(dc.mask_daq, (cf.n_tot_channels, cf.n_sample))
+    dc.data_daq = np.reshape(dc.data_daq, (cf.module_nchan[cf.imod], cf.n_sample[cf.imod]))
+    dc.mask_daq = np.reshape(dc.mask_daq, (cf.module_nchan[cf.imod], cf.n_sample[cf.imod]))
 
 
 
 
 
 
-def compute_pedestal_pds():
+def compute_pedestal_pds(first=False):
 
     adc_thresh = dc.reco['pds']['pedestal']['raw_adc_thresh']
     rms_thresh = dc.reco['pds']['pedestal']['rms_thresh']
     n_iter = dc.reco['pds']['pedestal']['n_iter']
-    
-    """ very simple raw mean pedestal computation atm, 
-    remove the median value of the waveform """
-    med = bn.median(dc.data_pds, axis=1)
-    dc.data_pds -= med[:,None]
 
+    if(first==True):
+        """ very simple raw mean pedestal computation atm, 
+        remove the median value of the waveform """
+        med = bn.median(dc.data_pds, axis=1)
+        dc.data_pds -= med[:,None]                
+        dc.mask_pds = ne.evaluate( "where((data >  adc_thresh)| (data <=  -abs(baseline)+10), 0, 1)", global_dict={'data':dc.data_pds, 'baseline':med[:,None]}).astype(bool)
+        #print(med)
 
-    dc.mask_pds = ne.evaluate( "where((abs(data) >  adc_thresh) , 0, 1)", global_dict={'data':dc.data_pds}).astype(bool)
+    else:
+        med = dc.evt_list[-1].noise_pds_raw.ped_mean
+        #print(med)
+
+        
     mean, std = compute_pedestal_nb(dc.data_pds, dc.mask_pds, False)
+    #print('----> mean', mean)
+    #print('----> std', std)
     dc.data_pds -= mean[:,None]
 
 
     for i in range(n_iter):
-        dc.mask_pds = ne.evaluate( "where((abs(data) >  rms_thresh*rms) , 0, 1)", global_dict={'data':dc.data_pds,'rms':std[:,None]}).astype(bool)
+        dc.mask_pds = ne.evaluate( "where((data >  rms_thresh*rms)|(data <=  -abs(baseline)+10) , 0, 1)", global_dict={'data':dc.data_pds,'rms':std[:,None], 'baseline':med[:,None]}).astype(bool)
+        #dc.mask_pds = ne.evaluate( "where((data <=  -baseline+10), 0, 1)", global_dict={'data':dc.data_pds, 'baseline':med[:,None]}).astype(bool)
+        #dc.mask_pds[:,-1]=0
         mean, std = compute_pedestal_nb(dc.data_pds, dc.mask_pds, False)
         dc.data_pds -= mean[:,None]
 
-    ped = dc.noise( med, std )
-    dc.evt_list[-1].set_noise_pds(ped)
+    #print('----> std = ', std)
+
+    if(first==True):
+        ped = dc.noise( med, std )
+        dc.evt_list[-1].set_noise_pds_raw(ped)
+    else:
+        ped = dc.noise( mean, std )
+        dc.evt_list[-1].set_noise_pds_filt(ped)
+
