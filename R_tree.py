@@ -14,10 +14,14 @@ class R_tree:
         self.tree = index.Index()
 
     def insert_hit(self, hit, idx):
-        self.tree.insert(idx, (hit.X-self.dX, hit.Z_stop, hit.X+self.dX, hit.Z_start))
+        stop = min(hit.Z_stop, hit.Z_start)
+        start = max(hit.Z_stop, hit.Z_start)
+        self.tree.insert(idx, (hit.X-self.dX, stop, hit.X+self.dX, start))
 
     def remove_hit(self, hit, idx):
-        self.tree.delete(idx, (hit.X-self.dX, hit.Z_stop, hit.X+self.dX, hit.Z_start))
+        stop = min(hit.Z_stop, hit.Z_start)
+        start = max(hit.Z_stop, hit.Z_start)
+        self.tree.delete(idx, (hit.X-self.dX, stop, hit.X+self.dX, start))
     def n_hits(self):
         return self.tree.get_size()
 
@@ -25,7 +29,9 @@ class R_tree:
         print(self.tree)
 
     def nearest_id(self, hit, n):
-        return list(self.tree.nearest((hit.X-self.dX, hit.Z_stop, hit.X+self.dX, hit.Z_start), n))
+        stop = min(hit.Z_stop, hit.Z_start)
+        start = max(hit.Z_stop, hit.Z_start)                
+        return list(self.tree.nearest((hit.X-self.dX, stop, hit.X+self.dX, start), n))
 
     def overlap_in_time(self, hA, hB):
         b, a = hA.Z_start, hA.Z_stop
