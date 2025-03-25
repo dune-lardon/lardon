@@ -20,82 +20,91 @@ from .save_plot import *
 def draw_pds_ED( option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
 
     fig = plt.figure()
-    n_pds = cf.pds_n_modules
-    gs = gridspec.GridSpec(nrows=int(n_pds/2), ncols=2)
+    n_modules = cf.pds_n_modules
+    n_chan = cf.n_pds_channels
+    gs = gridspec.GridSpec(nrows=int(n_modules/2), ncols=2)
 
     axs = []
     axs_pds = []
     k = 0
 
     xx = np.linspace(0,cf.n_pds_sample-1,cf.n_pds_sample)
-    for irow in range(int(n_pds/2)):
+    for irow in range(int(n_modules/2)):
         for icol in range(2):
-            axs.append( fig.add_subplot(gs[irow, icol]) )
-            gsgs = gridspec.GridSpecFromSubplotSpec(2, 1, hspace=0, subplot_spec=gs[irow, icol])
-            axs_pds.append([fig.add_subplot(gsgs[0,0]), fig.add_subplot(gsgs[1,0])])
-            axs_pds[k][0].get_shared_x_axes().join(axs_pds[k][0], axs_pds[k][1])
+        
+            module = 2*irow + icol
 
-            axs[k].set_xticks([])
-            axs[k].set_yticks([])
+            if(cf.pds_modules_type[module] == 'Cathode'):
+
+                axs.append( fig.add_subplot(gs[irow, icol]) )
+                gsgs = gridspec.GridSpecFromSubplotSpec(2, 1, hspace=0, subplot_spec=gs[irow, icol])
+
+                axs_pds.append(fig.add_subplot(gsgs[0,0]))
+                axs_pds.append(fig.add_subplot(gsgs[1,0]))
+
+                axs_pds[-2].get_shared_x_axes().join(axs_pds[-2], axs_pds[-1])
+
+                axs[-1].set_xticks([])
+                axs[-1].set_yticks([])
+
+            else:
+                axs_pds.append(fig.add_subplot(gs[irow, icol]) )
+
+    for ipds in range(n_chan):
+                
+        label = dc.chmap_pds[ipds].det+' Ch. '+str(dc.chmap_pds[ipds].chan)
+
+        axs_pds[ipds].step(xx, dc.data_pds[ipds, :], where='mid',c="k", label=label)
+        axs_pds[ipds].legend(frameon=False, loc='upper right')
+        axs_pds[ipds].set_ylabel('ADC')
+
+        rms = dc.evt_list[-1].noise_pds_filt.ped_rms[ipds]
+
+        axs_pds[ipds].axhline(rms, c='orange', lw=0.5, zorder=100)
+        axs_pds[ipds].axhline(-rms, c='orange', lw=0.5, zorder=100)
+                
+        """ draw rois """
+        if(draw_roi == True):
+            ymin, ymax = axs_pds[ipds].get_ylim()
+            ROI = np.r_['-1',0,np.array(~dc.mask_pds[ipds], dtype=int),0]
+            d = np.diff(ROI)
             
-            #if('C' in dc.chmap_pds[chan].det):
-            for j in range(2):
-                chan = k*2+j
-                label = dc.chmap_pds[chan].det+' Ch. '+str(dc.chmap_pds[chan].chan)
-
-                axs_pds[-1][j].step(xx, dc.data_pds[chan, :], where='mid',c="k", label=label)
-                axs_pds[-1][j].legend(frameon=False, loc='upper right')
-                axs_pds[-1][j].set_ylabel('ADC')
-
-                rms = dc.evt_list[-1].noise_pds.ped_rms[chan]
-                #print(chan, '--> ', rms)
-                axs_pds[-1][j].axhline(rms, c='orange', lw=0.5, zorder=100)
-                axs_pds[-1][j].axhline(-rms, c='orange', lw=0.5, zorder=100)
-                #axs_pds[-1][j].axhline(4*rms, c='r', ls='dotted')
-                #axs_pds[-1][j].axhline(-4*rms, c='r', ls='dotted')
-                
-                """ draw rois """
-                if(draw_roi == True):
-                    ymin, ymax = axs_pds[k][j].get_ylim()
-                    ROI = np.r_['-1',0,np.array(~dc.mask_pds[chan], dtype=int),0]
-                    d = np.diff(ROI)
-
-                    """ a change from false to true in difference is = 1 """
-                    start = np.where(d==1)[0]
-                    """ a change from true to false in difference is = -1 """
-                    end   = np.where(d==-1)[0]
-                
-                    for ir in range(len(start)):
+            """ a change from false to true in difference is = 1 """
+            start = np.where(d==1)[0]
+            """ a change from true to false in difference is = -1 """
+            end   = np.where(d==-1)[0]
+            
+            for ir in range(len(start)):
                         
-                        tdc_start = start[ir]
-                        tdc_stop = end[ir]            
-                        dt = tdc_stop-tdc_start
-                        dy = ymax-ymin
-                        r = patches.Rectangle((tdc_start,ymin),dt,dy,linewidth=.5,edgecolor='none',facecolor='lightgray',zorder=-100)
+                tdc_start = start[ir]
+                tdc_stop = end[ir]            
+                dt = tdc_stop-tdc_start
+                dy = ymax-ymin
+                r = patches.Rectangle((tdc_start,ymin),dt,dy,linewidth=.5,edgecolor='none',facecolor='lightgray',zorder=-100)
 
-                        axs_pds[k][j].add_patch(r)
-
-
-                if(draw_peak==True):
-                    for p in dc.pds_peak_list:
-                        if(p.glob_ch == chan):
-                            axs_pds[k][j].axvline(p.max_t, c='coral', lw=0.4)
+                axs_pds[ipds].add_patch(r)
 
 
+        if(draw_peak==True):
+            for p in dc.pds_peak_list:
+                if(p.glob_ch == ipds):
+                    axs_pds[ipds].axvline(p.max_t, c='coral', lw=0.4)
 
-                
-                if(draw_cluster==True):
-                    for cl in dc.pds_cluster_list:
-                        for icl in range(cl.size):
-                            if(cl.glob_chans[icl] == chan):
-                                axs_pds[k][j].axvline(cl.t_maxs[icl], c='tab:cyan', lw=cl.size, alpha=0.8, zorder=-100)
+
+
+        col_size=['#c1e7ff', '#9dc6e0', '#7aa6c2', '#5886a5', '#346888' , '#004c6d']
+        if(draw_cluster==True):
+            for cl in dc.pds_cluster_list:
+                for icl in range(cl.size):
+                    if(cl.glob_chans[icl] == ipds):                        
+                        axs_pds[ipds].axvline(cl.t_maxs[icl], lw=4, color=col_size[int(cl.size/2)-1], alpha=0.8, zorder=-100)
                             
 
-            axs_pds[k][1].set_xlabel('Time tick')
-            for j in range(2):
-                ymin, ymax = axs_pds[k][j].get_ylim()
-                axs_pds[k][j].set_ylim(-100, ymax)
-            k = k+1
+        axs_pds[ipds].set_xlabel('Time tick')
+        #for j in range(2):
+        ymin, ymax = axs_pds[ipds].get_ylim()
+        axs_pds[ipds].set_ylim(-100, ymax)
+        k = k+1
     
     plt.tight_layout()
 
