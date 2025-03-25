@@ -5,7 +5,7 @@ import math
             
 def drift_velocity():
     T = cf.LAr_temperature
-    E = cf.e_drift
+    E = cf.e_drift[cf.imod]
 
     T_walk = 90.371 #K
     walk = [-0.01481, -0.0075, 0.141, 12.4, 1.627, 0.317]
