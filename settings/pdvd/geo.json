@@ -1,0 +1,94 @@
+{
+    "default":
+    {
+	"tpc_orientation":"Vertical",
+	"n_view":"3",
+	"n_module":"2",
+	"module_name":["CRP5","CRP4","CRP3","CRP2"],
+	"module_used":["0","1"], //write which module to use
+	"view_name":["U","V","Z"],
+	"view_type":[["Induction","Induction", "Collection"],["Induction","Induction", "Collection"],["Induction","Induction", "Collection"],["Induction","Induction", "Collection"]],
+	"view_angle":[["60", "120", "180"],["60", "120", "180"],["120", "60", "180"],["120", "60", "180"]],
+	"view_pitch":["0.765", "0.765", "0.51"],
+	"view_capa":["10.3","10.3","8.1"],
+	"view_nchan":["952", "952", "1168"],
+	"view_chan_repet":["476","476","292"],
+	"view_length":["728.28","728.28","297.84"],
+	"view_z_offset":[["1.32","0.32","0"],["1.32","0.32","0"],["1.32","0.32","0"],["1.32","0.32","0"]],
+	"n_tot_channels":"6144", //
+	"module_nchan": ["3072","3072"],
+	"module_daqch_start":["0","3072"],
+	"sampling":["1.953125","1.953125"], 
+	"n_sample":["10000","10000"], 
+	"e_per_ADCtick":["7.3","7.3", "32","32"],
+	"view_offset":[["-364.14","-364.14","-148.92"]],
+
+	"view_boundaries_min":[["0","0","0"], ["0","0","0"]],
+	"view_boundaries_max":[["0","0","0"], ["0","0","0"]],
+
+	"view_offset_repet":[[["-364.14", "-438.35"],["-289.935", "-215.73"],["0","0","148.92","148.92"]], [["-74.205", "-148.41"],["0", "74.205"],["0","0","148.92","148.92"]]],
+	
+	"x_boundaries":[["-337.5","0"],["337.5","0"],["-337.5","0"], ["0","337.5"]],
+	"y_boundaries":[["0", "297.92"],["0", "297.92"],["0", "297.92"],["0", "297.92"]],	
+
+	"y_cru":"148.92",
+	
+	"chmap":"pdvd_chmap_bde.txt",	    	    
+	"signal_is_inverted":["0","0"],
+	"e_drift":["0.5","0.5"],
+	"drift_length":["338.5","338.5"],
+	"anode_z":["-338.5", "-338.5", "338.5", "338.5"],
+	"drift_direction":["-1", "-1", "1", "1"],
+	"elec":["bot", "bot", "top", "top"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48","48","48","48"],
+	"daq_links_offset":["100","200","300","400"],
+	"crp4broken_channels":[82,83,1710,501,2129],
+	"crp5broken_channels":[2423, 322, 2292, 943, 959, 383],
+	"broken_channels":[293, 955, 1482, 2413, 2705, 2727, 2657, 4242, 4243, 5797, 6089, 5471] // provide global channel number
+    },
+
+    "2816-2821":
+    {
+	"tpc_orientation":"Vertical",
+	"n_view":"3",
+	"n_module":"2",
+	"module_name":["CRP3","CRP2"],
+	"module_used":["0","1"], //write which module to use
+
+	"view_name":["U","V","Z"],
+	"view_type":[["Induction","Induction", "Collection"],["Induction","Induction", "Collection"],["Induction","Induction", "Collection"],["Induction","Induction", "Collection"]],
+	"view_angle":[["120", "60", "180"],["120", "60", "180"]],
+	"view_pitch":["0.765", "0.765", "0.51"],
+	"view_capa":["10.3","10.3","8.1"],
+	"view_nchan":["952", "952", "1168"],
+	"view_chan_repet":["476","476","292"],
+	"view_length":["728.28","728.28","297.84"],
+	"view_z_offset":[["1.32","0.32","0"],["1.32","0.32","0"],["1.32","0.32","0"],["1.32","0.32","0"]],
+	"n_tot_channels":"12800", //
+	"module_nchan": ["6400","6400"],
+	"module_daqch_start":["0","6400"],
+	"sampling":["2.0", "2.0"],
+	"n_sample":["10000","10000"], 
+	"e_per_ADCtick":[ "32","32"],
+	"view_offset":[["-364.14","-364.14","-148.92"]],
+
+	"view_boundaries_min":[["0","0","0"], ["0","0","0"]],
+	"view_boundaries_max":[["0","0","0"], ["0","0","0"]],
+
+	"view_offset_repet":[[["0", "74.205"],["-74.205", "-148.41"],["0","0","148.92","148.92"]], [["-289.935", "-215.73"],["-364.14", "-438.35"],["0","0","148.92","148.92"]]],
+	
+	"x_boundaries":[["0", "337.5"], ["-337.5","0"], ["-337.5","0"], ["0","337.5"]],
+	"y_boundaries":[["0", "297.92"],["0", "297.92"],["0", "297.92"],["0", "297.92"]],	
+	"chmap":"pdvd_chmap_tde.txt",	    	    
+	"signal_is_inverted":["0","0"],
+	"e_drift":["0.5","0.5"],
+	"drift_length":["338.5","338.5"],
+	"anode_z":["338.5", "338.5"],
+	"drift_direction":[ "1", "1"],
+	"elec":["top", "top"],
+	"daq":"lyon_pdvd",
+	"daq_nlinks":["48","48","48","48"],
+	"daq_links_offset":["100","200","300","400"]
+    }
+}
