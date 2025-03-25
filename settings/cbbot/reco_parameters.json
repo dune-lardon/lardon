@@ -62,7 +62,7 @@
           },
           "ind":{
               "amp_sig": [2,3],
-              "dt_min": 8
+              "dt_min": 6
           },
           "pad":{
               "left": 12,
@@ -93,7 +93,7 @@
       },
 
       "single_hit":{
-	  "max_per_view":3,
+	  "max_per_view":4,
 	  "outlier_dmax":2.5,
 	  "veto_nchan":16,
 	  "veto_nticks":150,
@@ -103,7 +103,7 @@
 
       "pds":{
 	  "pedestal":{
-	      "raw_adc_thresh":150,
+	      "raw_adc_thresh":90,
 	      "rms_thresh":3,
 	      "n_iter":3
 	  },

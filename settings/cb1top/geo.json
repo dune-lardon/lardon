@@ -1,6 +1,7 @@
 {
     "default":
     {
+	"tpc_orientation":"Vertical",
 	"n_view":"3",
 	"n_module":"1",
 	"view_name":["U","Y","Z"],
