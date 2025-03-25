@@ -85,7 +85,11 @@
 	  "len_min":2.0, 
 	  "dx_tol": [[3.0,3.0]],
 	  "dy_tol": [[3.0,3.0]],
-	  "dz_tol": 2.0
+	  "dz_tol": 2.0,
+	  "d_thresh":0.5,
+	  "min_z_overlap":3.0,
+	  "trk_min_dz":5.0
+
       },
 
       "ghost":{
@@ -94,11 +98,12 @@
 
       "single_hit":{
 	  "time_tol":9,
-	  "outlier_dmax":5,
+	  "outlier_dmax":10,
 	  "veto_nchan":4,
 	  "veto_nticks":70,
 	  "int_nchan":3,
-	  "int_nticks":40
+	  "int_nticks":40,
+	  "cluster_eps":1.0
       },
 
       "store":{
