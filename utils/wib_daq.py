@@ -480,6 +480,7 @@ class wib:
             self.events_list.append(group._v_name)
 
         self.events_list.sort()
+
         nb_evt = len(self.events_list)
 
         return nb_evt
@@ -524,11 +525,12 @@ class wib:
         trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='RawData/TR_Builder_0x'+name+'_TriggerRecordHeader',classname='Array').read()
 
         header_magic =  0x33334444
-        header_version = 0x00000003
+        header_version_1 = 0x00000003
+        header_version_2 = 0x00000004
 
 
         head = np.frombuffer(trig_rec[:self.trigger_header_size], dtype=self.trigger_header_type)
-        if(head['header_marker'][0] != header_magic or head['header_version'][0] != header_version):
+        if(head['header_marker'][0] != header_magic or (head['header_version'][0] != header_version_1 and head['header_version'][0] != header_version_2)):
             print(' there is a problem with the header magic / version ')
             print("marker : ", head['header_marker'][0], " vs ", header_magic)
             print("version : ", head['header_version'][0], " vs ", header_version)
@@ -557,16 +559,20 @@ class wib:
             self.nlinks = 2
         elif(self.det == 'cbbot'):
             self.nlinks = 48
-
+        elif(self.det == 'pdhd'):
+            self.nlinks = 40
+        elif(self.det == 'pdvd'):
+            self.nlinks = 48
         
         t_s, t_ns = get_unix_time_wib_2(head['timestamp'][0])
         dc.evt_list.append( dc.event(self.det, "bot", head['run_nb'][0], sub, ievt, head['trig_num'][0], t_s, t_ns) )
-
+        
 
 
 
 
     def read_evt(self, ievt):
+        
         if(self.daq == "wib_1"):
             return self.read_evt_wib_1(ievt)
         elif(self.daq == "wib_2"):
@@ -603,12 +609,13 @@ class wib:
                     return
 
                 """ reshape the dc arrays accordingly """
-                dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
-                dc.data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
-                dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample[cf.imod]), dtype=np.float32)
+                dc.data_daq = np.zeros((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]), dtype=np.float32) #view, vchan
+                #dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                dc.alive_chan = np.ones(cf.module_nchan[cf.imod], dtype=bool)
 
                 cmap.set_unused_channels()
-                dc.mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                dc.mask_daq  = np.ones((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]), dtype=bool)
                     
 
             wib_head = np.frombuffer(link_data[self.fragment_header_size:self.fragment_header_size+self.wib_header_size], dtype = self.wib_header_type)
@@ -681,11 +688,11 @@ class wib:
                     
 
                 """ reshape the dc arrays accordingly """
-                dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
-                dc.data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
-                dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample[cf.imod]), dtype=np.float32)
+                dc.data_daq = np.zeros((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]), dtype=np.float32) #view, vchan
+                dc.alive_chan = np.ones(cf.module_nchan[cf.imod], dtype=bool)
                 cmap.set_unused_channels()
-                dc.mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+                dc.mask_daq  = np.ones((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]), dtype=bool)
                     
 
             wib_head = np.frombuffer(link_data[self.fragment_header_size:self.fragment_header_size+self.wib_header_size], dtype = self.wib_header_type)
@@ -720,15 +727,13 @@ class wib:
 
 
     def read_evt_wib_2_eth(self, ievt):
+              
+        names = ["0x"+format(ilink+cf.daq_links_offset[cf.imod], '08x') for ilink in range(cf.daq_nlinks[cf.imod])]
 
-        if(self.det == '50l'):
-           names = ["0x%08d"%(64+ilink) for ilink in range(self.nlinks)]
-
-        if(self.det == 'cbbot'):
-            names = ["0x"+format(ilink+100, '08x') for ilink in range(self.nlinks)]
-
-
-        cf.n_sample = -1
+        #print(names)
+        #print('number of links: ', self.nlinks)
+        
+        cf.n_sample[cf.imod] = -1
         tstart_link = []
         tstop_link  = []
 
@@ -741,6 +746,7 @@ class wib:
 
             try :
                 link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/RawData", name='Detector_Readout_'+name+'_WIBEth',classname='Array').read()
+
             except tab.NoSuchNodeError:
                 #print('no link number ', ilink, 'with name RawData/Detector_Readout_'+name+'_WIBEth') 
                 continue
@@ -767,7 +773,7 @@ class wib:
             tstop_link.append(wib_ts[-1])
 
             n_event_frames = int(wib_ts[-1]-wib_ts[0])+64
-
+            
 
             if(n_event_frames != n_link_frames):
                 if(n_link_frames > n_event_frames):
@@ -777,12 +783,12 @@ class wib:
             
             n_frames = n_event_frames
 
-            if(cf.n_sample < 0): #first pass
+            if(cf.n_sample[cf.imod] < 0): #first pass
                 if(n_event_frames == 0):
                     continue
                 else:
-                    cf.n_sample = n_event_frames
-                    dc.data_daq = np.zeros((cf.n_tot_channels, cf.n_sample), dtype=np.float32) #view, vchan
+                    cf.n_sample[cf.imod] = n_event_frames
+                    dc.data_daq = np.zeros((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]), dtype=np.float32) #view, vchan
                     event_begin = tstart_link[0]
                     event_end   = tstop_link[0]
             else:
@@ -796,18 +802,18 @@ class wib:
                 if(delta_start > 0): event_begin = tstart_link[-1]
                 if(delta_stop  > 0): event_end   = tstop_link[-1]
 
-                if(n_event_frames > cf.n_sample):
+                if(n_event_frames > cf.n_sample[cf.imod]):
                     if(t_bef > 0 or t_end > 0):
                         dc.data_daq = np.pad(dc.data_daq, ((0,0), (t_bef, t_end)), 'constant', constant_values=np.nan)
 
-                elif(n_event_frames < cf.n_sample):
+                elif(n_event_frames < cf.n_sample[cf.imod]):
                     if(n_event_frames == 0):
                         continue
                     else:
                         if(t_bef > 0 or t_end > 0):   
                             dc.data_daq = np.pad(dc.data_daq, ((0,0), (t_bef, t_end)), 'constant', constant_values=np.nan)
 
-                        delta_samp = cf.n_sample-n_frames
+                        delta_samp = cf.n_sample[cf.imod]-n_frames
 
 
                 else:
@@ -815,18 +821,27 @@ class wib:
                         dc.data_daq = np.pad(dc.data_daq, ((0,0), (t_bef, t_end)), 'constant', constant_values=np.nan)
 
 
-                cf.n_sample = int(event_end-event_begin)+64
+                cf.n_sample[cf.imod] = int(event_end-event_begin)+64
 
-            """
-            wib_head = np.frombuffer(link_data[:self.wib_header_size], dtype = self.wib_header_type)
             
+            wib_head = np.frombuffer(link_data[:self.wib_header_size], dtype = self.wib_header_type)
+
+            
+            """
             print('\n',ilink, name,'\n')
-            print('DAQ and WIB INFOS') 
+            #print('DAQ and WIB INFOS') 
             # to get the detector, crate, slot, (etc) informations
             # detdataformats/include/detdataformats/DAQEthHeader.hpp
             daq_infos = get_daq_eth_infos(wib_head['daqethinfos'][0])
-            print(daq_infos)
+            #print(daq_infos)
+            wib = daq_infos['slot'] +1
+            stream = daq_infos['stream']
+            loc_stream = stream & 0x3
+            link = (stream >> 6) &1
+            crate = daq_infos['crate']
+            print('--> wib', wib, ' stream ', stream, ' loc ', loc_stream, 'link', link, 'crate', crate)
 
+                        
             #To get the WIB infos like pulser/calibration/?
             #fddetdataformats/include/fddetdataformats/WIBEthFrame.hpp
             # cf https://edms.cern.ch/document/2088713/9 'deimos'
@@ -871,20 +886,20 @@ class wib:
 
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
         
-        self.nlinks = 0
+        #self.nlinks = 0
         self.links = []
 
-        print('number of samples: ', cf.n_sample)
+        print('number of samples: ', cf.n_sample[cf.imod])
 
-        if(cf.n_sample > 0):
-            dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample), dtype=np.float32)
-            dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+        if(cf.n_sample[cf.imod] > 0):
+
+            dc.data = np.zeros(( cf.n_view, max(cf.view_nchan), cf.n_sample[cf.imod]), dtype=np.float32)
+            new_shape = (cf.module_nchan[cf.imod], cf.n_sample[cf.imod])
+            dc.alive_chan = np.ones(cf.module_nchan[cf.imod], dtype=bool)
             cmap.set_unused_channels()
-            dc.mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
+            dc.mask_daq  = np.ones(new_shape, dtype=bool)
 
-
-
-        
+                    
             charge_tstart = min(tstart_link)*32
             t_s, t_ns = get_unix_time_wib_2(charge_tstart)
             
@@ -902,6 +917,10 @@ class wib:
         
         """ Hard coded at the moment for CB BOT data """
         self.n_stream = 4
+        if(self.det == 'pdhd'):
+            self.n_stream = 10
+
+           
         names = ["0x"+format(istream+1, '08x') for istream in range(self.n_stream)]
         pds_tstart = []
         for istream in range(self.n_stream):
@@ -944,11 +963,12 @@ class wib:
                 if(glob < 0):
                     continue
                 else:
-                    #print(ichan, " :: ", dc.chmap_daq_pds[daq].chan, channels[ichan], '-->', daq, glob)
-                    assert dc.chmap_daq_pds[daq].chan == channels[ichan]
-                    dc.data_pds[glob] = out[ichan]
-
-
+                    print(ichan, " :: ", dc.chmap_daq_pds[daq].chan, channels[ichan], '-->', daq, glob)
+                    #assert dc.chmap_daq_pds[daq].chan == channels[ichan]
+                    if('M' in dc.chmap_pds[glob].det):                        
+                        dc.data_pds[glob] = -1*out[ichan]
+                    else:
+                        dc.data_pds[glob] = out[ichan]
         if(cf.n_pds_sample > 0):
             t_s, t_ns = get_unix_time_wib_2(min(pds_tstart))
             dc.evt_list[-1].set_pds_timestamp(t_s, t_ns)
