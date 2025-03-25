@@ -8,14 +8,15 @@ import numba as nb
 
 def hit_search(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3):
 
+
     ll = []
 
-    if(cf.view_type[view] != "Collection" and cf.view_type[view] != "Induction"): 
-        print(cf.view_type[view], " is not recognized")
+    if(cf.view_type[cf.imod][view] != "Collection" and cf.view_type[cf.imod][view] != "Induction"): 
+        print(cf.view_type[cf.imod][view], " is not recognized")
         sys.exit()
 
-    elif(cf.view_type[view] == "Collection"):
-        n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data,start, dt_min, thr1, thr2, cf.n_sample)
+    elif(cf.view_type[cf.imod][view] == "Collection"):
+        n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, start, dt_min, thr1, thr2, cf.n_sample[cf.imod])
 
         for i in range(n):
             ll.append(dc.hits(module, view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
@@ -25,14 +26,19 @@ def hit_search(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3):
     else: 
         """ look for collection-like signal in the cumulative sum of the waveforms """        
         csum = np.cumsum(data)
-        c_n, c_h_start, c_h_stop, c_h_max_t, c_h_max_adc = hit_search_collection_nb(csum, start, dt_min, thr1, thr2, cf.n_sample)
+        c_n, c_h_start, c_h_stop, c_h_max_t, c_h_max_adc = hit_search_collection_nb(csum, start, dt_min, 2*thr1, 2*thr2, cf.n_sample[cf.imod])
 
+           
         if(c_n > 0):
-            for i in range(c_n):
-                idx_b, idx_e = c_h_start[i]-start, c_h_stop[i]-start        
-                ll.extend([h for h in search_induction(data[idx_b:idx_e], module, view, daq_chan, start+idx_b, dt_min, thr1, thr2, thr3)])
-            return ll
-
+            if(c_n==1):
+                ll.extend([h for h in search_induction(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3)])
+                return ll
+            elif(c_n>=1):
+                for i in range(c_n):
+                    idx_b, idx_e = c_h_start[i]-start, c_h_stop[i]-start        
+                    ll.extend([h for h in search_induction(data[idx_b:idx_e], module, view, daq_chan, start+idx_b, dt_min, thr1, thr2, thr3)])
+                return ll
+            
         
         """ nothing found, test if the hit is collection-type """        
         if(c_n == 0):
@@ -53,7 +59,7 @@ def search_induction(data, module, view, daq_chan, start, dt_min, thr1, thr2, th
     else:
         """ if nothing found, search for positive bump """
         if(np.mean(data) > thr1):
-            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, start, dt_min, thr1, thr2, cf.n_sample)
+            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(data, start, dt_min, thr1, thr2, cf.n_sample[cf.imod])
             
             for i in range(n):
                 ll.append(dc.hits(module, view, daq_chan, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i], -1, 0., -1, "Collection"))
@@ -61,7 +67,7 @@ def search_induction(data, module, view, daq_chan, start, dt_min, thr1, thr2, th
 
         """ last try is a negative bump """
         if(np.mean(data) < -1*thr1):
-            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(-1*data, start, dt_min, thr1, thr2, cf.n_sample)
+            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(-1*data, start, dt_min, thr1, thr2, cf.n_sample[cf.imod])
             
             for i in range(n):
                 ll.append(dc.hits(module, view, daq_chan, h_start[i], h_stop[i],  -1, 0., h_max_t[i], -1.*h_max_adc[i], -1, "Collection"))
@@ -88,11 +94,13 @@ def hit_search_induction_nb(data, start, dt_min, thr):
     h_min_t     = np.zeros(npts,dtype=np.int32)
     h_min_adc   = np.zeros(npts)
     h_zero_t    = np.zeros(npts,dtype=np.int32)
-
+    h_zero_val  = np.zeros(npts,dtype=np.int32)
+    h_zero_val.fill(99999)
+    
     hitPosFlag = False
     hitNegFlag = False
 
-    i=0
+    i=-1
 
     posSamp = 0
     negSamp = 0
@@ -115,10 +123,11 @@ def hit_search_induction_nb(data, start, dt_min, thr):
             if(hitPosFlag == False):
                 hitPosFlag = True
 
-                h_start[h_num] = it
-                h_max_t[h_num] = it
-                h_max_adc[h_num] = val
-                h_zero_t[h_num]  = it
+                h_start[h_num]    = it
+                h_max_t[h_num]    = it
+                h_max_adc[h_num]  = val
+                h_zero_t[h_num]   = it
+                h_zero_val[h_num] = val
                 
             """ update the maximum case """
             if(val > h_max_adc[h_num]):
@@ -138,16 +147,17 @@ def hit_search_induction_nb(data, start, dt_min, thr):
         h_zero_t[h_num] = i+start
 
         """ in between the two polarities """
-        while(i < npts and hitPosFlag and hitNegFlag == False and val >= -1.*thr):            
+        while(i < npts and hitPosFlag == True and hitNegFlag == False and val >= -1.*thr):            
             i += 1
             val = data[i]
-            if(val >= 0):
+            if(np.fabs(val) < h_zero_val[h_num]): #val>= 0):
+                h_zero_val[h_num] = val
                 h_zero_t[h_num] = i+start
             
-        """ now the negative part """
 
+        """ now the negative part """
         val = data[i]
-        while(i < npts and hitPosFlag and val < -1.*thr):            
+        while(i < npts and hitPosFlag==True and val <= -1.*thr):            
             val = data[i]        
             it = i+start
             negSamp += 1
@@ -256,17 +266,22 @@ def hit_search_collection_nb(data, start, dt_min, thr1, thr2, nsamp):
 
 
 def recompute_hit_charge(hit):
-    view, daq_ch, pad_start, pad_stop, zero, sig = hit.view, hit.daq_channel, hit.pad_start, hit.pad_stop, hit.zero_t, hit.signal
+    module, view, daq_ch,  pad_start, pad_stop, zero, sig = hit.module, hit.view, hit.daq_channel, hit.pad_start, hit.pad_stop, hit.zero_t, hit.signal
 
+    daq_ch -= cf.module_daqch_start[module]
+    
+    if(module != cf.imod):
+        return
+    
     val = 0.
-    mean = dc.evt_list[-1].noise_filt.ped_mean[daq_ch]
+    mean = dc.evt_list[-1].noise_filt[cf.imod].ped_mean[daq_ch]
 
     if(sig == "Collection"):
         for t in range(pad_start, pad_stop):
             val += dc.data_daq[daq_ch, t] - mean
 
-        hit.charge_pos = val
-        hit.charge_neg = -0.
+        hit.charge_pos = val if val > 0 else 0
+        hit.charge_neg = val if val < 0 else 0.
 
     elif(sig == "Induction"):
         for t in range(pad_start, zero):
@@ -291,14 +306,14 @@ def find_hits():
     n_sig_coll_1 = dc.reco['hit_finder']['coll']['amp_sig'][0]
     n_sig_coll_2 = dc.reco['hit_finder']['coll']['amp_sig'][1]
     n_sig_ind  = dc.reco['hit_finder']['ind']['amp_sig'][0]
-    
+    merge_tdc_thr =  dc.reco['hit_finder']['ind']['merge_tdc_thr']
 
     
     """ get boolean roi based on mask and alive channels """
-    ROI = np.array(~dc.mask_daq & dc.alive_chan, dtype=bool)
+    ROI = np.array(~dc.mask_daq & dc.alive_chan[:,None], dtype=bool)
 
     """ adds 0 (False) and the start and end of each waveform """
-    falses = np.zeros((cf.n_tot_channels,1),dtype=int)
+    falses = np.zeros((cf.module_nchan[cf.imod],1),dtype=int)
     ROIs = np.r_['-1',falses,np.asarray(ROI,dtype=int),falses]
     d = np.diff(ROIs)
 
@@ -322,9 +337,14 @@ def find_hits():
             """ make sure starts and ends of hit group are in the same channel """
             assert start[0][g] == end[0][g], "Hit Mismatch"
 
-            daq_chan = start[0][g]
+            chan = start[0][g] 
+            daq_start = cf.module_daqch_start[cf.imod]
+            daq_chan = chan + daq_start
             
             module, view, channel = dc.chmap[daq_chan].get_ana_chan()
+            #globch = dc.chmap[daq_chan + daq_start].get_globch()
+            
+            
             if(view < 0 or view >= cf.n_view):
                 continue
 
@@ -332,12 +352,12 @@ def find_hits():
             tdc_stop = end[1][g]            
             
             """ For the induction view, merge the pos & neg ROI together if they are separated """
-            if(cf.view_type[view]=="Induction" and g < len(gpe)-1):
+            if(cf.view_type[cf.imod][view]=="Induction" and g < len(gpe)-1):
                 merge = False
-                if(np.mean(dc.data_daq[daq_chan, tdc_start:tdc_stop+1]) > 0.):
-                    if(start[0][g+1] == daq_chan):
-                        if(np.mean(dc.data_daq[daq_chan, start[1][g+1]:end[1][g+1]]) < 0.):
-                            if(start[1][g+1] - tdc_stop < 10):
+                if(np.mean(dc.data_daq[chan, tdc_start:tdc_stop+1]) > 0.):
+                    if(start[0][g+1] == chan):
+                        if(np.mean(dc.data_daq[chan, start[1][g+1]:end[1][g+1]]) < 0.):
+                            if(start[1][g+1] - tdc_stop < merge_tdc_thr):
                                 tdc_stop = end[1][g+1]
                                 merge=True
                 if(merge==False):
@@ -346,20 +366,22 @@ def find_hits():
 
             """ add l/r paddings """
             for il in range(pad_left, 0, -1):
-                if(tdc_start-1>=0 and not ROI[daq_chan, tdc_start-1]):
+                if(tdc_start-1>=0 and not ROI[chan, tdc_start-1]):
                     tdc_start -= 1
                 else:
                     break
 
             for ir in range(0, pad_right):
-                if(tdc_stop+1 < cf.n_sample and not ROI[daq_chan,tdc_stop+1]):
+                if(tdc_stop+1 < cf.n_sample[cf.imod] and not ROI[chan,tdc_stop+1]):
                     tdc_stop += 1
                 else:
                     break
                       
             
-            adc = dc.data_daq[daq_chan, tdc_start:tdc_stop+1]                
-            mean, rms = dc.evt_list[-1].noise_filt.ped_mean[daq_chan], dc.evt_list[-1].noise_filt.ped_rms[daq_chan]
+            adc = dc.data_daq[chan, tdc_start:tdc_stop+1]                
+            mean, rms = dc.evt_list[-1].noise_filt[cf.imod].ped_mean[chan], dc.evt_list[-1].noise_filt[cf.imod].ped_rms[chan]
+
+            
             thr1 = mean + n_sig_coll_1 * rms
             thr2 = mean + n_sig_coll_2 * rms
             thr3 = mean + n_sig_ind * rms
@@ -390,10 +412,10 @@ def find_hits():
 
                 """ to the right """
                 if(i == len(hh)-1):
-                    if(hh[i].stop < cf.n_sample - pad_right):
+                    if(hh[i].stop < cf.n_sample[cf.imod] - pad_right):
                         hh[i].pad_stop += pad_right
                     else:
-                        hh[i].pad_stop = cf.n_sample
+                        hh[i].pad_stop = cf.n_sample[cf.imod]
                 else:
                     if(hh[i].stop + pad_right < hh[i+1].pad_start):
                         hh[i].pad_stop += pad_right
@@ -408,14 +430,15 @@ def find_hits():
     v = lar.drift_velocity()
 
     """ transforms hit channel and tdc to positions """
-    [x.hit_positions(v) for x in dc.hits_list]
+    [x.hit_positions(v) for x in dc.hits_list if x.module == cf.imod]
 
     """ set hit an index number """
     [dc.hits_list[i].set_index(i) for i in range(len(dc.hits_list))]
+
     
     """ compute hit charge in fC """
-    [recompute_hit_charge(x) for x in dc.hits_list]
-    [x.hit_charge() for x in dc.hits_list]
+    [recompute_hit_charge(x) for x in dc.hits_list if x.module == cf.imod]
+    [x.hit_charge() for x in dc.hits_list if x.module == cf.imod]
 
 
 
@@ -479,7 +502,7 @@ def find_pds_peak():
                       
             
             adc = dc.data_pds[glob_chan, tdc_start:tdc_stop+1].astype(np.float64)
-            mean, rms = dc.evt_list[-1].noise_pds.ped_mean[glob_chan], dc.evt_list[-1].noise_pds.ped_rms[glob_chan]
+            mean, rms = dc.evt_list[-1].noise_pds_filt.ped_mean[glob_chan], dc.evt_list[-1].noise_pds_filt.ped_rms[glob_chan]
             thr1 = n_sig_coll_1 * rms
             thr2 = n_sig_coll_2 * rms
 
@@ -487,14 +510,15 @@ def find_pds_peak():
             if(thr1 < 0.5): thr1 = 0.5
             if(thr2 < 0.5): thr2 = 0.5
 
-            chan = dc.chmap_pds[glob_chan].chan
-
+            chan    = dc.chmap_pds[glob_chan].chan
+            module  = dc.chmap_pds[glob_chan].module
+            
             hh = []
             
             n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(adc,tdc_start, dt_min, thr1, thr2, cf.n_pds_sample)
 
             for i in range(n):
-                hh.append(dc.pds_peak(glob_chan, chan,  h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i]))
+                hh.append(dc.pds_peak(glob_chan, chan,  module, h_start[i], h_stop[i],  h_max_t[i], h_max_adc[i]))
 
             
             """add padding to found hits"""
