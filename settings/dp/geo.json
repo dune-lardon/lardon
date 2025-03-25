@@ -1,6 +1,7 @@
 {
     "default":
     {
+	"drift_direction":"Vertical",
 	"n_view":"2",
 	"n_module":"4",
 	"view_name":["0","1"],
