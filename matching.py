@@ -124,8 +124,15 @@ def matching_charge_pds():
             free_overlaps.append(ov)
             
 
+        best_overlap = -1
+        
         if(len(free_overlaps) == 1):
-            clus = dc.pds_cluster_list[free_overlaps[0]-id_cluster_shift]
+            best_overlap = free_overlaps[0]
+        elif(len(free_overlaps) > 1):
+            best_overlap = sh_closest_cluster(sh, free_overlaps, id_cluster_shift)
+
+        if(best_overlap >=0):
+            clus = dc.pds_cluster_list[best_overlap-id_cluster_shift]
             delay = sh_start - clus.timestamp        
 
             z_estimate = cf.anode_z[sh.module] - cf.drift_direction[sh.module]*(vdrift*delay)            
@@ -136,7 +143,7 @@ def matching_charge_pds():
             for pds_ch in clus.glob_chans[::2]:
                 module_chan = int(pds_ch/2)
                 
-                res = dist_sh_to_pds(sh, module_chan)
+                res = dist_sh_to_pds_side(sh, module_chan)
             
                 clus.dist_closest_strip.extend([r[0] for r in res])
                 clus.id_closest_strip.extend([r[1] for r in res])
@@ -303,10 +310,24 @@ def closest_distance_between_lines(a0,a1,b0,b1):
     return pA,pB,np.linalg.norm(pA-pB)
 
 
+def sh_closest_cluster(sh, cluster_idx, id_shift):
+    clus_dist = []
 
+    for idx in cluster_idx:
+        clus = dc.pds_cluster_list[idx-id_shift]        
+        distances = []
 
+        for pds_ch in clus.glob_chans:
+            mod = dc.chmap_pds[pds_ch].module
+            d = np.sqrt(pow(sh.X-cf.pds_x_centers[mod], 2) + pow(sh.Y-cf.pds_y_centers[mod], 2))
+            distances.append(d)
 
-def dist_sh_to_pds(sh, pds_chan):
+        clus_dist.append((idx, min(distances)))
+    clus_dist_sorted = sorted(clus_dist, key=lambda tup: tup[1])
+
+    return clus_dist_sorted[0][0]
+
+def dist_sh_to_pds_side(sh, pds_chan):
     a = np.asarray([sh.X, sh.Y, sh.Z_from_light])
     all_b0, all_b1 = xarapucas_siPM_strips(pds_chan)    
 
