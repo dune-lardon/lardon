@@ -1,7 +1,7 @@
 """ User's specific """
 
 """ Where is LARDON """
-lardon_path = "/eos/user/l/lzambell/analysis/coldbox/lardon"
+lardon_path = "."
 
 """ Where to store the reconstructed output file """
 store_path = lardon_path+"/reco"
@@ -16,43 +16,55 @@ data_path = ""
 domain = ""
 
 LAr_temperature = 87. #K - to check in the slow control 
-e_drift = 0.4  #kV/cm
+e_drift = []  #in kV/cm
 
 """ default values overwritten by the json file """
+tpc_orientation = ""
 n_view = -1
 n_module = 1
 module_used = []
+n_module_used = 0
+module_name = []
+module_daqch_start = []
 view_name = []
-view_type = []
-view_angle = []
+view_type = [[]]
+view_angle = [[]]
 view_pitch = []
 view_nchan = []
 view_capa = []
 n_tot_channels = -1
-module_nchan = -1
-sampling = 0
-n_sample = 0
-e_per_ADCtick=[]
+module_nchan = []
+sampling = []
+n_sample = []
+e_per_ADCtick = []
 channel_calib = ''
-elec = "none"
+elec = []
 channel_map = ""
 broken_channels = []
-view_offset = []
-view_z_offset = []
+view_boundaries_min = [[]]
+view_boundaries_max = [[]]
+view_z_offset = [[]]
 
-view_chan_repet = []
-view_offset_repet = []
-signal_is_inverted = False
+view_chan_repet = [[]]
+view_offset_repet = [[[]]]
+unwrappers = None
+signal_is_inverted = []
 strips_length = ''
 
-drift_length = 0.
+drift_length = []
 anode_z = []
 view_length = []
-x_boundaries = []
-y_boundaries = []
+x_boundaries = [[]]
+y_boundaries = [[]]
 drift_direction = []
 elec = []
 daq = ""
+daq_nlinks = []
+daq_links_offset = []
+inner_coll_plane = []
+imod = 0
+daq_shift = 0
+y_cru = -1
 
 """ pds variables """
 n_pds_channels = 1
