@@ -77,7 +77,10 @@ class lyon:
             self.evdcard0 = 0x19
         elif(self.det == 'cbtop'):
             self.evdcard0 = 0x0
-    
+        elif(self.det == 'pdvd'):
+            self.evdcard0 = 0x2
+
+            
         self.header = get_header()
         self.header_size = self.header.itemsize
 
@@ -128,13 +131,35 @@ class lyon:
 
 
     def read_evt(self, ievt):
-        if(self.lro < 0 or self.cro < 0):
-            print(' please read the event header first! ')
-            exit()
-        idx = self.event_pos[ievt] + self.header_size
-        self.f_in.seek(idx,0)
-        out = read_uint12_bit_nb( self.f_in.read(self.cro) )
 
+
+        if(self.daq != 'lyon_pdvd'):
+            if(self.lro < 0 or self.cro < 0):
+                print(' please read the event header first! ')
+                exit()
+            idx = self.event_pos[ievt] + self.header_size
+            self.f_in.seek(idx,0)
+            out = read_uint12_bit_nb( self.f_in.read(self.cro) )
+
+
+            
+        if(self.daq == 'lyon_pdvd'):
+
+                idx = self.event_pos[ievt] #+ self.header_size
+                self.f_in.seek(idx,0)
+                head = np.frombuffer(self.f_in.read(self.header_size), dtype=self.header)
+                self.cro = head['cro'][0]
+
+                out = read_uint12_bit_nb( self.f_in.read(self.cro) )
+
+                self.f_in.read(1) #The bruno byte :-)
+
+                """ read second header"""
+                head = np.frombuffer(self.f_in.read(self.header_size), dtype=self.header)
+                self.cro = head['cro'][0]
+                out = np.append(out,read_uint12_bit_nb( self.f_in.read(self.cro) ))
+
+                
         if(self.daq == 'lyon_2_blocks'):
             self.f_in.read(1) #The bruno byte :-)
 
@@ -145,12 +170,14 @@ class lyon:
 
 
             
-        if(len(out)/cf.n_sample != cf.n_tot_channels):
-            print(' The event is incomplete ... ')
+        #if(len(out)/cf.n_sample[cf.imod] != cf.n_tot_channels):
+        if(len(out)/cf.n_sample[cf.imod] != cf.module_nchan[cf.imod]):
+            print(' The event is incomplete ... ', len(out), ', ',cf.n_sample[cf.imod], '=', len(out)/cf.n_sample[cf.imod], ' vs ', cf.module_nchan[cf.imod])
             exit()
 
         out = out.astype(np.float32)
-        dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample))
+        #dc.data_daq = np.reshape(out, (cf.n_tot_channels, cf.n_sample[cf.imod]))
+        dc.data_daq = np.reshape(out, (cf.module_nchan[cf.imod], cf.n_sample[cf.imod]))
 
         self.lro = -1
         self.cro = -1
