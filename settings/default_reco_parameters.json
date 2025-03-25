@@ -52,8 +52,12 @@
 	
 	"microphonic":{
 	    "window":-1 /*size of the sliding window*/
-	}
+	},
 	
+	"study":{
+	    "to_be_done":0,
+	    "nchunk":16
+	}
     },
     
     "hit_finder":{ 
@@ -63,7 +67,8 @@
         },
         "ind":{
             "amp_sig": [2,3],
-            "dt_min": 10
+            "dt_min": 10,
+	    "merge_tdc_thr":10
         },
         "pad":{
             "left": 10,
@@ -77,19 +82,45 @@
 	"chi2cut": 8.0,
 	"y_error": 0.5,
 	"slope_error": 1.0,
-	"pbeta":3.0
+	"pbeta":3.0,
+	"slope_max":50,
+	"dray_dmax":2.0,
     },
-    
+
+    "stitching_2d":{
+	"in_module":{
+	    "align_thr":0.98,
+	    "dma_thr":3.0,
+	    "dist_thr":10.0	
+	},
+	"from_3d":{
+	    "align_thr":0.96,
+	    "dma_thr":8.0,
+	    "dist_thr":15.0
+	},  
+    },
+
     "track_3d":{
 	"ztol":3.0,
 	"qfrac":5.0, 
 	"len_min":2.0, 
 	"dx_tol": [3.0,0.5],
 	"dy_tol": [3.0,3.0],
-	"dz_tol": 2.0
+	"dz_tol": 2.0,
+	"d_thresh":0.5,
+	"min_z_overlap":10.0,
+	"trk_min_dz":15,
+	"goodness":{
+	    "eps":10,
+	    "min_samp":1,
+	    "n_min":10,
+	    "n_slices":10,
+	    "d_slice_max":20
+	}
     },
     
-    "ghost":{
+    "ghost":{	
+	"search":1,
 	"dmin":10.0
     },
     
@@ -99,7 +130,16 @@
 	"veto_nchan":16,
 	"veto_nticks":150,
 	"int_nchan":3,
-	"int_nticks":50
+	"int_nticks":50,
+	"cluster_eps":2
+    },
+
+    "hits3d":{
+	"time_spread":1,
+	"d_tol":0.5,
+	"y_squeez":0.3,
+	"eps":10,
+	"min_samp":1
     },
 
     "pds":{
