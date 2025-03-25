@@ -13,7 +13,7 @@ import channel_mapping as cmap
 
 
 class decoder:
-    def __init__(self, det, run, sub, flow_writer="0-0", filename=None):
+    def __init__(self, det, run, sub, flow_writer="0-0", hash_path='', filename=None):
         self.run = run
         self.sub = sub
         self.filename = filename
@@ -21,12 +21,13 @@ class decoder:
         self.daq = cf.daq
         self.flow = flow_writer[:flow_writer.find("-")]
         self.writer = flow_writer[flow_writer.find("-")+1:]
-
+        self.hash_path = hash_path
 
 
 
     def get_file_path(self):
-        run_path = fname.get_run_directory(self.run)
+        run_path = fname.get_run_directory(self.run, self.hash_path)
+
 
         if("cern"  in self.daq):
             path = f"{cf.data_path}/{run_path}/"
