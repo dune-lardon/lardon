@@ -7,22 +7,57 @@ import math
 from scipy.interpolate import UnivariateSpline
 from rtree import index
 from operator import itemgetter
+import scipy.sparse as csp
+from collections import Counter
+import time as time
+import itertools
 
+import hits_3d as h3d
+import stitch_tracks as stitch
+import sklearn.cluster as skc
 
+def is_inside_volume(module, x,y):
+    module_xlow, module_xhigh = cf.x_boundaries[module][0], cf.x_boundaries[module][1] 
+
+    module_ylow, module_yhigh = cf.y_boundaries[module][0], cf.y_boundaries[module][1]
+
+    
+    if(x < module_xlow or x > module_xhigh):
+        return False
+    if(y< module_ylow or y > module_yhigh):    
+        return False
+
+    return True
+    
 def theta_phi_from_deriv(dxdz, dydz):
-    phi = math.degrees(math.atan2(-1.*dydz, -1.*dxdz))
-    theta = math.degrees(math.atan2(math.sqrt(pow(dxdz,2)+pow(dydz,2)),-1.))
+    if(cf.tpc_orientation == 'Vertical'):
+        phi = math.degrees(math.atan2(-1.*dydz, -1.*dxdz))
+        theta = math.degrees(math.atan2(math.sqrt(pow(dxdz,2)+pow(dydz,2)),-1.))
 
+    else:
+        if(dxdz == 0 and dydz !=0):
+            theta, phi = 90, 0
+        else:
+            dzdx = 1./dxdz
+            dydx = dydz/dxdz
+            theta = math.degrees(math.atan2(math.sqrt(pow(dzdx,2)+pow(dydx,2)),-1.))
+            phi   = math.degrees(math.atan2(-1.*dzdx, -1.*dydx))
     return theta, phi
 
 
-def finalize_3d_track(track, npts):
+def finalize_3d_track(track):
+
+    n_slices = dc.reco['track_3d']['goodness']['n_slices']
+    d_slice_max = dc.reco['track_3d']['goodness']['d_slice_max']
+
+
+    
     view_used = [track.match_ID[i] >= 0 for i in range(cf.n_view)]
     nv = sum(view_used)
     zmin, zmax = track.ini_z_overlap, track.end_z_overlap
 
     """ Divide z-range in N slices, can be changed to 1cm slice in future """
-    z_slices = np.linspace(zmin, zmax, npts)
+    z_slices = np.linspace(zmin, zmax, n_slices)
     sx, sy = [], []
 
     theta_ini, theta_end, phi_ini, phi_end = [],[],[],[]
@@ -47,6 +82,7 @@ def finalize_3d_track(track, npts):
                 nv -= 1
                 continue
             else:
+                print('3D finalizing track: problem with interpolation')
                 return False
         x_u, y_u = x[idx], y[idx]
 
@@ -76,9 +112,9 @@ def finalize_3d_track(track, npts):
 
 
     d_slice = np.sqrt(d_sx+d_sy)
-    dtot = np.sum(d_slice)/npts/nv
+    dtot = np.sum(d_slice)/n_slices/nv
 
-
+    
     m_theta_ini = sum(theta_ini)/nv
     m_theta_end = sum(theta_end)/nv
     m_phi_ini = sum(phi_ini)/nv
@@ -87,11 +123,28 @@ def finalize_3d_track(track, npts):
     track.set_angles(m_theta_ini, m_phi_ini, m_theta_end, m_phi_end)
     track.set_timestamp()
     track.d_match = dtot
+
+    if(dtot > d_slice_max):
+        return False
     
     return True
 
 def linear_interp(dx, z0, a):
     return dx*a + z0
+
+
+def get_channel_from_pos(pos,view,module):
+    shift = cf.view_offset_repet[module][view][0] +  cf.view_pitch[view]/2.
+    pitch = cf.view_pitch[view]
+    
+    channel = int(pos/pitch)
+    return channel
+
+def get_channel_from_xy(x, y, view, module):
+    angle = np.radians(cf.view_angle[module][v_track])    
+    pos = np.sin(angle)*x - np.cos(angle)*y - shift
+
+    return get_channel_from_pos(pos, view, module)
 
 def complete_trajectories(tracks):
     """ Could be better ! At the moment, matches with only 2 tracks """
@@ -121,10 +174,10 @@ def complete_trajectories(tracks):
         
 
         v_track = track.view
-        ang_track = np.radians(cf.view_angle[v_track])
+        ang_track = np.radians(cf.view_angle[module_ini][v_track])
 
         v_other = other.view
-        ang_other = np.radians(cf.view_angle[v_other])
+        ang_other = np.radians(cf.view_angle[module_ini][v_other])
 
         A = np.array([[-np.cos(ang_track), np.cos(ang_other)],
                       [-np.sin(ang_track), np.sin(ang_other)]])
@@ -175,11 +228,17 @@ def complete_trajectories(tracks):
 
         """debug"""
         xp, yp, zp, pp= 0,0,0,0
+        hits_ID_shift = dc.hits_list[0].ID
 
+        
         for p in range(len(track.path)):
             pos = track.path[p][0]
             z = track.path[p][1]
 
+            hid = track.hits_ID[p]
+            hit_module = dc.hits_list[hid-hits_ID_shift].module
+            
+            
             if( p == 0 ):
                 a0t = 0. if track.ini_slope == 0 else 1./track.ini_slope
             else:
@@ -201,10 +260,26 @@ def complete_trajectories(tracks):
                 pos_spl = linear_interp(z-z_o_max, pos_o_max, deriv_z_max)
                 a1t = deriv_z_max 
 
-
-
             xy = A.dot([pos_spl, pos])/D
             x, y = xy[0], xy[1]
+                                          
+            
+            if(dc.evt_list[-1].det == 'pdhd'):
+                if(is_inside_volume(hit_module, x,y)==False):
+                    unwrapped = False
+                    for d0 in [0] if v_track == 2 else [0, cf.unwrappers[hit_module][v_track]]:
+                        if(unwrapped): break
+                        for d1 in [0] if v_other == 2 else [0,  cf.unwrappers[hit_module][v_other]]:
+                            xy = A.dot([pos_spl+d1, pos+d0])/D
+                            xt, yt = xy[0], xy[1]
+                   
+                            
+                            if(False):#len(dc.tracks3D_list)==0 and v_track==0): #False):
+                                print(d0,d1,"::",pos_spl+d1, pos+d0, "-->", xt, yt, is_inside_volume(hit_module, xt,yt), d_prev)
+                            if(is_inside_volume(hit_module, xt,yt)==True):
+                                x, y = xt, yt
+                                unwrapped = True
+                                break
 
             dxdy = A.dot([a1t, a0t])/D
             dxdz, dydz = dxdy[0], dxdy[1]
@@ -221,23 +296,6 @@ def complete_trajectories(tracks):
                 
             
             dr = cf.view_pitch[v_track]/cosgamma if cosgamma != 0 else np.sqrt(pow(x-xp,2)+pow(y-yp,2)+pow(z-zp,2))
-            
-            """ debug """
-            if(v_track >2):
-                print('----- at z=', z)
-                print(v_track, " at ", pos, " with ", v_other, " at ", pos_spl)
-                print("%.3f, %.3f"%(x, y))
-                print('PITCH : %.2f'%dr)
-                print('PREV ', xp, yp, zp)
-                print('  -> naive ds = ', np.sqrt(pow(x-xp,2)+pow(y-yp,2)+pow(z-zp,2)))
-                print('  -> dx = ', x-xp, ' dy ', y-yp, ' dz ', z-zp)
-                
-                print('dxdz : ', dxdz, " -> a0 = ", a0)
-                print('dydz : ', dydz, " -> a1 = ", a1)
-                print('ux = ', ux, ', uy = ', uy)
-                print(ang_track, np.sin(ang_track-np.pi), np.cos(ang_track-np.pi))
-                print(np.sin(ang_track-np.pi)*ux, ' - ', np.cos(ang_track-np.pi)*uy)
-                print('cosgamma = ', cosgamma)
             xp, yp, zp = x, y, z
             trajectory.append( (x,y,z) )
             dQ.append(track.dQ[p])
@@ -251,76 +309,152 @@ def complete_trajectories(tracks):
 
 
 def correct_timing(trk, xtol, ytol, ztol):
-    """to add : possible track matching with the beam timing """
-
+    """ track points are ordered by decreasing vertical axis """
     vdrift = lar.drift_velocity()
-    z_anode = cf.anode_z[trk.module_ini]
-
-    ''' maximum drift distance given the time window '''
-    max_drift = cf.anode_z[trk.module_end] - cf.n_sample*cf.drift_direction[trk.module_end] * vdrift /cf.sampling
-
-    z_top = max(z_anode, max_drift)
-    z_max = min(z_anode, max_drift)
-
-    #z_cath = z_anode - cf.drift_direction[trk.module_ini]*cf.drift_length
-    z_bot = z_top - cf.drift_direction[trk.module_ini]*cf.drift_length
     
-    from_top =  (z_top - trk.ini_z) < ztol
-    exit_bot = (math.fabs(z_max - trk.end_z)) < ztol
-
-    from_wall_x = np.asarray([ math.fabs(trk.ini_x-s)<t for t, s in zip(xtol[trk.module_ini],cf.x_boundaries[trk.module_ini])], dtype=bool)
-    from_wall_y = np.asarray([ math.fabs(trk.ini_y-s)<t for t,s in zip(ytol[trk.module_ini],cf.y_boundaries[trk.module_ini])], dtype=bool)
-
-    from_wall = np.any(np.concatenate((from_wall_x, from_wall_y), axis=None))
-    exit_wall_x = np.asarray([ math.fabs(trk.end_x-s)<t for t, s in zip(xtol[trk.module_end],cf.x_boundaries[trk.module_end])], dtype=bool)
-    exit_wall_y = np.asarray([ math.fabs(trk.end_y-s)<t for t, s in zip(ytol[trk.module_end], cf.y_boundaries[trk.module_end])], dtype=bool)
-
-    exit_wall = np.any(np.concatenate((exit_wall_x, exit_wall_y), axis=None))
-
-
     z0 = 9999.
     t0 = 9999.
 
 
-    if(from_wall):
-        if(exit_wall or exit_bot):
-            """ unknown case is when track goes wall to wall or wall->bottom """
+    mod_ini, mod_end = trk.module_ini, trk.module_end
+    
+    z_anodes = [cf.anode_z[mod_ini], cf.anode_z[mod_end]]
+
+    """ longest drifts """
+    max_drifts = [cf.anode_z[mod_ini] - cf.n_sample[mod_ini]*cf.drift_direction[mod_ini] * vdrift /cf.sampling[mod_ini], cf.anode_z[mod_ini] - cf.n_sample[mod_ini]*cf.drift_direction[mod_ini] * vdrift /cf.sampling[mod_ini]]
+    
+    z_cathodes = [cf.anode_z[mod_ini] - cf.drift_direction[mod_ini]*cf.drift_length[mod_ini], cf.anode_z[mod_end] - cf.drift_direction[mod_end]*cf.drift_length[mod_end]]
+    
+    trk_z_bounds = [trk.ini_z, trk.end_z]
+    trk_modules  = [mod_ini, mod_end]
+
+    
+    through_anode = np.asarray([np.fabs(t-z) < ztol for t,z in zip(trk_z_bounds, z_anodes)], dtype=bool)
+    through_cathode = np.asarray([np.fabs(t-z) < ztol for t,z in zip(trk_z_bounds, max_drifts)], dtype = bool)
+
+    through_wall_ini_x = np.asarray([np.fabs(trk.ini_x-w) < b for w, b in zip(cf.x_boundaries[mod_ini], xtol[mod_ini])], dtype=bool)
+    through_wall_ini_y = np.asarray([np.fabs(trk.ini_y-w) < b for w, b in zip(cf.y_boundaries[mod_ini], ytol[mod_ini])], dtype=bool)
+
+    through_wall_ini = np.any(np.concatenate((through_wall_ini_x, through_wall_ini_y), axis=None))
+    
+    through_wall_end_x = np.asarray([np.fabs(trk.end_x-w) < b for w, b in zip(cf.x_boundaries[mod_end], xtol[mod_end])], dtype=bool)
+    through_wall_end_y = np.asarray([np.fabs(trk.end_y-w) < b for w, b in zip(cf.y_boundaries[mod_end], ytol[mod_end])], dtype=bool)
+
+    
+    through_wall_end = np.any(np.concatenate((through_wall_end_x, through_wall_end_y), axis=None))
+
+
+    
+    
+    if(through_wall_ini and through_wall_end):
+        """ wall to wall track: we cannot tell """
+        trk.set_t0_z0(t0, z0)
+
+        return
+    
+    elif(through_wall_ini or through_wall_end):
+        idx, idx_o = (0, 1) if through_wall_ini else (1, 0)
+        if(through_anode[idx_o] or through_cathode[idx_o]):
+            """ wall to readout : we cannot tell """
             trk.set_t0_z0(t0, z0)
+
             return
         else:
-            """ it's an early track """
-            z0 = (z_bot - trk.end_z)
-            if(z0 > 0.): z0 *= -1.
+            zdir = 1 if (trk_z_bounds[idx_o]-trk_z_bounds[idx])>0 else -1
+            is_late = False
+            if(zdir == cf.drift_direction[trk_modules[idx_o]]):
+                zref = z_anodes[idx_o]
+                is_late = True
+            else:
+                zref = z_cathodes[idx_o]
+                is_late = False
+                
+            z0 = zref - trk_z_bounds[idx_o]
             t0 = z0/vdrift
             trk.set_t0_z0(t0, z0)
-            return
 
-    """ enters from the upper side: early track """
-    if(from_top):
-        if(exit_wall == False):
-            #then it exits through the bottom side of the drift volume
-            z0 = (z_bot - trk.end_z)
-            if(z0 > 0.): z0 *= -1.
-            t0 = z0/vdrift
-            trk.set_t0_z0(t0, z0)
-            return
-        else:
-            #exits through the wall, we don't know then
-            trk.set_t0_z0(t0, z0)
             return
 
 
-    """ what's left is a late track, entering from the upper side """
-    z0 = (z_top-trk.ini_z)
+
+    """ if we're here : the track did not enter nor escaped by the FC """
+    
+    if(np.any(through_anode)):
+        """ then track is early """
+        """ which bound is closer to anode?"""
+        idx = np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, z_anodes)])
+        idx_o = 1 if idx == 0 else 0
+
+        z0 = z_cathodes[idx_o] - trk_z_bounds[idx_o]
+        if(np.sign(z0) == cf.drift_direction[trk_modules[idx_o]]):
+            z0 *= -1
+        t0 = z0/vdrift
+        trk.set_t0_z0(t0, z0)
+
+        return
+    
+    if(np.any(through_cathode)):
+        """ then track is late """
+        """ which bound is closer to cathode?"""
+        idx = np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, max_drifts)])
+        idx_o = 1 if idx == 0 else 0
+        z0 = z_anodes[idx_o] - trk_z_bounds[idx_o]
+
+        t0 = z0/vdrift
+        trk.set_t0_z0(t0, z0)
+
+        return
+
+    
+    """ what's left is a late track """
+    """ which bound is closer to the anode?"""
+    idx = np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, z_anodes)])
+    z0 = z_anodes[idx] - trk_z_bounds[idx]
     t0 = z0/vdrift
     trk.set_t0_z0(t0, z0)
+
     return
 
+    
 
 
 
+def check_track_3D(track):
 
+    eps = dc.reco['track_3d']['goodness']['eps']
+    min_samp = dc.reco['track_3d']['goodness']['min_samp']
+    n_min = dc.reco['track_3d']['goodness']['n_min']
+    
+    data = [list(p) for pview,match in zip(track.path, track.match_ID) for p in pview if match>=0]
+    X = np.asarray(data)
+    db = skc.DBSCAN(eps=eps,min_samples=min_samp).fit(X)
+    labels = db.labels_
 
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    if(n_clusters == 1):
+        return
+
+    count = Counter(labels)    
+    hits_ID = [h for hview,match in zip(track.hits_ID, track.match_ID) for h in hview if match>=0]
+    n_hits = len(hits_ID)
+    n_above = sum([1 if nb>n_hits/4 else 0 for nb in count.values()])
+
+    
+    if(n_above > 2):
+        #print('NOOOOOOOOOOTTTTTT GOOOOOOOOOOOOOOOOD')
+        return False
+    
+    hits_to_rm = [h for h,l in zip(hits_ID, labels) if count[l] < n_min]
+
+    [track.remove_hit(h, dc.hits_list[h-dc.n_tot_hits].view) for h in hits_to_rm]
+    
+
+    """ just to be sure """
+    for iv in range(3):
+        if(track.n_hits[iv] <= 1 and track.match_ID[iv]>=0):
+            track.match_ID[iv] = -1
+            
+    return False
 
 def find_tracks_rtree():
 
@@ -398,6 +532,17 @@ def find_tracks_rtree():
 
                 zmin = max(ti_stop, tj_stop)
                 zmax = min(ti_start, tj_start)
+                dz_overlap = np.fabs(zmax-zmin)
+
+
+                zmin_long = min(ti_stop, tj_stop)
+                zmax_long = max(ti_start, tj_start)
+                dz_long = np.fabs(zmax_long - zmin_long)
+
+                
+                if(dz_overlap/dz_long < 0.5):
+                    continue
+
                 qi = np.fabs(ti.charge_in_z_interval(zmin, zmax))
                 qj = np.fabs(tj.charge_in_z_interval(zmin, zmax))
 
@@ -432,16 +577,22 @@ def find_tracks_rtree():
                 tj = dc.tracks2D_list[j_idx]
                 if(tj.matched[ti.view] == i_ID and tj.match_3D < 0):
                     trks.append(tj)
-        if(len(trks) > 1):
+
+
+        if(len(trks) > 1): # TO CHANGE BACK TO 1!
+
             t3D = complete_trajectories(trks)
+            isok = check_track_3D(t3D)
+            if(isok == False):            
+                continue
 
             n_fake = t3D.check_views()
             if(n_fake > 1):
                 continue
-
+            
             t3D.boundaries()
 
-            isok = finalize_3d_track(t3D, 10)
+            isok = finalize_3d_track(t3D)
             if(isok == False):
                 continue
 
@@ -452,9 +603,466 @@ def find_tracks_rtree():
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
 
-
+            #t3D.dump()
+            
             for t in trks:
                 t.match_3D = trk_ID
                 t.set_match_hits_3D(trk_ID)
 
                         
+def track_in_module(t, modules):
+    if(t.module_ini in modules or t.module_end in modules):
+        return True
+    else:
+        return False
+
+
+
+def find_3D_tracks_with_missing_view(modules):
+    
+    ztol = dc.reco['track_3d']['ztol']
+    qfrac= dc.reco['track_3d']['qfrac']
+    len_min= dc.reco['track_3d']['len_min']
+    dx_tol= dc.reco['track_3d']['dx_tol']
+    dy_tol= dc.reco['track_3d']['dy_tol']
+    dz_tol = dc.reco['track_3d']['dz_tol']
+    d_thresh = 1.5#0.2
+    min_z_overlap = 10.
+    trk_min_dz = 15.
+    q_thr = 0.15
+    r_z_thr = 0.8
+    
+    if(dc.evt_list[-1].det != 'pdhd'):
+        unwrappers = [[0,0,0]]
+    else:
+        unwrappers = [[0,0,0], [cf.unwrappers[modules[0]][0], 0, 0], [0, cf.unwrappers[modules[0]][1], 0], [cf.unwrappers[modules[0]][0], cf.unwrappers[modules[0]][1], 0]]
+    
+    if(len(dc.tracks2D_list) < 2):
+        return
+
+    """ R-tree with the tracks """
+    trk_pties = index.Property()
+    trk_pties.dimension = 3
+    rtree_trk_idx = index.Index(properties=trk_pties)
+
+    trk_ID_shift = dc.n_tot_trk2d #tracks2D_list[0].trackID
+
+    tracks = [x for x in dc.tracks2D_list if x.len_straight >= len_min and x.dz > trk_min_dz and x.ghost == False and track_in_module(x, modules) == True and x.match_3D < 0]
+
+    ntracks = len(tracks)
+    ntracks_all = len(dc.tracks2D_list)
+
+
+    if(ntracks < 2):
+        return
+    
+    for t in tracks:
+        start = t.path[0][1]
+        stop  = t.path[-1][1]
+
+        module_start = min(t.module_ini, t.module_end)
+        module_stop =  max(t.module_ini, t.module_end)
+
+        rtree_trk_idx.insert(t.trackID, (module_start, t.view, stop, module_stop, t.view, start))
+
+    """ R-tree with the hits associated """
+    hit_pties = index.Property()
+    hit_pties.dimension = 4
+
+    ''' create an rtree index of hits in a 2D track (view, trackID, z)'''
+    rtree_hit_idx = index.Index(properties=hit_pties)
+    
+    hits_ID_shift = dc.hits_list[0].ID
+
+    hits = [x for x in dc.hits_list if x.match_2D >=0 and dc.tracks2D_list[x.match_2D-trk_ID_shift].len_straight>=len_min and dc.tracks2D_list[x.match_2D-trk_ID_shift].dz > trk_min_dz and dc.tracks2D_list[x.match_2D-trk_ID_shift].ghost==False and x.module in modules and x.match_3D < 0]
+    nhits = len(hits)
+    #print('nb of hits un-matched in 3D ', nhits)
+    
+    ''' fill a R-tree with the hits associated to a 2D track and not to a 3D track'''
+    for h in hits: 
+        stop = min(h.Z_stop, h.Z_start)
+        start = max(h.Z_stop, h.Z_start)                
+        module = h.module
+        rtree_hit_idx.insert(h.ID, (h.module, h.view, h.match_2D, stop, h.module, h.view, h.match_2D, start))
+
+
+    tested = set()
+    ok_combo = []
+    for t in tracks:
+        #print('Testing track ', t.trackID)
+        t_start = t.path[0][1]+ztol
+        t_stop  = t.path[-1][1]-ztol
+        module_start = min(t.module_ini, t.module_end)
+        module_stop =  max(t.module_ini, t.module_end)
+        
+        """ get all tracks in the other views compatible in time """
+        trk_overlaps = [[] for x in range(cf.n_view)]
+
+        for iview in range(cf.n_view):
+            if(iview == t.view):
+                trk_overlaps[iview].append(t.trackID)
+            else:
+                [trk_overlaps[iview].append(k) for k in list(rtree_trk_idx.intersection((module_start, iview, t_stop, module_stop, iview, t_start)))]
+                
+                
+        
+        trk_overlaps =  [[None] if not x else x for x in trk_overlaps]
+
+        """ get all 3 tracks combinations """
+        trk_comb = list(itertools.product(*trk_overlaps))
+        #print(trk_comb)
+        
+        for tc in trk_comb:
+            """ don't test a combination already tested """
+            if(tc in tested):
+                continue
+            else:
+                tested.add(tc)
+
+            #get_channel_from_xy(x, y, view, module):
+
+            trks = [dc.tracks2D_list[i-trk_ID_shift] for i in tc if i!=None]
+            if(len(trks) == 1):
+                continue
+            starts = [(it.path[0][1],it.hits_ID[0]) for it in trks]
+            starts = sorted(starts, key=itemgetter(0))
+            
+            stops  = [(it.path[-1][1],it.hits_ID[-1], ) for it in trks]
+            stops = sorted(stops, key=itemgetter(0))
+
+            
+            """ get the smallest z overlap in time from the combination """
+            hit_min_start = dc.hits_list[starts[0][1]-hits_ID_shift]
+            hit_max_stop = dc.hits_list[stops[-1][1]-hits_ID_shift]            
+
+            """ get the smallest z overlap in time from the combination """
+            hit_max_start = dc.hits_list[starts[-1][1]-hits_ID_shift]
+            hit_min_stop = dc.hits_list[stops[0][1]-hits_ID_shift]            
+
+            
+            if(hit_max_stop.Z > hit_min_start.Z):
+                continue
+            
+            dz_ov = np.fabs(hit_min_start.Z-hit_max_stop.Z)
+            
+            if(dz_ov < min_z_overlap):
+                continue
+            dz_long = np.fabs(hit_max_start.Z-hit_min_stop.Z)
+                          
+            if(dz_ov/dz_long < r_z_thr):
+                continue
+            
+            qtrk = [np.fabs(it.charge_in_z_interval(hit_max_stop.Z, hit_min_start.Z)) for it in trks]
+            
+            qtrk_tot=sum(qtrk)
+            if(qtrk_tot == 0 or np.any(qtrk==0)):
+                continue
+            qtrk = [(q/qtrk_tot)<q_thr for q in qtrk]
+
+            if(np.any(qtrk)):
+                continue
+
+            ok_combo.append(tc)
+            
+    for tc in ok_combo:
+        flat_tracks = [dc.tracks2D_list[x-trk_ID_shift] for x in tc if x!=None]
+        t3D = complete_trajectories(flat_tracks)
+
+        isok = check_track_3D(t3D)        
+        if(isok == False):            
+            continue
+
+
+        n_fake = t3D.check_views()
+
+        if(n_fake > 1):
+            continue
+        
+        t3D.boundaries()
+
+        isok = finalize_3d_track(t3D)
+        if(isok == False):
+            #print('oh no!')
+            continue
+
+
+        
+        correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+        trk_ID = dc.evt_list[-1].n_tracks3D + dc.n_tot_trk3d #+1
+        t3D.ID_3D = trk_ID
+        
+        dc.tracks3D_list.append(t3D)
+        dc.evt_list[-1].n_tracks3D += 1
+
+        #t3D.dump()
+            
+        for t in flat_tracks:
+            t.match_3D = trk_ID
+            t.set_match_hits_3D(trk_ID)
+
+        
+def find_track_3D_rtree_new(modules):
+    ta = time.time()
+    
+    ztol = dc.reco['track_3d']['ztol']
+    qfrac= dc.reco['track_3d']['qfrac']
+    len_min= dc.reco['track_3d']['len_min']
+    dx_tol= dc.reco['track_3d']['dx_tol']
+    dy_tol= dc.reco['track_3d']['dy_tol']
+    dz_tol = dc.reco['track_3d']['dz_tol']
+    d_thresh = dc.reco['track_3d']['d_thresh']
+    min_z_overlap = dc.reco['track_3d']['min_z_overlap']
+    trk_min_dz = dc.reco['track_3d']['trk_min_dz']
+    
+    if(dc.evt_list[-1].det != 'pdhd'):
+        unwrappers = [[0,0,0]]
+    else:
+        unwrappers = [[0,0,0], [cf.unwrappers[modules[0]][0], 0, 0], [0, cf.unwrappers[modules[0]][1], 0], [cf.unwrappers[modules[0]][0], cf.unwrappers[modules[0]][1], 0]]
+    
+    if(len(dc.tracks2D_list) < 2):
+        return
+
+    """ R-tree with the tracks """
+    trk_pties = index.Property()
+    trk_pties.dimension = 3
+    rtree_trk_idx = index.Index(properties=trk_pties)
+
+    trk_ID_shift = dc.tracks2D_list[0].trackID
+    tracks = [x for x in dc.tracks2D_list if x.len_straight >= len_min and x.dz > trk_min_dz and x.ghost == False and track_in_module(x, modules) == True]
+
+    ntracks = len(tracks)
+    ntracks_all = len(dc.tracks2D_list)
+    
+    for t in tracks:
+        start = t.path[0][1]
+        stop  = t.path[-1][1]
+
+        module_start = min(t.module_ini, t.module_end)
+        module_stop =  max(t.module_ini, t.module_end)
+
+        rtree_trk_idx.insert(t.trackID, (module_start, t.view, stop, module_stop, t.view, start))
+
+    """ R-tree with the hits associated """
+    hit_pties = index.Property()
+    hit_pties.dimension = 4
+
+    ''' create an rtree index of hits in a 2D track (view, trackID, z)'''
+    rtree_hit_idx = index.Index(properties=hit_pties)
+    
+    hits_ID_shift = dc.hits_list[0].ID
+
+    hits = [x for x in dc.hits_list if x.match_2D >=0 and dc.tracks2D_list[x.match_2D-trk_ID_shift].len_straight>=len_min and dc.tracks2D_list[x.match_2D-trk_ID_shift].dz > trk_min_dz and dc.tracks2D_list[x.match_2D-trk_ID_shift].ghost==False and x.module in modules]
+    nhits = len(hits)
+
+    
+    ''' fill a R-tree with the hits associated to a 2D track '''
+    for h in hits: 
+        stop = min(h.Z_stop, h.Z_start)
+        start = max(h.Z_stop, h.Z_start)                
+        module = h.module
+        rtree_hit_idx.insert(h.ID, (h.module, h.view, h.match_2D, stop, h.module, h.view, h.match_2D, start))
+
+
+    tested = set()
+    for t in tracks:
+        t_start = t.path[0][1]+ztol
+        t_stop  = t.path[-1][1]-ztol
+        module_start = min(t.module_ini, t.module_end)
+        module_stop =  max(t.module_ini, t.module_end)
+        
+        """ get all tracks in the other views compatible in time """
+        trk_overlaps = [[] for x in range(cf.n_view)]
+        for iview in range(cf.n_view):
+            if(iview == t.view):
+                trk_overlaps[iview].append(t.trackID)
+            else:
+                [trk_overlaps[iview].append(k) for k in list(rtree_trk_idx.intersection((module_start, iview, t_stop, module_stop, iview, t_start)))]
+
+
+                
+        """ get all 3 tracks combinations """
+        trk_comb = list(itertools.product(*trk_overlaps))
+
+        
+        for tc in trk_comb:
+            """ don't test a combination already tested """
+            if(tc in tested):
+                continue
+            else:
+                tested.add(tc)
+
+                
+            trks = [dc.tracks2D_list[i-trk_ID_shift] for i in tc]
+            
+            starts = [(it.path[0][1],it.hits_ID[0]) for it in trks]
+            starts = sorted(starts, key=itemgetter(0))
+            
+            stops  = [(it.path[-1][1],it.hits_ID[-1], ) for it in trks]
+            stops = sorted(stops, key=itemgetter(0))
+
+            
+            """ get the smallest z overlap in time from the combination """
+            hit_min_start = dc.hits_list[starts[0][1]-hits_ID_shift]
+            hit_max_stop = dc.hits_list[stops[-1][1]-hits_ID_shift]            
+
+            if(hit_max_stop.Z > hit_min_start.Z):
+                continue
+            
+            dz = np.fabs(hit_min_start.Z-hit_max_stop.Z)
+            
+            if(dz < min_z_overlap):
+                continue
+
+            qtrk = [it.charge_in_z_interval(hit_max_stop.Z, hit_min_start.Z) for it in trks]
+
+
+            
+            qtrk_tot=sum(qtrk)
+            if(qtrk_tot == 0):
+                continue
+            
+            #qtrk = [x/qtrk_tot for x in qtrk]
+            #if(np.all([0.02<x<0.95 for x in  qtrk]) == False):
+            #if(np.all([0.02<x for x in  qtrk]) == False):
+                #print('q not good ', tc, qtrk)
+                #continue
+
+            start_ov = [[] for x in range(cf.n_view)]
+            stop_ov = [[] for x in range(cf.n_view)]
+
+            for iv in range(cf.n_view):
+                if(iv == hit_min_start.view):
+                    start_ov[iv].append(hit_min_start)
+                else:
+                    intersect = list(rtree_hit_idx.intersection((module_start, iv, tc[iv], starts[0][0]-1, module_stop, iv, tc[iv], starts[0][0]+1)))
+                    [start_ov[iv].append(dc.hits_list[k-hits_ID_shift]) for k in intersect]
+
+                if(iv == hit_max_stop.view):
+                    stop_ov[iv].append(hit_max_stop)
+                else:
+                    intersect = list(rtree_hit_idx.intersection((module_start, iv, tc[iv], stops[-1][0]-1, module_stop, iv, tc[iv], stops[-1][0]+1)))
+                    [stop_ov[iv].append(dc.hits_list[k-hits_ID_shift]) for k in intersect]
+
+            start_ok, stop_ok = False, False
+            min_start, min_stop = 999, 999
+
+
+            for u in unwrappers:
+                unwrap = u
+                start_d, start_xy, start_comb = h3d.compute_xy(start_ov, hit_min_start, d_thresh, u)
+                if(start_d >= 0):
+                    start_ok = True
+                    comb_ok_start = start_comb
+                    start_ok_xy = start_xy
+                    if(start_d<min_start):min_start=start_d
+                    
+                stop_d, stop_xy, stop_comb = h3d.compute_xy(stop_ov, hit_max_stop, d_thresh, u) 
+                if(stop_d >= 0):
+                    stop_ok = True
+                    comb_ok_stop = stop_comb
+                    stop_ok_xy = stop_xy
+                    if(stop_d<min_stop):min_stop=stop_d
+
+
+                if(start_ok and stop_ok):
+                    
+                    for tt in trks:
+                        [tt.matched_tracks[i].append(t) for i,t in enumerate(tc) if i!=tt.view]
+                    break
+
+
+
+
+    
+    tb = time.time()
+
+    
+    """ at this point, we know that track A connects with tracks B and C, we need to sort out the connections """
+    """ we use graphs to undersand who's connected to whom """
+    """ the connections are used to build an adjacency matrix, from which graph(s) can be extracted telling us what are the set of tracks needed to build a 3D track"""
+    
+
+    sparse = np.zeros((ntracks_all, ntracks_all))
+    for t in tracks:
+        tid = t.trackID
+        for match in t.matched_tracks:
+            for tm in match:
+                sparse[tid-trk_ID_shift, tm-trk_ID_shift] = 1
+
+
+    
+    graph = csp.csr_matrix(sparse)
+    n_components, labels = csp.csgraph.connected_components(csgraph=graph, directed=False, return_labels=True)
+
+    count = Counter(labels)
+    n_3D_tracks = sum([1 if k>1 else 0 for k in count.values()])
+
+                   
+    tc = time.time()
+
+
+    """ assign the label (potentital 3D track ID) to the 2D tracks """
+    [it.set_label(l) for it,l in zip(dc.tracks2D_list,labels) ]
+
+    """ merge 2D tracks in the same view """
+    for ilab in range(n_components):
+        tracks_to_3D = [[] for x in range(cf.n_view)]
+        [tracks_to_3D[it.view].append(it) for it in dc.tracks2D_list if it.label3D==ilab]
+
+        n_trks_per_view = [len(x) for x in tracks_to_3D]
+        if(any(x==0 for x in n_trks_per_view)):
+            continue
+        
+        if(any(x>1 for x in n_trks_per_view)):
+            
+            """ merge if needed """
+            [stitch.test_stitching_2D_and_merge(tracks_to_3D[iv]) for iv in range(cf.n_view)]
+
+        
+            tracks_to_3D = [[] for x in range(cf.n_view)]
+            [tracks_to_3D[it.view].append(it) for it in dc.tracks2D_list if it.label3D==ilab]
+            n_trks_per_view = [len(x) for x in tracks_to_3D]
+
+
+        
+        if(all(x==1 for x in n_trks_per_view)):
+            flat_tracks = [x for t in tracks_to_3D for x in t]
+
+
+        else:
+            tracks_to_3D = [sorted(t, key=lambda x: x.len_straight,reverse=True) for t in tracks_to_3D]
+            flat_tracks = [t[0] for t in tracks_to_3D]
+
+            
+
+        t3D = complete_trajectories(flat_tracks)
+
+        isok = check_track_3D(t3D)
+        if(isok == False):            
+            continue
+            
+        n_fake = t3D.check_views()
+            
+        if(n_fake > 1):
+            continue
+            
+        t3D.boundaries()
+
+        isok = finalize_3d_track(t3D)
+        if(isok == False):
+            #print('oh no!')
+            continue
+
+                      
+        correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+        trk_ID = dc.evt_list[-1].n_tracks3D + dc.n_tot_trk3d #+1
+        t3D.ID_3D = trk_ID
+        
+        dc.tracks3D_list.append(t3D)
+        dc.evt_list[-1].n_tracks3D += 1
+
+        #t3D.dump()
+            
+        for t in flat_tracks:
+            t.match_3D = trk_ID
+            t.set_match_hits_3D(trk_ID)
