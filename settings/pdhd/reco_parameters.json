@@ -1,0 +1,149 @@
+{
+  "default":{
+      "pedestal":{ 
+          "raw_rms_thr": 3,
+	  "n_iter":2
+      },
+	 
+      "mask":{
+	  "coll":{
+	      "min_dt":5,
+	      "low_thr": [1.8, 2.0],
+	      "high_thr":[2.2, 2.5],
+	      "min_rise":2,
+	      "min_fall":3,
+	      "pad_bef":10,
+	      "pad_aft":15
+	  },
+	  
+	  "ind":{
+	      "max_dt_pos_neg":30,
+	      "pad_bef":10,
+	      "pad_aft":15,
+	      "pos":{
+		  "min_dt":4,
+		  "low_thr": [1.8, 2.0],
+		  "high_thr":[2.2, 2.5],
+		  "min_rise":2,
+		  "min_fall":1
+	      },
+	      
+	      "neg":{
+		  "min_dt":4,
+		  "low_thr": [-1.8, -2.0],
+		  "high_thr":[-2.2, -2.5],
+		  "min_rise":1,
+		  "min_fall":2
+	      }
+	  }
+      },
+	 
+      "noise":{
+          "coherent":{
+              "groupings":[32],
+	      "per_view":1,
+	      "capa_weight":0,
+	      "calibrated":0
+          },
+
+          "fft":{
+              "freq":-1,
+              "low_cut":0.6
+          },
+
+	  "microphonic":{
+	      "window":-1
+	  }
+
+      },
+      
+      "hit_finder":{
+          "coll":{
+              "amp_sig": [2.0,3.0],
+              "dt_min": 5
+          },
+          "ind":{
+              "amp_sig": [2.0, 2.5],
+              "dt_min": 4,
+	      "merge_tdc_thr":10
+          },
+          "pad":{
+              "left": 10,
+              "right": 20
+          }
+      },
+
+      "track_2d":{
+	  "min_nb_hits": 10,
+	  "rcut": 6.0,
+	  "chi2cut": 8.0,
+	  "y_error": 0.5,
+	  "slope_error": 1.0,
+	  "pbeta":3.0
+      },
+
+      
+      "stitching_2d":{
+	  "unwrap":{
+	      "search":1,
+	      "border_thresh":3.0,
+	      "z_thresh":4.0,
+	      "slope_thresh":10.0,
+	      "dma_thresh":6.0,	    
+	  },
+	  
+	  "tracks":{
+	      "dist_min":5.0,
+	      "slope_thresh":15.0,
+	      "dma_thresh":6.0,
+	  }    
+      },
+
+      
+      "track_3d":{
+	  "ztol":3.0,
+	  "qfrac":5.0, 
+	  "len_min":20.0, 
+	  "dx_tol": [[15.0,15.0], [15.0, 15.0], [15.0,15.0], [15.0, 15.0]],
+	  "dy_tol": [[15.0,15.0], [15.0, 15.0], [15.0,15.0], [15.0, 15.0]],
+	  "dz_tol": 15.0,
+	  "d_thresh":0.5,
+	  "min_z_overlap":3.0,
+	  "trk_min_dz":5.0
+
+      },
+
+      "ghost":{
+	  "search":0,
+	  "dmin":10.0
+      },
+
+      "single_hit":{
+	  "max_per_view":3,
+	  "outlier_dmax":4.0,
+	  "veto_nchan":5,
+	  "veto_nticks":100,
+	  "int_nchan":3,
+	  "int_nticks":50
+      },
+      
+      "store":{
+	  "coord":"lardon"
+      },
+      
+      "plot":{
+          "noise":{           
+              "zrange": [0,15]
+          },
+          "evt_display":{
+              "daqch":{
+                  "zrange":[-50,50]
+              },
+              "viewch":{
+                  "ind_zrange":[-50,50],
+                  "col_zrange":[-10,100]
+              }
+          }
+      }
+  }
+}
