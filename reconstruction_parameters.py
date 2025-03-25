@@ -94,13 +94,30 @@ def dump():
         print("    Hit chi2 cut when added to the track ", dc.reco['track_2d']['chi2cut'])
         print("    PFilter initial error estimate y: ", dc.reco['track_2d']['y_error'], " slope: ", dc.reco['track_2d']['slope_error'], " pbeta : ", dc.reco['track_2d']['pbeta'])
 
+        print("\n 2D Track Stitching~")
+        print("    Distance accross tracks ", dc.reco['stitching_2d']['tracks']['dist_min'])
+        print("    Slopes compatibility ", dc.reco['stitching_2d']['tracks']['slope_thresh'])
+        print("    Tracks dist. of min. approach ", dc.reco['stitching_2d']['tracks']['dma_thresh'])
+
+        print("    Unwrap the APA : ", dc.reco['stitching_2d']['unwrap']['search'])
+        if(dc.reco['stitching_2d']['unwrap']['search'] == True):
+            print("      APA border limit ", dc.reco['stitching_2d']['unwrap']['border_thresh'])
+            print("      Max Z distance between tracks ", dc.reco['stitching_2d']['unwrap']['z_thresh'])
+            print("      Track Slopes compatibility ", dc.reco['stitching_2d']['unwrap']['slope_thresh'])
+            print("      Dist. of Min. Approach between tracks ", dc.reco['stitching_2d']['unwrap']['dma_thresh'])
+              
+        
         print("\n~3D Track Finder~ ")
         print("    Max Z difference at 2D track boundaries : ", dc.reco['track_3d']['ztol'])
         print("    Max track charge balance : ", dc.reco['track_3d']['qfrac'])
         print("    Min track 2D length : ", dc.reco['track_3d']['len_min'])
         print("    Distance to detector x-boundaries : ", dc.reco['track_3d']['dx_tol'], 'y-boundaries: ', dc.reco['track_3d']['dy_tol'], " z-boundary ", dc.reco['track_3d']['dz_tol'])
-
+        print("    Tolerance when searching for 3D intersection ", dc.reco['track_3d']['d_thresh'])
+        print("    Minimum overlap of 2D tracks along Z to build a 3D track", dc.reco['track_3d']['min_z_overlap'])
+        print("    Minimum 2D track length along Z to be considered", dc.reco['track_3d']['trk_min_dz'])
+        
         print("\n~3D Ghost Finder~ ")
+        print("    Search allowed ", dc.reco["ghost"]["search"])
         print("    Ghost-Track min distance : ", dc.reco["ghost"]["dmin"])
 
         print("\n~Single Hit Finder~ ")
@@ -111,7 +128,7 @@ def dump():
         print("    Veto nticks ", dc.reco["single_hit"]["veto_nticks"])
         print("    Integral nchannel ", dc.reco["single_hit"]["int_nchan"])
         print("    Integral nticks ", dc.reco["single_hit"]["int_nticks"])
-
+        print("    Clustering range search (dbscan epsilon)", dc.reco["single_hit"]["cluster_eps"])
         print("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n")
 
 
