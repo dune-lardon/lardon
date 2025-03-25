@@ -19,14 +19,14 @@ def draw_current_waveform(daqch, view, ch, ax=None, **kwargs):
     
     ax = plt.gca() if ax is None else ax
     if(daqch >= 0):
-        ax.step(np.linspace(0,cf.n_sample-1,cf.n_sample), dc.data_daq[daqch, :], where='mid',**kwargs)
+        ax.step(np.linspace(0,cf.n_sample[cf.imod]-1,cf.n_sample[cf.imod]), dc.data_daq[daqch, :], where='mid',**kwargs)
     else:
-        ax.step(np.linspace(0,cf.n_sample-1,cf.n_sample), dc.data[0,view, ch, :], where='mid',**kwargs)
+        ax.step(np.linspace(0,cf.n_sample[cf.imod]-1,cf.n_sample[cf.imod]), dc.data[view, ch, :], where='mid',**kwargs)
     return ax
 
 
 
-def plot_wvf_current_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+def plot_wvf_current_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
     chmap.arange_in_view_channels()
 
     n_wvf = len(vch_list)
@@ -69,7 +69,7 @@ def plot_wvf_current_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sam
     plt.close()
 
 
-def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1, option=None, to_be_shown=False, tmin=0, tmax=cf.n_sample):
+def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1, option=None, to_be_shown=False, tmin=0, tmax=cf.n_sample[cf.imod]):
     """ daqch_list should be a list of daqchs """
     n_wvf = len(daqch_list)
 
@@ -114,7 +114,7 @@ def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1, option=None, to_b
     plt.close()
 
 
-def plot_track_wvf_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+def plot_track_wvf_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
     chmap.arange_in_view_channels()
     
     nview = len(vch_list)
@@ -158,7 +158,7 @@ def plot_track_wvf_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sampl
 
 
 
-def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
 
     #chmap.arange_in_view_channels()
     n_wvf = len(vch_list)
@@ -213,18 +213,39 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
 
         for ih in dc.hits_list:
             if(ih.daq_channel == daq_ch):
-                ih.dump()
+                #ih.dump()
+                if(ih.signal != cf.view_type[ih.view]):
+                    c='blue'
+                else:
+                    c='r'
                 t_start, t_stop = ih.start,ih.stop
-                ax[i].fill_between(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], ped_mean, step='mid',color='r', alpha=0.25,zorder=200)
-                ax[i].step(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], linewidth=1, c='r',zorder=250,where='mid')
+                ax[i].fill_between(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], ped_mean, step='mid',color=c, alpha=0.25,zorder=200)
+                ax[i].step(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], linewidth=1, c=c,zorder=250,where='mid')
 
-                ax[i].axvline(t_start, ls='dashed',c='r',lw=.5,zorder=300)
-                ax[i].axvline(t_stop, ls='dotted',c='r',lw=.5,zorder=300)
+                ax[i].axvline(t_start, ls='dashed',c=c,lw=.5,zorder=300)
+                ax[i].axvline(t_stop, ls='dotted',c=c,lw=.5,zorder=300)
 
-        for j in [2, 3.5]:
-            ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
-            if(cf.view_type[view] == "Induction"):
-                ax[i].axhline(ped_mean-j*ped_rms, ls='dashdot',c='orange',lw=.5)
+
+        if(cf.view_type[view] == "Collection"):
+            for j in dc.reco['mask']['coll']['low_thr']:#[2, 3.5]:
+                ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
+
+            for j in dc.reco['mask']['coll']['high_thr']:#[2, 3.5]:
+                ax[i].axhline(ped_mean+j*ped_rms, ls='dotted',c='orange',lw=.5)
+                
+        if(cf.view_type[view] == "Induction"):
+            for j in dc.reco['mask']['ind']['pos']['low_thr']:#[2, 3.5]:
+                ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
+            for j in dc.reco['mask']['ind']['neg']['low_thr']:#[2, 3.5]:
+                ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
+                
+            for j in dc.reco['mask']['ind']['pos']['high_thr']:#[2, 3.5]:
+                ax[i].axhline(ped_mean+j*ped_rms, ls='dotted',c='orange',lw=.5)
+            for j in dc.reco['mask']['ind']['neg']['high_thr']:#[2, 3.5]:
+                ax[i].axhline(ped_mean+j*ped_rms, ls='dotted',c='orange',lw=.5)
+
+
+
         ax[i].axhline(ped_mean, ls='solid',c='orange',lw=1)
         #print("v", view," ch", ch, " ped = ", ped_mean, " rms = ", ped_rms)
         ax[i].set_xlim([tmin, tmax])
@@ -246,7 +267,7 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
     plt.close()
 
 
-def plot_wvf_current_hits_roi_daqch(daqch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+def plot_wvf_current_hits_roi_daqch(daqch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
     vch_list = []
     for i in daqch_list:
         view, ch = dc.cmap[i].view, dc.cmap[i].vchan
@@ -256,7 +277,7 @@ def plot_wvf_current_hits_roi_daqch(daqch_list, adc_min=-1, adc_max=-1, tmin=0, 
 
 
 
-def plot_wvf_diff_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+def plot_wvf_diff_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
     n_wvf = len(vch_list)
 
     fig = plt.figure(figsize=(12, 3*n_wvf))
@@ -279,7 +300,7 @@ def plot_wvf_diff_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample
         ped_mean = dc.evt_list[-1].noise_filt.ped_mean[daq_ch]
         wvf = np.r_['-1',ped_mean, dc.data_daq[daq_ch,:]]
         dwvf = np.diff(wvf)
-        ax[i].step(np.linspace(0,cf.n_sample-1,cf.n_sample), dwvf, where='mid', c='k',lw=1)
+        ax[i].step(np.linspace(0,cf.n_sample[cf.imod]-1,cf.n_sample[cf.imod]), dwvf, where='mid', c='k',lw=1)
 
         ax[i].set_ylabel('ADC')
         ax[i].legend(loc='upper right')
@@ -311,11 +332,11 @@ def plot_wvf_diff_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample
 def draw_data(data, ax=None, **kwargs):
     
     ax = plt.gca() if ax is None else ax    
-    ax.step(np.linspace(0,cf.n_sample-1,cf.n_sample), data, where='mid',**kwargs)
+    ax.step(np.linspace(0,cf.n_sample[cf.imod]-1,cf.n_sample[cf.imod]), data, where='mid',**kwargs)
     return ax
     
 
-def plot_wvf_evo(data, title="", legends=[], adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+def plot_wvf_evo(data, title="", legends=[], adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
 
     fig = plt.figure(figsize=(12, 3))
     ax = plt.gca()
@@ -348,7 +369,7 @@ def plot_wvf_evo(data, title="", legends=[], adc_min=-1, adc_max=-1, tmin=0, tma
 
 
 
-def plot_cumsum_wvf(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, option=None, to_be_shown=False):
+def plot_cumsum_wvf(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
     n_wvf = len(vch_list)
 
     fig = plt.figure(figsize=(7, 3*n_wvf))#(12, 3*n_wvf))
@@ -371,7 +392,7 @@ def plot_cumsum_wvf(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, 
         axy.append(ax[i].twinx())
         csum = np.cumsum(dc.data_daq[daq_ch])
         """
-        filt_low = np.zeros(cf.n_sample)
+        filt_low = np.zeros(cf.n_sample[cf.imod])
         filt_low += -0.999
         filt_low = np.exp(filt_low)
         print(filt_low[:5])
@@ -379,8 +400,8 @@ def plot_cumsum_wvf(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample, 
         """
         
         #axy[i] = draw_current_waveform(csum, -1, -1, ax=axy[i], c='r',lw=.5)
-        axy[i].step(np.linspace(0,cf.n_sample,cf.n_sample), csum, where='mid', c='r',lw=1)
-        #axy[i].step(np.linspace(0,cf.n_sample,cf.n_sample), csum_filt_low, where='mid', c='r',lw=.5)
+        axy[i].step(np.linspace(0,cf.n_sample[cf.imod],cf.n_sample[cf.imod]), csum, where='mid', c='r',lw=1)
+        #axy[i].step(np.linspace(0,cf.n_sample[cf.imod],cf.n_sample[cf.imod]), csum_filt_low, where='mid', c='r',lw=.5)
         ax[i].set_ylabel('ADC')
         axy[i].set_ylabel('ADC Cum Sum', color='r')
         axy[i].tick_params(axis='y', labelcolor='r')
