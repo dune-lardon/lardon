@@ -8,7 +8,7 @@ import math
 #from collections import Counter
 
 #debugging - to remove later
-import matplotlib.pyplot as plt
+#
 
 def min_distance(xx_a, zz_a, xx_b, zz_b):
     
@@ -24,7 +24,13 @@ def min_distance(xx_a, zz_a, xx_b, zz_b):
     return min_dist, pts
 
 
-def ghost_finder(threshold):
+def ghost_finder():
+
+    if(dc.reco['ghost']['search'] == False):
+        return
+
+    dist_thresh = dc.reco['ghost']['dmin']
+    
     """ to be called before 3D finder """
 
     """ 2D tracks in collection view """
@@ -59,7 +65,7 @@ def ghost_finder(threshold):
 
             min_2Ddist, _ = min_distance([yi_start, yi_stop], [zi_start, zi_stop], [yj_start, yj_stop], [zj_start, zj_stop])
 
-            if(min_2Ddist < threshold):                
+            if(min_2Ddist < dist_thresh):                
                 if(min_2Ddist < best_dist):
                     best_dist = min_2Ddist
                     best_idx = j
@@ -112,7 +118,11 @@ def find_3d_track(ID):
             return t
     return None
 
+
 def ghost_trajectory():
+    if(dc.reco['ghost']['search'] == False):   
+        return
+
     debug = False
 
     ang_track = np.radians(cf.view_angle[2])
@@ -127,13 +137,11 @@ def ghost_trajectory():
             continue
 
         if(t2d.match_3D < 0):
-            #print(" the ghostee is not matched to a 3D track :/")
             continue
 
         t3d = find_3d_track(t2d.match_3D)
 
         if(t3d.match_ID[2] < 0):
-            #print("no collection hits in the 3D track ...")
             continue
 
         ghost = dc.ghost(ghost_track.trackID, t2d.trackID, g.min_dist, ghost_track.tot_charge, t2d.tot_charge, ghost_track.n_hits)
@@ -201,6 +209,7 @@ def ghost_trajectory():
         ghost.set_3D_ghost(t2d.match_3D, trajectory, dQ, ds, hits, x_3dcontact, y_3dcontact, z_3dcontact, np.degrees(theta), np.degrees(phi-np.pi), t3d.t0_corr, t3d.z0_corr)
 
         if(debug):
+            import matplotlib.pyplot as plt
             """ debugging plots """
             fig = plt.figure()
             ax_xz = fig.add_subplot(121)
