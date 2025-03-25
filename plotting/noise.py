@@ -37,11 +37,11 @@ def plot_noise_daqch(noise_type, vrange=[0,10], option=None, to_be_shown=False):
 
     ax_std  = fig.add_subplot(111)
 
-    ch = np.linspace(0, cf.n_tot_channels, cf.n_tot_channels, endpoint=False)
+    ch = np.linspace(0, cf.module_nchan[cf.imod], cf.module_nchan[cf.imod], endpoint=False)
     if(noise_type=='filt'):
-        ax_std.scatter(ch, dc.evt_list[-1].noise_filt.ped_rms,s=2)
+        ax_std.scatter(ch, dc.evt_list[-1].noise_filt[cf.imod].ped_rms,s=2)
     else:
-        ax_std.scatter(ch, dc.evt_list[-1].noise_raw.ped_rms,s=2)
+        ax_std.scatter(ch, dc.evt_list[-1].noise_raw[cf.imod].ped_rms,s=2)
 
     ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('DAQ Channel Number')
@@ -77,23 +77,24 @@ def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False,
 
     ax_std  = fig.add_subplot(111)
 
-    rms = np.zeros(cf.n_tot_channels)
-
-    for i in range(cf.n_tot_channels):
-        gch = dc.chmap[i].globch
+    rms = np.zeros(cf.module_nchan[cf.imod])
+    daq_start = cf.module_daqch_start[cf.imod]
+    
+    for i in range(cf.module_nchan[cf.imod]):
+        gch = dc.chmap[i+daq_start].globch - daq_start
         if(capa==True):
-            ct  = dc.chmap[i].tot_capa
+            ct  = dc.chmap[i+daq_start].tot_capa
         else:
             ct = 1.
         if(gch < 0):
             continue
         else:
             if(noise_type=='raw'):
-                rms[gch] = dc.evt_list[-1].noise_raw.ped_rms[i]/ct
+                rms[gch] = dc.evt_list[-1].noise_raw[cf.imod].ped_rms[i]/ct
             elif(noise_type=='filt'):
-                rms[gch] = dc.evt_list[-1].noise_filt.ped_rms[i]/ct
+                rms[gch] = dc.evt_list[-1].noise_filt[cf.imod].ped_rms[i]/ct
 
-    ch = np.linspace(0, cf.n_tot_channels, cf.n_tot_channels, endpoint=False)
+    ch = np.linspace(daq_start, cf.module_nchan[cf.imod]+daq_start, cf.module_nchan[cf.imod], endpoint=False)
     ax_std.scatter(ch, rms,s=2)
 
     if(capa==True):
@@ -102,9 +103,9 @@ def plot_noise_globch(noise_type, vrange=[0,10], option=None, to_be_shown=False,
         ax_std.set_ylabel('RMS Ped [ADC]')
     ax_std.set_xlabel('Global Channel Number')
     ax_std.set_ylim(vrange[0],vrange[1])
-    ax_std.set_xlim(0, sum(cf.view_nchan))
+    ax_std.set_xlim(daq_start, cf.module_nchan[cf.imod]+daq_start)
 
-    nprev = 0
+    nprev = daq_start
     for i in range(cf.n_view-1):
         ax_std.axvline(nprev + cf.view_nchan[i], lw=.4,c='k')
         nprev += cf.view_nchan[i]
@@ -133,25 +134,26 @@ def plot_noise_vch(noise_type, vrange=[0,10], option=None, to_be_shown=False, ca
     if(noise_type != 'raw' and noise_type != 'filt'):
         print("plot_noise_vch needs to know which noise to show (raw or filt) : ", noise_type, ' is not recognized')
         
-    fig = plt.figure(figsize=(12,4))
+    fig = plt.figure(figsize=(10,4))
     gs = gridspec.GridSpec(nrows=1, 
                            ncols=3)
 
     axs  = [fig.add_subplot(gs[0,x]) for x in range(3)]
 
     rms = np.zeros((cf.n_view, max(cf.view_nchan)))
-
-    for i in range(cf.n_tot_channels):
-        view, chan = dc.chmap[i].view, dc.chmap[i].vchan
+    daq_start = cf.module_daqch_start[cf.imod]
+    
+    for i in range(cf.module_nchan[cf.imod]):
+        view, chan = dc.chmap[i+daq_start].view, dc.chmap[i+daq_start].vchan
         calib = 1.
         if(calibrated==True):
-            calib = 1e-3*dc.chmap[i].gain/1.602e-4
+            calib = 1e-3*dc.chmap[i+daq_start].gain/1.602e-4
         if(view >= cf.n_view or view < 0):
             continue
         if(noise_type=='filt'):
-            rms[view, chan] = dc.evt_list[-1].noise_filt.ped_rms[i]*calib
+            rms[view, chan] = dc.evt_list[-1].noise_filt[cf.imod].ped_rms[i]*calib
         else:
-            rms[view, chan] = dc.evt_list[-1].noise_raw.ped_rms[i]*calib
+            rms[view, chan] = dc.evt_list[-1].noise_raw[cf.imod].ped_rms[i]*calib
 
     for iv in range(cf.n_view):
 

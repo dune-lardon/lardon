@@ -59,43 +59,47 @@ def draw_all_hits(axs, sel='True', adc=False, charge=False, **kwargs):
 
 
 
-def draw_tracks(pos, time, ax=None, legend="", **kwargs):
+def draw_tracks(pos, time, ids=[], ax=None, legend="", **kwargs):
 
     ax = plt.gca() if ax is None else ax
+
     
     if(len(pos) == 0):
         return ax
 
     if(len(legend)>0):
         ax.plot(pos[0], time[0], label=legend, **kwargs)
-        
-    for tx,tz in zip(pos, time):
-        ax.plot(tx,tz, **kwargs)
+
+    if(len(ids)==0):
+        for tx,tz in zip(pos, time):
+            ax.plot(tx,tz, **kwargs)
+    else:
+        for tx,tz,ii in zip(pos, time,ids):
+            ax.plot(tx,tz, **kwargs)
+            ax.text(tx[0],tz[0],str(ii))
+            
     
     return ax
 
 
 def draw_all_tracks(axs, sel='True', legend="", **kwargs):
-        
+
     for iview in range(cf.n_view):
         axs[iview] = draw_tracks(pos=get_2dtracks_pos(iview,sel), 
-                                 time=get_2dtracks_z(iview,sel), 
+                                 time=get_2dtracks_z(iview,sel),
+                                 ids = get_2dtracks_ID(iview,sel),
                                  ax=axs[iview], 
                                  legend=legend,
                                  **kwargs)
+        #axs[iview].axvline(0, c='k', lw=0.5, ls='dotted')
     return axs
 
 
 
 
 
-def template_data_view():
-    if(cf.n_module > 1):
-        print('Cannot plot it at the moment ; will be updated soon, sorry')
-        return
-
-
-    mod = 0
+def template_data_view(modules):
+    #mod = 0
 
     fig = plt.figure(figsize=(10,5))
     gs = gridspec.GridSpec(nrows=2, ncols=cf.n_view, 
@@ -111,13 +115,26 @@ def template_data_view():
     
     axs[0].get_shared_y_axes().join(*axs)
 
+
+    mod_name = ', '.join([cf.module_name[x] for x in modules])
+    
+    ymin = min(min([(cf.anode_z[x], cf.anode_z[x]- cf.drift_direction[x]*v*cf.n_sample[x]/cf.sampling[x]) for x in modules]))
+    ymax = max(max([(cf.anode_z[x], cf.anode_z[x]- cf.drift_direction[x]*v*cf.n_sample[x]/cf.sampling[x]) for x in modules]))
+
+
+        
     for iv in range(cf.n_view):
+        xmin = min([cf.view_boundaries_min[x][iv] for x in modules])
+        xmax = max([cf.view_boundaries_max[x][iv] for x in modules])
 
-        axs[iv].set_title('View '+str(iv)+"/"+cf.view_name[iv])
+
+        
+        axs[iv].set_title(mod_name+' - View '+str(iv)+"/"+cf.view_name[iv])
         axs[iv].set_xlabel(cf.view_name[iv]+' [cm]')
-        axs[iv].set_xlim(cf.view_offset[mod][iv], cf.view_offset[mod][iv]+cf.view_length[iv])
-        axs[iv].set_ylim(min(cf.anode_z) - v*cf.n_sample/cf.sampling, max(cf.anode_z))
 
+        axs[iv].set_xlim(xmin, xmax)                      
+        axs[iv].set_ylim(ymin, ymax)
+        
 
         if(iv == 0):
             axs[iv].set_ylabel('Drift [cm]')
@@ -137,12 +154,14 @@ def template_data_view():
                         wspace=0.1)
     
     return fig, ax_col, axs
-
-
-def plot_2dview_hits(max_adc=100, option=None, to_be_shown=False):
     
-    fig, ax_col, axs = template_data_view()
-    axs = draw_all_hits(axs, adc=True, cmap=cmap_ed, s=marker_size, vmin=0, vmax=max_adc)
+def plot_2dview_hits(modules, max_adc=100, option=None, to_be_shown=False):
+    
+    fig, ax_col, axs = template_data_view(modules)
+
+    selection = 'x.module == '+' or x.module == '.join([str(x) for x in modules])
+
+    axs = draw_all_hits(axs, adc=True, cmap=cmap_ed, s=marker_size, vmin=0, vmax=max_adc, sel=selection)
 
 
     """ color bar """
@@ -168,15 +187,21 @@ def plot_2dview_hits(max_adc=100, option=None, to_be_shown=False):
 
 
 
-def plot_2dview_2dtracks(option=None, to_be_shown=False):
-    fig, ax_leg, axs = template_data_view()
+def plot_2dview_2dtracks(modules, option=None, to_be_shown=False):
+    fig, ax_leg, axs = template_data_view(modules)
+
+    hit_selection = 'x.module == '+' or x.module == '.join([str(x) for x in modules])
     
     """ all hits """
-    axs = draw_all_hits(axs, c="#e6e6e6", s=marker_size, marker='o', label='Hits')
+    axs = draw_all_hits(axs, c="#e6e6e6", s=marker_size, marker='o', label='Hits', sel=hit_selection)
     
+    trk_selection = 't.module_ini == '+' or t.module_ini == '.join([str(x) for x in modules])
+    trk_selection += ' or t.module_end =='+' or t.module_end == '.join([str(x) for x in modules])
+    
+
     
     """ 2D tracks """
-    axs = draw_all_tracks(axs, linewidth=1, legend='2D Track')
+    axs = draw_all_tracks(axs, linewidth=1, legend='2D Track', sel=trk_selection)
 
 
     """ legend """
@@ -191,49 +216,65 @@ def plot_2dview_2dtracks(option=None, to_be_shown=False):
     plt.close()
 
 
-def plot_2dview_hits_tracks(draw_2D=True, draw_3D=True, option=None, to_be_shown=False):
-    fig, ax_leg, axs = template_data_view()
+def plot_2dview_hits_tracks(modules, draw_2D=True, draw_3D=True, option=None, to_be_shown=False):
+    fig, ax_leg, axs = template_data_view(modules)
     save="tracks2D_hits_type"
 
     leg_handle = []
     leg_label = []
+    
     """ unmatched hits """
-    sel = 'x.ID >=0'    
+    sel = 'x.ID >=0 and (x.module == '+' or x.module == '.join([str(x) for x in modules])+')'
+    
     axs = draw_all_hits(axs, sel, c=color_noise, s=marker_size, marker='o', label='Noise Hits')
     leg_handle.append(mlines.Line2D([], [], color=color_noise, marker='o', linestyle='None', markersize=10, label='Noise'))
 
 
     """ hits attached to track """
-    sel = 'x.match_2D >= 0'
+    sel = 'x.match_2D >= 0  and (x.module == '+' or x.module == '.join([str(x) for x in modules])+')'
     axs = draw_all_hits(axs, sel, c=color_matched1, s=marker_size, marker='o', label='Hits Attached to Track')
     leg_handle.append(mlines.Line2D([], [], color=color_matched1, marker='o', linestyle='None', markersize=10, label='Track Hits'))
 
     """ delta_ray hits attached to track """
-    sel = 'x.match_dray >=0'
+    sel = 'x.match_dray >=0  and (x.module == '+' or x.module == '.join([str(x) for x in modules])+')'
     axs = draw_all_hits(axs, sel, c=color_matched2, s=marker_size, marker='o', label='Delta Rays')
     leg_handle.append(mlines.Line2D([], [], color=color_matched2, marker='o', linestyle='None', markersize=10, label=r'$\delta_{ray}$'))
 
 
     """ single hits """
-    sel = 'x.match_sh >=0'
+    sel = 'x.match_sh >=0  and (x.module == '+' or x.module == '.join([str(x) for x in modules])+')'
     axs = draw_all_hits(axs, sel, c=color_singlehits, s=marker_size, marker='o', label='Single Hits')    
     leg_handle.append(mlines.Line2D([], [], color=color_singlehits, marker='o', linestyle='None', markersize=10, label='Single'))  
 
     if(draw_2D):
-        """ 2D tracks """
-        sel = 't.ghost == False'
-        axs = draw_all_tracks(axs, sel, legend='2D Track', c=color_track2d, linewidth=1)
+        trk_sel = 't.module_ini == '+' or t.module_ini == '.join([str(x) for x in modules])
+        trk_sel += ' or t.module_end =='+' or t.module_end == '.join([str(x) for x in modules])
 
+        """ 2D tracks """
+
+        sel = 't.ghost == False and ('+trk_sel+')'
+
+        axs = draw_all_tracks(axs, sel, legend='2D Track', c=color_track2d, linewidth=1)
         leg_handle.append(mlines.Line2D([], [], color=color_track2d, linestyle='solid', lw=3, label='Track 2D'))     
 
-        sel = 't.ghost == True'
+
+        sel = 'np.fabs(t.ini_slope) > 50 and np.fabs(t.end_slope) > 50 and ('+trk_sel+')'
+
+        axs = draw_all_tracks(axs, sel, legend='Bad 2D Track', c='k', linewidth=1)
+        leg_handle.append(mlines.Line2D([], [], color='k', linestyle='solid', lw=3, label='Bad Track 2D'))     
+
+
+        sel = 't.ghost == True and ('+trk_sel+')'
         axs = draw_all_tracks(axs, sel, legend='Ghost', c=color_ghost, linewidth=1)
 
         leg_handle.append(mlines.Line2D([], [], color=color_ghost, linestyle='solid', lw=3, label='Ghost'))     
 
     if(draw_3D):
+
+        trk_sel = 't.module_ini == '+' or t.module_ini == '.join([str(x) for x in modules])
+        trk_sel += ' or t.module_end =='+' or t.module_end == '.join([str(x) for x in modules])
         """ 3D tracks """
-        sel = 't.match_3D >= 0'
+        sel = 't.match_3D >= 0 and ('+trk_sel+')'
         axs = draw_all_tracks(axs, sel, c=color_track3d, linewidth=2, legend='3D Track')
         save="tracks3D_hits_type"
         leg_handle.append(mlines.Line2D([], [], color=color_track3d, linestyle='solid', lw=3, label='Track 3D'))
@@ -265,8 +306,8 @@ def plot_2dview_hits_tracks(draw_2D=True, draw_3D=True, option=None, to_be_shown
     plt.close()
 
 
-def plot_2dview_hits_2dtracks(option=None, to_be_shown=False):
-    return plot_2dview_hits_tracks(draw_2D=True, draw_3D=False, option=option, to_be_shown=to_be_shown) 
+def plot_2dview_hits_2dtracks(modules, option=None, to_be_shown=False):
+    return plot_2dview_hits_tracks(modules, draw_2D=True, draw_3D=False, option=option, to_be_shown=to_be_shown) 
 
-def plot_2dview_hits_3dtracks(option=None, to_be_shown=False):
-    return plot_2dview_hits_tracks(draw_2D=True, draw_3D=True, option=option, to_be_shown=to_be_shown) 
+def plot_2dview_hits_3dtracks(modules, option=None, to_be_shown=False):
+    return plot_2dview_hits_tracks(modules, draw_2D=True, draw_3D=True, option=option, to_be_shown=to_be_shown) 

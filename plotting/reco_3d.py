@@ -19,58 +19,129 @@ from matplotlib.cbook import flatten
 
 color = ['#FBA120', '#435497', '#df5286']
 
+def correct_path_orientation(path):
+    if(cf.tpc_orientation == 'Vertical'):
+        return path
+    else:
+        #print(path)
+        #newpath = [(x[0], x[2], x[1]) for x in path]
+        #newpath = [(x[1], x[2], x[0]) for x in path]
+        newpath = [(x[2], x[1], x[0]) for x in path]
+        
+        return newpath
+
 def plot_3d(option=None, to_be_shown=True):
+
+
+    v = lar.drift_velocity()
+    if(cf.tpc_orientation == 'Vertical'):        
+        xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
+        ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
+        zmin, zmax = min(cf.anode_z) - v*cf.n_sample/cf.sampling, max(cf.anode_z)
+        xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
+
+    elif(cf.tpc_orientation == 'Horizontal'):
+
+
+        xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
+        ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
+        zmin, zmax = min(cf.anode_z), max(cf.anode_z)
+        
+
+        bmin, bmax = ymin, ymax
+        cmin, cmax = xmin, xmax
+        amin, amax = zmin, zmax
+        
+        xlabel, ylabel, zlabel = 'x','y','Drift/z'
+        alabel, blabel, clabel = zlabel, ylabel, xlabel
+        
+    fig = plt.figure(figsize=(12, 6))
+    gs = gridspec.GridSpec(nrows = 2, ncols = 2)
+    ax  = fig.add_subplot(gs[:,0], projection='3d')
+    ax_xz = fig.add_subplot(gs[0, 1])
+    ax_yz = fig.add_subplot(gs[1,1], sharex=ax_xz)
+
+
     
-    fig = plt.figure(figsize=(6, 6))
-    ax  = fig.add_subplot(111, projection='3d')
-
     for iv in range(cf.n_view):
+        #a, b, c = list(flatten(get_3dtracks_x(iv))), list(flatten(get_3dtracks_y(iv))), list(flatten(get_3dtracks_z_corr(iv)))
+        #x, y, z = list(flatten(get_3dtracks_x(iv))), list(flatten(get_3dtracks_y(iv))), list(flatten(get_3dtracks_z_corr(iv)))
         x, y, z = list(flatten(get_3dtracks_x(iv))), list(flatten(get_3dtracks_y(iv))), list(flatten(get_3dtracks_z(iv)))
+        corr = list(flatten(get_3dtracks_corr(iv)))
+        corr_color = [color[iv] if cc else 'grey' for cc in corr]
+        
+        if(cf.tpc_orientation == 'Vertical'):
+            x, y, z = a, b, c
 
+        elif(cf.tpc_orientation == 'Horizontal'):
+            ###x, y, z = a, c, b            
+            #x, y, z = b, c, a
+            a, b, c = z, y, x
+
+            
         if(len(x) == 0):
             continue
+        #xini, yini,zini = [t.ini_x for t in dc.tracks3D_list], [t.ini_y for t in dc.tracks3D_list], [t.ini_z+t.z0_corr for t in dc.tracks3D_list]
+        #xend, yend,zend = [t.end_x for t in dc.tracks3D_list], [t.end_y for t in dc.tracks3D_list], [t.end_z+t.z0_corr for t in dc.tracks3D_list]
+
+        xini, yini, zini = [t.ini_x for t in dc.tracks3D_list], [t.ini_y for t in dc.tracks3D_list], [t.ini_z for t in dc.tracks3D_list]
+        xend, yend, zend = [t.end_x for t in dc.tracks3D_list], [t.end_y for t in dc.tracks3D_list], [t.end_z for t in dc.tracks3D_list]
+        t_ID = [t.ID_3D for t in dc.tracks3D_list]
         
-        """ shadow on the walls """
-        """
-        ax.scatter(x,
-                   [cf.view_offset[1] for i in y], 
-                   z, 
-                   c="#f2f2f2", s=4)
+        ax.scatter(a, b, c, c=corr_color, s=4)
+        ax.scatter(zini, yini, xini, marker="*", c='r', s=20)
+        ax.scatter(zend, yend, xend, marker="*", c='k', s=20)    
+        
+        ax_xz.scatter(z, x, c=corr_color, s=4)  
+        ax_yz.scatter(z, y, c=corr_color, s=4)  
+        ax_xz.axvline(0,ls='dotted',c='k',lw=1)
+        ax_yz.axvline(0,ls='dotted',c='k',lw=1)
+        ax_xz.scatter(zini, xini, c='r', marker='*', s=20)
+        ax_xz.scatter(zend, xend, c='k', marker='*', s=20)  
+        ax_xz.plot([zini, zend], [xini, xend], c='tab:cyan', ls='dashed', lw=1)
+
+        ax_yz.scatter(zini, yini, c='r', marker='*', s=20)
+        ax_yz.scatter(zend, yend, c='k', marker='*', s=20)
+        ax_yz.plot([zini, zend], [yini, yend], c='tab:cyan', ls='dashed', lw=1)        
 
 
-        ax.scatter([300 for i in x1], 
-                   y1,
-                   z1,
-                   c="#f2f2f2", s=4)
+        for zi, xi, yi, ti in zip(zini, xini, yini, t_ID):
+            ax_xz.text(zi,xi,str(ti))
+            ax_yz.text(zi,yi,str(ti))
 
-        """
-        ax.scatter(x, 
-                   y, 
-                   z, 
-                   c=color[iv], s=4)
-
-    
-
+        
     """ single hits"""
     sh = get_3dsingle_hits()
+    
     if(len(sh)>0):
-        ax.scatter(*zip(*sh), c='k', s=6)
-
+        ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=6)
+        ax_xz.scatter([x[2] for x in sh], [x[0] for x in sh], c='k', s=6)
+        ax_yz.scatter([x[2] for x in sh], [x[1] for x in sh], c='k', s=6)
+        
     """ghosts"""
-    ghost = get_3dghost()
+    ghost = correct_path_orientation(get_3dghost())
     if(len(ghost)>0):
         ax.scatter(*zip(*ghost), c='silver', s=5)
 
 
-    v = lar.drift_velocity()
-    ax.set_xlim3d(cf.x_boundaries[0])
-    ax.set_ylim3d(cf.y_boundaries[0])
-    ax.set_zlim3d(min(cf.anode_z) - v*cf.n_sample/cf.sampling, max(cf.anode_z))
+    ax.set_xlim3d(amin, amax)
+    ax.set_ylim3d(bmin, bmax)
+    ax.set_zlim3d(cmin, cmax)
 
+    ax_xz.set_xlim(zmin, zmax)
+    ax_yz.set_xlim(zmin, zmax)
+    ax_xz.set_ylim(xmin, xmax)
+    ax_yz.set_ylim(ymin, ymax)
 
-    ax.set_xlabel('x [cm]')
-    ax.set_ylabel('y [cm]')
-    ax.set_zlabel('Drift/z [cm]')
+    ax.set_xlabel(alabel+' [cm]')
+    ax.set_ylabel(blabel+' [cm]')
+    ax.set_zlabel(clabel+' [cm]')
+
+    
+    ax_xz.set_xlabel(zlabel+' [cm]')
+    ax_yz.set_xlabel(zlabel+' [cm]')
+    ax_xz.set_ylabel(xlabel+' [cm]')
+    ax_yz.set_ylabel(ylabel+' [cm]')
 
 
     ax.grid(False)
@@ -96,18 +167,88 @@ def plot_3d(option=None, to_be_shown=True):
     ax.zaxis._axinfo['tick']['inward_factor'] = 0.3
     
 
-    plt.subplots_adjust(top=0.95,
-                        bottom=0.05,
+    plt.subplots_adjust(top=0.99,
+                        bottom=0.1,
                         left=0.05,
                         right=0.95,
-                        hspace=0.2,
+                        hspace=0.235,
                         wspace=0.2)
 
 
 
-    save_with_details(fig, option, 'track3D', is3D=True)
+    save_with_details(fig, option, 'track3D', is3D=False)#True)
 
-    #plt.savefig(cf.plot_path+'/track3D'+option+'_elec_'+elec+'_run_'+run_nb+'_evt_'+evt_nb+'.png')
     if(to_be_shown):
         plt.show()
     plt.close()
+
+
+
+def compare_3D():
+
+    fig = plt.figure()
+    ax_xy = fig.add_subplot(131)
+    ax_xz = fig.add_subplot(132)
+    ax_yz = fig.add_subplot(133)
+
+    """ off. method """
+    color='k'
+    for iv in range(3):
+        x_off, y_off, z_off = list(flatten(get_3dtracks_x(iv))), list(flatten(get_3dtracks_y(iv))), list(flatten(get_3dtracks_z(iv)))
+            
+        ax_xy.scatter(x_off, y_off, c=color, s=3)
+        ax_xz.scatter(x_off, z_off, c=color, s=3)
+        ax_yz.scatter(y_off, z_off, c=color, s=3)
+
+    sh_off = get_3dsingle_hits()
+    x_sh_off = [x[0] for x in sh_off]
+    y_sh_off = [x[1] for x in sh_off]
+    z_sh_off = [x[2] for x in sh_off]
+
+    ax_xy.scatter(x_sh_off, y_sh_off, c=color, s=3)
+    ax_xz.scatter(x_sh_off, z_sh_off, c=color, s=3)
+    ax_yz.scatter(y_sh_off, z_sh_off, c=color, s=3)
+    
+
+    color='tab:cyan'
+    x_new = [h.x_3D for h in dc.hits_list if h.has_3D]
+    y_new = [h.y_3D for h in dc.hits_list if h.has_3D]
+    z_new = [h.Z for h in dc.hits_list if h.has_3D]
+
+    ax_xy.scatter(x_new, y_new, c=color, s=1, alpha=0.6)
+    ax_xz.scatter(x_new, z_new, c=color, s=1, alpha=0.6)
+    ax_yz.scatter(y_new, z_new, c=color, s=1, alpha=0.6)
+
+    v = lar.drift_velocity()
+    xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
+    ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
+    print('test', cf.n_sample)
+    zmin, zmax = max(cf.anode_z) - v*cf.n_sample/cf.sampling, max(cf.anode_z)
+    print("z range-->",zmin,zmax)
+    ax_xy.set_xlim(xmin/2,xmax/2)
+    ax_xy.set_ylim(ymin,ymax)
+
+    ax_xz.set_xlim(xmin/2,xmax/2)
+    ax_xz.set_ylim(zmin,zmax)
+
+    ax_yz.set_xlim(ymin,ymax)
+    ax_yz.set_ylim(zmin,zmax)
+
+    plt.show()
+    
+def  show_shadows():  
+    """ shadow on the walls """
+
+    """ kept for memory, not used atm """
+    ax.scatter(x,
+               [cf.view_offset[1] for i in y], 
+               z, 
+               c="#f2f2f2", s=4)
+    
+    
+    ax.scatter([300 for i in x1], 
+               y1,
+               z1,
+               c="#f2f2f2", s=4)
+    
+

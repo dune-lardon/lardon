@@ -20,10 +20,12 @@ cmap_ed_ind  = cc.cm.diverging_tritanopic_cwr_75_98_c20
 
 
 
-def draw(module, view, ax, adc_min, adc_max, roi, noise):
+def draw(view, ax, adc_min, adc_max, roi, noise):
+    
+    #print('draw view ',view)
     ax = plt.gca() if ax is None else ax
-    cmap = cmap_ed_coll if(cf.view_type[view] == 'Collection') else cmap_ed_ind
-
+    cmap = cmap_ed_coll if(cf.view_type[cf.imod][view] == 'Collection') else cmap_ed_ind
+    
     if(roi==True):
         temp = dc.data_daq.copy()
         dc.data_daq *= ~dc.mask_daq
@@ -34,14 +36,49 @@ def draw(module, view, ax, adc_min, adc_max, roi, noise):
         dc.data_daq *= dc.mask_daq
         chmap.arange_in_view_channels()
 
-    ax.imshow(dc.data[module, view, :cf.view_nchan[view], :].transpose(), 
-              #origin = 'lower', 
+    min_ch = 0
+    max_ch = cf.view_nchan[view]
+    
+    if(dc.evt_list[-1].det == "pdhd"):
+        if(view == 2):
+            if(cf.imod < 2):
+                min_ch = 480
+            else:
+                min_ch = 480
+                max_ch = 960#480
+        if(cf.imod < 2):
+            origin = 'lower'
+            tmin,tmax=0,cf.n_sample[cf.imod]
+        else:
+            origin='upper'
+            tmin,tmax = cf.n_sample[cf.imod], 0
+         
+    elif(dc.evt_list[-1].det == "pdvd"):
+         if(cf.imod < 2):
+             origin='lower'
+             tmin,tmax=0,cf.n_sample[cf.imod]
+         else:
+             origin='upper'
+             tmin,tmax = cf.n_sample[cf.imod], 0
+                  
+    else:
+        origin='lower'
+        tmin,tmax=0,cf.n_sample[cf.imod]
+
+    min_ch = 0
+    max_ch = cf.view_nchan[view]
+
+        
+    ax.imshow(dc.data[view, min_ch:max_ch, :].transpose(), 
+              origin = origin, 
               aspect = 'auto', 
               interpolation='none',
-              cmap   = cmap,
+              cmap   = cmap,    
               vmin   = adc_min, 
-              vmax   = adc_max)
-
+              vmax   = adc_max,
+              extent = [min_ch, max_ch, tmin,tmax])    
+    
+    
     if(roi==True or noise == True):
         dc.data_daq = temp
 
@@ -52,12 +89,12 @@ def draw(module, view, ax, adc_min, adc_max, roi, noise):
 def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_be_shown=False, draw_hits=False, roi=False, noise=False):
     chmap.arange_in_view_channels()
 
-    n_signal = len(set(cf.view_type))
-    n_mod = sum(cf.module_used)
+    n_signal = len(set(cf.view_type[cf.imod]))
+    n_mod = 1 #sum(cf.module_used)
 
 
     width = 8 if cf.n_view == 2 else 10
-    height = n_mod*width/2
+    height = n_mod*width/2 #10
 
 
     fig = plt.figure(figsize=(width, height))
@@ -71,59 +108,69 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
     else:
         axs_col = [fig.add_subplot(gs[0,:])]
 
+
     
     axs = [[] for x in range(cf.n_view)]
 
     irow = 0
-    for im, use in enumerate(cf.module_used):
-        #print(im, use, irow)
-
-        if(use==False):
-            continue            
- 
-        for iv in range(cf.n_view):            
-            axs[iv].append(fig.add_subplot(gs[1+irow,iv]) if iv==0 else fig.add_subplot(gs[1+irow,iv], sharey=axs[0][-1]))
+    idx_ind, idx_coll = -1, -1
+    for iv in range(cf.n_view):            
+        axs[iv].append(fig.add_subplot(gs[1+irow,iv]) if iv==0 else fig.add_subplot(gs[1+irow,iv], sharey=axs[0][-1]))
             
-            if(cf.view_type[iv] == 'Induction'):
-                adc_min, adc_max = adc_ind[0], adc_ind[1]
-                vname = "Ind."
-            else:
-                adc_min, adc_max = adc_coll[0], adc_coll[1]
-                vname = "Coll."
+        if(cf.view_type[cf.imod][iv] == 'Induction'):
+            adc_min, adc_max = adc_ind[0], adc_ind[1]
+            vname = "Ind."
+            idx_ind = iv
+        else:
+            adc_min, adc_max = adc_coll[0], adc_coll[1]
+            vname = "Coll."
+            idx_coll = iv
+            
+        axs[iv][-1] = draw(iv, axs[iv][-1], adc_min, adc_max, roi, noise)
 
-            axs[iv][-1] = draw(im, iv, axs[iv][-1], adc_min, adc_max, roi, noise)
+        if(draw_hits):
+            for h in dc.hits_list:
+                if(h.view==iv and h.module==cf.imod):
+                    color = 'k'
+                    '''
+                    if(h.signal != cf.view_type[h.view]):
+                        color = 'r'
+                    if(h.match_sh != -9999):
+                        color = 'gold'                        
+                    if(h.match_2D != -9999):
+                        color = 'gold'
+                    if(h.match_3D != -9999):
+                        color = 'r'
+                    
+                    if(h.has_3D == True):
+                        color = 'gold'                        
+                    '''
+                    if(h.match_sh != -9999):
+                        color = 'gold'                        
+                    
 
-            if(draw_hits):
-                for h in dc.hits_list:
-                    if(h.view==iv and h.module==im):
-                        color = 'k'
-                        if(h.signal != cf.view_type[h.view]):
-                            color = 'r'
-                        '''
-                        if(h.match_2D != -9999):
-                            color = 'gold'
-                        if(h.match_3D != -9999):
-                            color = 'r'
-                        '''
-                        r = patches.Rectangle((h.channel-0.5,h.start),1,h.stop-h.start,linewidth=.5,edgecolor=color,facecolor='none')
+                    r = patches.Rectangle((h.channel,h.start),1,h.stop-h.start,linewidth=.5,edgecolor=color,facecolor='none')
 
-                        axs[iv][-1].add_patch(r)
+                    axs[iv][-1].add_patch(r)
+                        
+
+
+        title = ''
+        out_mod = ''
+
+        title += cf.module_name[cf.imod]+' - '
+        out_mod += '_'+cf.module_name[cf.imod]
         
+        title += 'View '+str(iv)
+            
+        if(n_signal > 1):
+            title += '/'+cf.view_name[iv]+' ('+vname+')'
 
+        axs[iv][-1].set_title(title)        
 
-            title = ''
-            if(len(cf.module_used)>1):
-                title += 'CRP '+str(im)+' - '
-        
-            title += 'View '+str(iv)
-        
-            if(n_signal > 1):
-                title += '/'+cf.view_name[iv]+' ('+vname+')'
+    irow += 1
 
-            axs[iv][-1].set_title(title)        
-
-        irow += 1
-
+    
     for a in axs[0]:
         a.set_ylabel('Time [tick]')
     for a in axs[-1]:
@@ -144,24 +191,31 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
     for a in axs:
         a[-1].set_xlabel('View Channel')
 
+
+    """
     for a in axs_col:
         a.set_title('Collected Charge [ADC]')
+    """
 
+    axs_col[0].set_title('Induced Charge [ADC]')
+    axs_col[1].set_title('Collected Charge [ADC]')
 
-    cb = fig.colorbar(axs[0][0].images[-1], cax=axs_col[0], orientation='horizontal')
+    cb = fig.colorbar(axs[idx_ind][-1].images[-1], cax=axs_col[0], orientation='horizontal')
     cb.ax.xaxis.set_ticks_position('top')
     cb.ax.xaxis.set_label_position('top')
 
     if(n_signal>1):
-        cb = fig.colorbar(axs[-1][0].images[-1], cax=axs_col[-1], orientation='horizontal')
+        cb = fig.colorbar(axs[idx_coll][-1].images[-1], cax=axs_col[-1], orientation='horizontal')
         cb.ax.xaxis.set_ticks_position('top')
         cb.ax.xaxis.set_label_position('top')
+
 
 
     plt.subplots_adjust(top=0.865, bottom=0.131, left=0.095, right=0.905, hspace=0.232, wspace=0.096)
 
 
-    save_with_details(fig, option, 'ED_vch_hits_found' if draw_hits else 'ED_vch')
+
+    save_with_details(fig, option, 'ED_vch_hits_found'+out_mod if draw_hits else 'ED_vch'+out_mod)
 
 
     if(to_be_shown):
@@ -172,7 +226,7 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
 
 
 
-def event_display_per_daqch(adc_range=[-10,10], option=None, to_be_shown=False):
+def event_display_per_daqch(adc_range=[-10,10],  option=None, to_be_shown=False):
     fig = plt.figure(figsize=(9,4))
 
     gs = gridspec.GridSpec(nrows=2, 
@@ -194,7 +248,15 @@ def event_display_per_daqch(adc_range=[-10,10], option=None, to_be_shown=False):
     ax.set_xlabel('DAQ Channel Number')
     
     ax.set_ylabel('Time [tick]')
-    ax_col.set_title('Collected Charge [ADC]')
+    title = ''
+    out_mod = ''
+
+    title += cf.module_name[cf.imod]+' - '
+    out_mod += '_'+cf.module_name[cf.imod]
+    
+    
+    ax_col.set_title(title+'Collected Charge [ADC]')
+    
     cb = fig.colorbar(ax.images[-1], cax=ax_col, orientation='horizontal')
     cb.ax.xaxis.set_ticks_position('top')
     cb.ax.xaxis.set_label_position('top')
@@ -202,7 +264,7 @@ def event_display_per_daqch(adc_range=[-10,10], option=None, to_be_shown=False):
     plt.tight_layout()
 
 
-    save_with_details(fig, option, 'ED_daqch')
+    save_with_details(fig, option, 'ED_daqch'+out_mod)
 
 
     if(to_be_shown):
@@ -214,14 +276,14 @@ def event_display_per_daqch(adc_range=[-10,10], option=None, to_be_shown=False):
 
 
 
-def event_display_per_view_hits_found(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_be_shown=False):
-    return event_display_per_view(adc_ind=adc_ind, adc_coll=adc_coll, option=option, to_be_shown=to_be_shown, draw_hits=True)
+def event_display_per_view_hits_found(adc_ind=[-10,10], adc_coll=[-5,30],  option=None, to_be_shown=False):
+    return event_display_per_view(adc_ind=adc_ind, adc_coll=adc_coll,  option=option, to_be_shown=to_be_shown, draw_hits=True)
 
-def event_display_per_view_roi(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_be_shown=False):
-    return event_display_per_view(adc_ind=adc_ind, adc_coll=adc_coll, option=option, to_be_shown=to_be_shown, draw_hits=False, roi=True, noise=False)
+def event_display_per_view_roi(adc_ind=[-10,10], adc_coll=[-5,30],  option=None, to_be_shown=False):
+    return event_display_per_view(adc_ind=adc_ind, adc_coll=adc_coll,  option=option, to_be_shown=to_be_shown, draw_hits=False, roi=True, noise=False)
 
-def event_display_per_view_noise(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_be_shown=False):
-    return event_display_per_view(adc_ind=adc_ind, adc_coll=adc_coll, option=option, to_be_shown=to_be_shown, draw_hits=False, roi=False, noise=True)
+def event_display_per_view_noise(adc_ind=[-10,10], adc_coll=[-5,30],  option=None, to_be_shown=False):
+    return event_display_per_view(adc_ind=adc_ind, adc_coll=adc_coll,  option=option, to_be_shown=to_be_shown, draw_hits=False, roi=False, noise=True)
 
 
 def event_display_per_view_dp(adc_coll=[-5,30], option=None, to_be_shown=False, draw_hits=False, roi=False, noise=False):
@@ -251,7 +313,7 @@ def event_display_per_view_dp(adc_coll=[-5,30], option=None, to_be_shown=False, 
             if(draw_hits):
                 for h in dc.hits_list:
                     if(h.view==iv and h.module==imod):
-                        if(h.signal != cf.view_type[h.view]):
+                        if(h.signal != cf.view_type[cf.imod][h.view]):
                             color = 'r'
                         else:
                             color='k'
