@@ -35,7 +35,7 @@ def linear_reg(X, Y, cut):
         return fits[0]
     else:
         """ sort by correlation factor """
-        fits = sorted(fits, key=itemgetter(1))
+        fits = sorted(fits, key=itemgetter(0), reverse=True)
         return fits[0]
 
 def get_path(Pr, i, j):
@@ -61,12 +61,15 @@ def dump_track(idx):
 
 
 
-def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
-
+def refilter_and_find_drays(idtrk, debug=False):     
+    y_err = dc.reco['track_2d']['y_error']
+    slope_err = dc.reco['track_2d']['slope_error']
+    pbeta = dc.reco['track_2d']['pbeta']
+    dray_dmax = dc.reco['track_2d']['dray_dmax']
+    
     """error on y axis, error on slope, pbeta hyp"""
     filt = pf.PFilter(y_err, slope_err, pbeta)
     n_NN = 4
-
 
     track = [x for x in dc.tracks2D_list if x.trackID == idtrk]
     if(len(track) == 0 or len(track) > 1):
@@ -74,43 +77,46 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
     else:
         track = track[0]
 
-    hits = [x for x in dc.hits_list if x.match_2D==idtrk]
+        
+    if(debug):
+        print('\ntrack', idtrk, ' has ', track.n_hits, 'hits, ' , track.n_hits_dray, ' delta rays')
 
+    track.remove_all_drays()
+    hits = [x for x in dc.hits_list if x.match_2D==idtrk ]
+    
+    if(debug):
+        print('track', idtrk, ' now  has ', track.n_hits, 'hits, ' , track.n_hits_dray, ' delta rays, check', len(hits))
+
+    
     """sort by decreasing Z and increasing channel """
-    hits.sort()
+    hits = sorted(hits, key=lambda k: (-1.*k.Z, k.X))
 
-    """ sort by decreasing z and increasing x """
-    coord = [(x.X, x.Z) for x in hits]
-    charge = [x.charge for x in hits]
-
-
-    track.reset_path(coord, charge)
-
-    coord = np.asarray(coord)
+    coord = np.asarray([(x.X, x.Z) for x in hits])
+       
     """ compute the distance between each points"""
     graph = spatial.distance.cdist(coord, coord, 'euclidean')
     """ keep only the two closest points """
     graph = graph * (graph < np.sort(graph, axis=-1)[:,[n_NN]])
-    """ keep only short edges """
-    #graph[graph > rcut] = 0.
 
     """ compute the MST from this graph """
     T = csgr.minimum_spanning_tree(csgraph=graph)
 
     """ get the number of disconnected graphs """
-    #n_components, labels = csgr.connected_components(csgraph=T, directed=False, return_labels=True)
+
     T = T.toarray()
     n_elem = np.count_nonzero(T, axis=0) + np.count_nonzero(T, axis=1)
-    #solo = np.nonzero(n_elem==0)[0]
     borders = np.nonzero(n_elem==1)[0]
     vertex  = np.nonzero(n_elem>2)[0]
 
 
+    if(debug):
+        print('n borders: ', len(borders), ' vertex ', len(vertex))
 
 
     """ identify potential delta rays from MST"""
     drays = []
     D, Pr = csgr.shortest_path(T, directed=False, method='FW', return_predecessors=True)
+    d_min = 9999.
     for v in vertex:
         d_min = 9999.
         for b in borders:
@@ -120,137 +126,104 @@ def refilter_and_find_drays(idtrk, y_err, slope_err, pbeta):
         for i in p[1:]:
             drays.append(i)
 
+    if(debug):
+        print('n dray ', len(drays), ' dmin = ', d_min)
+        
 
-    for l in drays:
-        h = hits[l]
-        track.add_drays(h.X, h.Z, h.charge, h.ID)
-        h.set_match_dray(idtrk)
+    trk_hits = []
+    for i in range(len(hits)):
+        if(i not in drays):
+            trk_hits.append(hits[i])
 
 
-    drays.clear()
+    if(debug):
+        print('after graph : track', idtrk, ' has ', track.n_hits, 'hits, ' , track.n_hits_dray, ' delta rays', " TEST trk", len(trk_hits))
 
-    #reversed because spline wants an increasing x only
-    x_r = [x.X for x in reversed(hits) if x.match_2D > 0]
-    z_r = [x.Z for x in reversed(hits) if x.match_2D > 0]
+        
+    """sort by decreasing Z and increasing channel """
+    trk_hits = sorted(trk_hits, key=lambda k: (-1.*k.Z, k.X))
 
+    x_r = [x.X for x in reversed(trk_hits)]
+    z_r = [x.Z for x in reversed(trk_hits)]
+    
     """ spline needs unique 'x' points to work --> remove duplicate """
-    z_r_unique, idx = np.unique(z_r, return_index=True)
+    z_r_unique, z_idx = np.unique(z_r, return_index=True)
+    x_r_unique, x_idx = np.unique(x_r, return_index=True)
+    
     x_r = np.asarray(x_r)
-    x_r_unique = x_r[idx]
+    x_r_uz = x_r[z_idx]
+
+    z_r = np.asarray(z_r)
+    z_r_ux = z_r[x_idx]
 
 
     """at least 3 points for the spline """
-    if(len(z_r_unique) < 4):
-        print("PROBLEM -> not enough point to spline (only ", len(z_r_unique), ")")
+    if(len(z_r_unique) < 4 and len(x_r_unique) < 4):
+        print(" ... Track ", idtrk, " has not enough point to spline (Z: only ", len(z_r_unique), " vs ", len(z_r), ", X: only ",len(x_r_unique), " vs ", len(x_r),")")
         track.update_forward(9999., 9999., 9999.)
         track.update_backward(9999., 9999., 9999.)
 
     else:
-        spline = UnivariateSpline(z_r_unique, x_r_unique)
-
-        deriv = spline.derivative()
-
-        for i, (ix, iz) in enumerate(zip(x_r, z_r)):
-            if(np.fabs(spline(iz) - ix) > 1.):
-                drays.append(i)
-
-
-
-        for l in drays:
-            h = hits[l]
-            track.add_drays(h.X, h.Z, h.charge, h.ID)
-            h.set_match_dray(idtrk)
-
-
-
-
-        track.update_forward(spline.get_residual(), deriv(z_r[0]), deriv(z_r[0])*0.05)
-        track.update_backward(spline.get_residual(), deriv(z_r[-1]), deriv(z_r[-1])*0.05)
-
-
-    track.finalize_track()
-
-
-
-
-def stitch_tracks(dist_min, slope_err_tol, r_extrapol_min, y_err, slope_err, pbeta):
-
-
-    dc.tracks2D_list.sort()
-
-    i = 0
-
-    while(i < len(dc.tracks2D_list)):
-        ti = dc.tracks2D_list[i]
-        if(ti.chi2_fwd == 9999. and ti.chi2_bkwd == 9999.):
-            i += 1
-            continue
-        j = 0
-        join = []
-        while( j < len(dc.tracks2D_list) ):
-            if(i==j):
-                j += 1
-                if(j >= len(dc.tracks2D_list) ):
-                    break
-
-            tj = dc.tracks2D_list[j]
-            if(tj.chi2_fwd == 9999. and tj.chi2_bkwd == 9999.):
-                j += 1
-                continue
-
-            if(ti.path[0][1] > tj.path[0][1]):
-                if(ti.joinable(tj, dist_min, slope_err_tol, r_extrapol_min)):
-                    join.append( (tj, j, ti.slope_comp(tj)))
-            j += 1
-
-        if(len(join)==0):
-            i += 1
-            continue
-
-        join = sorted(join, key=itemgetter(2))
-        for tm, m, sm in join:
-
-            """ check if there is no better match for tm """
-            k = 0
-            better_option = False
-            while( k < len(dc.tracks2D_list) ):
-                if(k == i or k==m):
-                    k += 1
-                    if(k >= len(dc.tracks2D_list) ):
-                        break
-
-                tk = dc.tracks2D_list[k]
-
-                if(tk.path[0][1] > tm.path[0][1]):
-                    if(tk.joinable(tm, dist_min, slope_err_tol, r_extrapol_min)):
-                        if(tk.slope_comp(tm) < sm):
-                            better_option = True
-                            break
-                k += 1
-
-            if(better_option == False):
-                tmID = tm.trackID
-                tiID = ti.trackID
-
-                ti.merge(tm)
-                hits = [h for h in dc.hits_list if math.fabs(h.matched)==tmID]
-
-                for h in hits:
-                    h.set_match( tiID if h.matched > 0 else -tiID )
-
-                refilter_and_find_drays(tiID, y_err, slope_err, pbeta)
-                del dc.tracks2D_list[m]
-                dc.evt_list[-1].n_tracks2D[ti.view] -= 1
-                i = 0
-                break
+        if(len(z_r_unique) >=4):
+            spline_z = UnivariateSpline(z_r_unique, x_r_uz)        
+            res_z = spline_z.get_residual()
         else:
-            i += 1
+            res_z = 9999
+        if(len(x_r_unique) >= 4):
+            spline_x = UnivariateSpline(x_r_unique, z_r_ux)
+            res_x = spline_x.get_residual()
+        else:
+            res_x = 9999
+
+        if(res_z < res_x):
+            for i, (ix, iz) in enumerate(zip(x_r, z_r)):
+                if(np.fabs(spline_z(iz) - ix) > dray_dmax):
+                    drays.append(i)
+            deriv = spline_z.derivative()
+            track.update_forward(res_z, deriv(z_r[0]), deriv(z_r[0])*0.05)
+            track.update_backward(res_z, deriv(z_r[-1]), deriv(z_r[-1])*0.05)
+
+        else:
+            for i, (ix, iz) in enumerate(zip(x_r, z_r)):
+                if(np.fabs(spline_x(ix) - iz) > dray_dmax):
+                    drays.append(i)
+            deriv = spline_x.derivative()
+            track.update_forward(res_x, 1./deriv(z_r[0]), (1./deriv(z_r[0]))*0.05)
+            track.update_backward(res_x, 1./deriv(z_r[-1]), (1./deriv(z_r[-1]))*0.05)
+            
+
+    
+    """ final trk/dray separation """
+    trk_hits = []
+    for i in range(len(hits)):
+        if(i in drays):
+            #trk_drays.append(hits[i])
+            hdr = hits[i]
+            track.add_drays(hdr.X, hdr.Z, hdr.charge, hdr.ID)
+            hdr.set_match_dray(idtrk)
+        else:
+            trk_hits.append(hits[i])
+           
+
+        
+    if(debug):
+        print('after spline, track', idtrk, ' has ', track.n_hits, 'hits, ' , track.n_hits_dray, ' delta rays check ::: ', len(drays))
+
+
+    
+    coord = [(x.X, x.Z) for x in trk_hits]
+    charge = [x.charge for x in trk_hits]
+    IDs = [x.ID for x in trk_hits]
+    track.reset_path(coord, charge, IDs)
+
+    track.set_match_hits_2D(idtrk)
+
+    if(debug):
+        print('after spline, track', idtrk, ' has ', track.n_hits, 'hits, ' , track.n_hits_dray, ' track hits check ', len(trk_hits))
 
 
 
-
-
-def find_tracks_rtree():
+def find_tracks_rtree(direction="vertical"):
 
     min_hits = dc.reco['track_2d']['min_nb_hits']
     rcut = dc.reco['track_2d']['rcut']
@@ -258,7 +231,9 @@ def find_tracks_rtree():
     y_err = dc.reco['track_2d']['y_error']
     slope_err = dc.reco['track_2d']['slope_error']
     pbeta = dc.reco['track_2d']['pbeta']
+    slope_max = dc.reco['track_2d']['slope_max']
 
+    
     """error on y axis, error on slope, pbeta hyp"""
     filt = pf.PFilter(y_err, slope_err, pbeta)
 
@@ -271,7 +246,7 @@ def find_tracks_rtree():
     
     for iview in range(cf.n_view):
 
-        hits = [x for x in dc.hits_list if x.view==iview and x.is_free == True]
+        hits = [x for x in dc.hits_list if x.view==iview and x.module == cf.imod and x.is_free == True]
         n_hits = len(hits)
 
         if(n_hits < min_hits):
@@ -316,30 +291,54 @@ def find_tracks_rtree():
             if(seeded is False and len(nn)>2):
 
                 """ fit lines with all NN combination and idx """
-                X = [hits[idx].Z]
-                Y = [hits[idx].X]
-                X.extend([hits[i].Z for i,d in nn])
-                Y.extend([hits[i].X for i,d in nn])
+                if(direction == "vertical"):
+                    X = [hits[idx].Z]
+                    Y = [hits[idx].X]
+                    X.extend([hits[i].Z for i,d in nn])
+                    Y.extend([hits[i].X for i,d in nn])
+                    
+                    """ returns the sorted fit results """
+                    fit = linear_reg(X, Y, 0.9)
+                    
+                    x0, y0, t0 = hits[idx].Z, hits[idx].X, hits[idx].start #
 
-                """ returns the sorted fit results """
-                fit = linear_reg(X, Y, 0.9)
+                else:
+                    X = [hits[idx].X]
+                    Y = [hits[idx].Z]
+                    X.extend([hits[i].X for i,d in nn])
+                    Y.extend([hits[i].Z for i,d in nn])
+                    
+                    """ returns the sorted fit results """
+                    fit = linear_reg(X, Y, 0.9)
+                    
+                    x0, y0, t0 = hits[idx].X, hits[idx].Z, hits[idx].start #
 
-                x0, y0, t0 = hits[idx].Z, hits[idx].X, hits[idx].start #
-
+                    
                 if(fit[0] != 9999):
                     seeded = True
                     slope  = fit[1]
                     intercept = fit[2]
                     ystart  = slope*x0 + intercept
                     filt.initiate(ystart, slope)
-                    track = dc.trk2D(trackID, iview, slope, slope_err, y0, x0, t0, hits[idx].charge, hits[idx].ID, filt.getChi2())
-
+                    
+                    if(direction == "vertical"):
+                        track = dc.trk2D(trackID, iview, slope, slope_err, y0, x0, t0, hits[idx].charge, hits[idx].ID, filt.getChi2())
+                    else:
+                        track = dc.trk2D(trackID, iview, slope, slope_err, x0, y0, t0, hits[idx].charge, hits[idx].ID, filt.getChi2())
                     for i in [fit[3], fit[4]]:
                         """ add the seeding hits to the filter and remove them from the index """
                         nn_idx = nn[i-1][0]
-                        x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].stop #t
-                        chi2_up = filt.update(y1, x1-x0)
-                        track.add_hit_update(slope, filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
+                        
+                        if(direction == "vertical"):
+                            x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].stop #t
+                            chi2_up = filt.update(y1, x1-x0)
+                            track.add_hit_update(slope, filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
+
+                        else:
+                            x1, y1, t1 = hits[nn_idx].X, hits[nn_idx].Z, hits[nn_idx].stop #t
+                            chi2_up = filt.update(y1, x1-x0)
+                            track.add_hit_update(slope, filt.getSlopeErr(), x1, y1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
+
                         idx_list.append(nn_idx)
 
                         visited[nn_idx] = True
@@ -358,7 +357,11 @@ def find_tracks_rtree():
                 nn_id = tt.nearest_id(hits[idx], 15)
 
                 """ sort the NN hits by |pred-meas| distance if they are close enough """
-                nn = [(i,filt.delta_y(hits[i].X, hits[i].Z-x0)) for i in nn_id if tt.close_enough(hits[idx], hits[i])]
+                if(direction == "vertical"):
+                    nn = [(i,filt.delta_y(hits[i].X, hits[i].Z-x0)) for i in nn_id if tt.close_enough(hits[idx], hits[i])]
+                else:
+                    nn = [(i,filt.delta_y(hits[i].Z, hits[i].X-x0)) for i in nn_id if tt.close_enough(hits[idx], hits[i])]
+                    
                 nn.sort(key=itemgetter(1))
 
 
@@ -370,14 +373,19 @@ def find_tracks_rtree():
                         dc.tracks2D_list.append(track)
                         [hits[i].set_match_2D(trackID) for i in idx_list]
 
+                        refilter_and_find_drays(trackID)
 
-                        refilter_and_find_drays(trackID,
-                                                y_err, slope_err, pbeta)
-                        dc.evt_list[-1].n_tracks2D[iview] += 1
-                        trackID += 1
+                        if(np.fabs(track.ini_slope) < slope_max and np.fabs(track.end_slope) < slope_max):
+                            dc.evt_list[-1].n_tracks2D[iview] += 1
+                            trackID += 1
 
+                        else:
+                            del dc.tracks2D_list[-1]
+                            track.remove_all_drays()
+                            [hits[i].reset_match() for i in idx_list]
                     continue
 
+                
                 updated = False
 
                 ok_idx = []
@@ -387,9 +395,11 @@ def find_tracks_rtree():
                 for j,d in nn:
                     nn_idx = j
                     if(d > 2.): continue
-
-                    x1, y1 = hits[nn_idx].Z, hits[nn_idx].X
-
+                    if(direction=="vertical"):
+                        x1, y1 = hits[nn_idx].Z, hits[nn_idx].X
+                    else:
+                        x1, y1 = hits[nn_idx].X, hits[nn_idx].Z
+                        
                     if(x1 >= x0):
                         if(tt.overlap_in_time(hits[idx], hits[nn_idx])==False):
                             continue
@@ -416,7 +426,10 @@ def find_tracks_rtree():
                     for j,t in ok_idx:
 
                         nn_idx = j
-                        x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].stop #t
+                        if(direction=="vertical"):
+                            x1, y1, t1 = hits[nn_idx].Z, hits[nn_idx].X, hits[nn_idx].stop #t
+                        else:
+                            x1, y1, t1 = hits[nn_idx].X, hits[nn_idx].Z, hits[nn_idx].stop #t
 
 
                         d = filt.delta_y(y1, x1-x0)
@@ -428,7 +441,11 @@ def find_tracks_rtree():
                         if(chi2m < chicut):
 
                             chi2_up = filt.update(y1, x1-x0)
-                            track.add_hit_update(filt.getSlope(), filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
+                            if(direction=="vertical"):
+                                track.add_hit_update(filt.getSlope(), filt.getSlopeErr(), y1, x1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
+                            else:
+                                track.add_hit_update(filt.getSlope(), filt.getSlopeErr(), x1, y1, t1, hits[nn_idx].charge, hits[nn_idx].ID, filt.getChi2())
+                                
                             idx_list.append(nn_idx)
 
 
@@ -446,14 +463,23 @@ def find_tracks_rtree():
                     finished = True
                     seeded = False
 
-                    if(track.n_hits >=  min_hits):
+
+
+                    if(track.n_hits >= min_hits):
                         dc.tracks2D_list.append(track)
                         [hits[i].set_match_2D(trackID) for i in idx_list]
 
-                        refilter_and_find_drays(trackID,
-                                                y_err, slope_err, pbeta)
-                        dc.evt_list[-1].n_tracks2D[iview] += 1
-                        trackID += 1
+                        refilter_and_find_drays(trackID)
+
+                        if(np.fabs(track.ini_slope) < slope_max and np.fabs(track.end_slope) < slope_max):
+                            dc.evt_list[-1].n_tracks2D[iview] += 1
+                            trackID += 1
+
+                        else:
+                            del dc.tracks2D_list[-1]
+                            track.remove_all_drays()
+                            [hits[i].reset_match() for i in idx_list]
+
                     continue
 
 
