@@ -2,21 +2,21 @@ import config as cf
 from tables import *
 import numpy as np
 import data_containers as dc
-
-
+import itertools as itt
+import channel_mapping as chmap
 
 class Infos(IsDescription):
-    run          = UInt16Col()
+    run          = UInt64Col()
     sub          = StringCol(6)
     elec         = StringCol(3)
-    n_evt        = UInt8Col()
+    n_evt        = UInt32Col()
     process_date = UInt32Col()
     n_channels   = UInt16Col()
-    sampling     = Float32Col()
-    n_samples    = Float32Col()
+    sampling     = Float32Col(shape=(cf.n_module_used))
+    n_samples    = Float32Col(shape=(cf.n_module_used))
     n_view       = UInt8Col()
     view_nchan   = Float32Col(shape=(cf.n_view))
-    e_drift      = Float32Col()
+    e_drift      = Float32Col(shape=(cf.n_module_used))
 
 
 class ChanMap(IsDescription):
@@ -31,7 +31,7 @@ class Event(IsDescription):
     charge_time_ns = Float64Col()
     pds_time_s     = Float64Col()
     pds_time_ns    = Float64Col()
-    n_sample       = UInt32Col()
+    n_sample       = UInt32Col(shape=(cf.n_module_used))
     n_hits         = UInt32Col(shape=(cf.n_view))
     n_tracks2D     = UInt32Col(shape=(cf.n_view))
     n_tracks3D     = UInt32Col()
@@ -48,8 +48,10 @@ class Pedestal(IsDescription):
 
 
 class PDSPedestal(IsDescription):
-    mean   = Float32Col(shape=(cf.n_pds_channels))
-    rms    = Float32Col(shape=(cf.n_pds_channels))
+    raw_mean   = Float32Col(shape=(cf.n_pds_channels))
+    raw_rms    = Float32Col(shape=(cf.n_pds_channels))
+    filt_mean   = Float32Col(shape=(cf.n_pds_channels))
+    filt_rms    = Float32Col(shape=(cf.n_pds_channels))
     
 class NoiseStudy(IsDescription):
     delta_mean  = Float32Col(shape=(cf.n_tot_channels))
@@ -57,7 +59,7 @@ class NoiseStudy(IsDescription):
 
 
 class FFT(IsDescription):
-    ps = Float32Col(shape=(cf.n_tot_channels, int(cf.n_sample/2)+1))
+    ps = Float32Col(shape=(cf.n_tot_channels, int(max(cf.n_sample)/2)+1))
 
 
 class Waveform(IsDescription):
@@ -86,7 +88,7 @@ class PDSInfos(IsDescription):
     run          = UInt16Col()
     sub          = StringCol(6)
     elec         = StringCol(3)
-    n_evt        = UInt8Col()
+    n_evt        = UInt32Col()
     process_date = UInt32Col()
     n_channels   = UInt16Col()
     sampling     = Float32Col()
@@ -109,7 +111,7 @@ class Hits(IsDescription):
     trigger = UInt32Col()
     ID = UInt32Col()
 
-
+    module      = UInt8Col()
     view        = UInt8Col()
     channel     = UInt16Col()
     daq_channel = UInt16Col()
@@ -185,7 +187,9 @@ class Tracks3D(IsDescription):
     
     ID = UInt32Col()
     
-
+    module_ini = Int32Col()
+    module_end = Int32Col()
+    
     x_ini   = Float32Col()
     y_ini   = Float32Col()
     z_ini   = Float32Col()
@@ -244,18 +248,32 @@ class Ghost(IsDescription):
 
     d_min = Float32Col()
 
+class Hits3D(IsDescription):
+    event   = UInt32Col()
+    trigger = UInt32Col()
+    ID = UInt32Col()
 
-
+    view        = UInt8Col()
+    channel     = UInt16Col()
+    daq_channel = UInt16Col()
+    module      = UInt8Col()
+    
+    x = Float64Col()
+    y = Float64Col()
+    z = Float64Col()
+    n_cluster = Int32Col(shape=(cf.n_view))
+    match_ID  =  Int32Col(shape=(cf.n_view))
 
 class SingleHits(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
 
     n_hits = UInt32Col(shape=(cf.n_view))
-    hit_IDs = Int32Col(shape=(cf.n_view,3))
-
+    hit_IDs = Int32Col(shape=(cf.n_view,dc.reco['single_hit']['max_per_view']))
+    
     ID = UInt32Col()
-
+    module = UInt8Col()
+    
     charge_pos = Float32Col(shape=(cf.n_view))
     charge_neg = Float32Col(shape=(cf.n_view))
 
@@ -316,6 +334,31 @@ class PDS_Cluster(IsDescription):
     match_trk3D  = Int32Col()
     match_single = Int32Col()
 
+class Debug(IsDescription):
+    event   = UInt32Col()
+    trigger = UInt32Col()
+
+    read_data      = Float64Col(cf.n_module)
+    ped_1          = Float64Col(cf.n_module)
+    fft            = Float64Col(cf.n_module)
+    ped_2          = Float64Col(cf.n_module)
+    cnr            = Float64Col(cf.n_module)
+    ped_3          = Float64Col(cf.n_module)
+    hit_f          = Float64Col(cf.n_module)
+    trk2D_1        = Float64Col(cf.n_module)
+    trk2D_2        = Float64Col(cf.n_module)
+    stitch2D       = Float64Col(cf.n_module)
+    #stitch2D_gap_1 = Float64Col()
+    stitch2D_gap_2 = Float64Col()
+    trk3D          = Float64Col(cf.n_module)
+    stitch3D       = Float64Col()
+    single         = Float64Col(cf.n_module)
+    output         = Float64Col()
+    mem_mod        = Float64Col(cf.n_module)
+    time_mod       = Float64Col(cf.n_module)
+    mem_tot        = Float64Col()
+    time_tot        = Float64Col()
+
 def create_tables(h5file):
     table = h5file.create_table("/", 'infos', Infos, 'Infos')
     table = h5file.create_table("/", 'chmap', ChanMap, "ChanMap")
@@ -326,7 +369,7 @@ def create_tables(h5file):
     table = h5file.create_table("/", 'hits', Hits, 'Hits')
     table = h5file.create_table("/", 'single_hits', SingleHits, 'Single Hits')
     table = h5file.create_table("/", 'ghost', Ghost, 'Ghost Tracks')
-
+    
     table = h5file.create_table("/", 'tracks2d', Tracks2D, 'Tracks2D')
     for i in range(cf.n_view):
 
@@ -338,6 +381,19 @@ def create_tables(h5file):
 
     t = h5file.create_vlarray("/", 'ghost_tracks', Float64Atom(shape=(6)), "3D Path (x, y, z, dq, ds, ID)")
 
+
+
+def create_tables_commissioning(h5file):
+    table = h5file.create_table("/", 'infos', Infos, 'Infos')
+    table = h5file.create_table("/", 'chmap', ChanMap, "ChanMap")
+    table = h5file.create_table("/", 'event', Event, "Event")
+    table = h5file.create_table("/", 'pedestals', Pedestal, 'Pedestals')
+    table = h5file.create_table("/", 'noisestudy', NoiseStudy, 'Noise Study')
+    table = h5file.create_table("/", 'hits', Hits, 'Hits')
+    table = h5file.create_table("/", "hits3D", Hits3D, 'Hits3D')    
+
+def create_table_debug(h5file):
+    table = h5file.create_table("/", "debug", Debug, 'Debug')    
 
 
 def create_tables_pulsing(h5file):
@@ -372,11 +428,11 @@ def store_run_infos(h5file, run, sub, nevent, time):
     inf['n_evt']         = nevent
     inf['process_date']  = time
     inf['n_channels']    = cf.n_tot_channels
-    inf['sampling']      = cf.sampling
-    inf['n_samples']     = cf.n_sample
+    inf['sampling']      = [cf.sampling[i] for i in cf.module_used]
+    inf['n_samples']     = [cf.n_sample[i] for i in cf.module_used]
     inf['n_view']        = cf.n_view
     inf['view_nchan']    = cf.view_nchan
-    inf['e_drift']       = cf.e_drift
+    inf['e_drift']       = [cf.e_drift[i] for i in cf.module_used]
     inf.append()
 
 
@@ -397,7 +453,7 @@ def store_event(h5file):
     evt['charge_time_ns']= dc.evt_list[-1].charge_time_ns
     evt['pds_time_s']    = dc.evt_list[-1].pds_time_s
     evt['pds_time_ns']   = dc.evt_list[-1].pds_time_ns
-    evt['n_sample']      = cf.n_sample
+    evt['n_sample']      = [cf.n_sample[i] for i in cf.module_used]
     evt['n_hits']        = dc.evt_list[-1].n_hits
     evt['n_tracks2D']    = dc.evt_list[-1].n_tracks2D
     evt['n_tracks3D']    = dc.evt_list[-1].n_tracks3D
@@ -409,16 +465,25 @@ def store_event(h5file):
 
 def store_pedestals(h5file):
     ped = h5file.root.pedestals.row
-    ped['raw_mean']   = dc.evt_list[-1].noise_raw.ped_mean
-    ped['raw_rms']    = dc.evt_list[-1].noise_raw.ped_rms
-    ped['filt_mean']  = dc.evt_list[-1].noise_filt.ped_mean
-    ped['filt_rms']   = dc.evt_list[-1].noise_filt.ped_rms
+
+    if(cf.n_module != cf.n_module_used):
+        print("sorry, cannot store noise related info atm when looking at a subset of the detector")
+        return
+    
+    ped['raw_mean']   = chmap.arange_in_glob_channels(list(itt.chain.from_iterable(x.ped_mean for x in dc.evt_list[-1].noise_raw)))
+    ped['raw_rms']    = chmap.arange_in_glob_channels(list(itt.chain.from_iterable(x.ped_rms for x in dc.evt_list[-1].noise_raw)))
+    
+    ped['filt_mean']  = chmap.arange_in_glob_channels(list(itt.chain.from_iterable(x.ped_mean for x in dc.evt_list[-1].noise_filt))) #dc.evt_list[-1].noise_filt.ped_mean
+    ped['filt_rms']   = chmap.arange_in_glob_channels(list(itt.chain.from_iterable(x.ped_rms for x in dc.evt_list[-1].noise_filt)))
+
     ped.append()
 
 def store_pds_pedestals(h5file):
     ped = h5file.root.pds_pedestals.row
-    ped['mean']   = dc.evt_list[-1].noise_pds.ped_mean
-    ped['rms']    = dc.evt_list[-1].noise_pds.ped_rms
+    ped['raw_mean']   = dc.evt_list[-1].noise_pds_raw.ped_mean
+    ped['raw_rms']    = dc.evt_list[-1].noise_pds_raw.ped_rms
+    ped['filt_mean']   = dc.evt_list[-1].noise_pds_filt.ped_mean
+    ped['filt_rms']    = dc.evt_list[-1].noise_pds_filt.ped_rms
     ped.append()
 
 def store_noisestudy(h5file):
@@ -427,8 +492,9 @@ def store_noisestudy(h5file):
     if(dc.evt_list[-1].noise_study==None):
         return
 
-    ped['delta_mean'] = dc.evt_list[-1].noise_study.ped_mean
-    ped['rms']  = dc.evt_list[-1].noise_study.ped_rms
+    ped['delta_mean'] = chmap.arange_in_glob_channels(list(itt.chain.from_iterable(x.ped_mean for x in dc.evt_list[-1].noise_study)))
+
+    ped['rms']  = chmap.arange_in_glob_channels(list(itt.chain.from_iterable(x.ped_rms for x in dc.evt_list[-1].noise_study)))
     ped.append()
 
 def store_fft(h5file, ps):
@@ -447,6 +513,8 @@ def store_hits(h5file):
        hit['ID']= ih.ID
 
        hit['daq_channel'] = ih.daq_channel
+
+       hit['module']  = ih.module
        hit['view']    = ih.view
        hit['channel'] = ih.channel
 
@@ -493,8 +561,9 @@ def store_single_hits(h5file):
         sh['n_hits'] = it.n_hits
 
         sh['ID'] = it.ID_SH
+        sh['module'] = it.module
 
-        id_np = np.zeros((cf.n_view, 3), dtype=int)
+        id_np = np.zeros((cf.n_view, dc.reco['single_hit']['max_per_view']), dtype=int)
         id_np.fill(-1)
         for i,j in enumerate(it.IDs):
             id_np[i][0:len(j)] = j
@@ -583,7 +652,9 @@ def store_tracks3D(h5file):
        t3d['matched_2D'] = [it.match_ID[i] for i in range(cf.n_view)]
        t3d['n_matched'] = sum([it.match_ID[i] >= 0 for i in range(cf.n_view)])
 
-
+       t3d['module_ini'] = it.module_ini
+       t3d['module_end'] = it.module_end
+       
        t3d['x_ini'] = it.ini_x
        t3d['y_ini'] = it.ini_y
        t3d['z_ini'] = it.ini_z
@@ -654,7 +725,33 @@ def store_ghost(h5file):
        tgh.append()
 
 
+def store_hits_3d(h5file):
+    hit = h5file.root.hits3D.row
 
+    for ih in dc.hits_list:
+        if(ih.has_3D == False):
+            continue
+        
+        hit['event']   = dc.evt_list[-1].evt_nb
+        hit['trigger'] = dc.evt_list[-1].trigger_nb
+        hit['ID']= ih.ID
+        
+        hit['daq_channel'] = ih.daq_channel
+        hit['module']  = ih.module
+        
+        hit['view']    = ih.view
+        hit['channel'] = ih.channel
+
+
+        hit['x']        = ih.x_3D
+        hit['y']        = ih.y_3D
+        hit['z']        = ih.Z
+        hit['match_ID'] = ih.ID_match_3D
+                
+        hit['n_cluster'] = [dc.hits_cluster_list[dc.hits_list[h-dc.n_tot_hits].cluster-dc.n_tot_hits_clusters].n_hits for h in ih.ID_match_3D]
+            
+        hit.append()
+       
 def store_avf_wvf(h5file):
     twvf = h5file.root.waveform.row
     
@@ -776,7 +873,37 @@ def store_pds_cluster(h5file):
         vl_match.append(pts)
         clu.append()
 
+def store_debug(h5file, debug):
+    deb  = h5file.root.debug.row
+    deb['event']   = dc.evt_list[-1].evt_nb
+    deb['trigger'] = dc.evt_list[-1].trigger_nb
 
+
+
+    deb['read_data']      = debug.read_data
+    deb['ped_1']          = debug.ped_1
+    deb['fft']            = debug.fft
+    deb['ped_2']          = debug.ped_2
+    deb['cnr']            = debug.cnr
+    deb['ped_3']          = debug.ped_3
+    deb['hit_f']          = debug.hit_f
+    deb['trk2D_1']        = debug.trk2D_1
+    deb['trk2D_2']        = debug.trk2D_2
+    deb['stitch2D']       = debug.stitch2D
+    #deb['stitch2D_gap_1'] = debug.stitch2D_gap_1
+    #deb['stitch2D_gap_2'] = debug.stitch2D_gap_2
+    deb['trk3D']        = debug.trk3D
+    #deb['trk3D_2']        = debug.trk3D_2
+    deb['stitch3D']       = debug.stitch3D
+    deb['single']         = debug.single
+    deb['output']         = debug.output
+    deb['mem_mod']        = debug.memory_mod
+    deb['time_mod']       = debug.time_mod
+    deb['mem_tot']        = debug.memory_tot
+    deb['time_tot']       = debug.time_tot
+
+    deb.append()
+    
         
 def dictToGroup(f, parent, groupname, dictin, force=False, recursive=True):
     """
