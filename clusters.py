@@ -45,12 +45,19 @@ def light_clustering():
 
     ''' filling the R-tree '''
     for p in dc.pds_peak_list:
-        
+
         start = p.start
         chan  = p.glob_ch
         readout = chan%2
-        module  = int(chan/2)
+        module  = p.module
         ID    = p.ID
+
+        """ NB : this is for the coldbox only, as the membrane PDS had only one readout """
+        if(cf.pds_modules_type[module] == 'Membrane'):
+            ID = len(cluster_list) + id_cluster_shift
+            clus = build_pds_cluster([p, p], ID)
+            cluster_list.append( clus )
+            continue
 
         rtree_idx.insert(ID, (readout, module, start, readout, module, start))
         
