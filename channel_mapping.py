@@ -5,30 +5,53 @@ import numpy as np
 from abc import ABC, abstractmethod
 from itertools import tee, islice, chain
 
+
+import time as time
+
 def set_unused_channels():
     if(len(cf.broken_channels) > 0):
-       print(" Removing ",len(cf.broken_channels)," broken channels :")
+       print(" Removing ",len(cf.broken_channels)," broken channels")
 
-    for i in range(cf.n_tot_channels):
+    daqch_start = cf.module_daqch_start[cf.imod]
+
+
+
+    for i in range(cf.module_nchan[cf.imod]):
+        idaq = i + daqch_start
+        module, view, chan, glob = dc.chmap[idaq].module, dc.chmap[idaq].view, dc.chmap[idaq].vchan, dc.chmap[idaq].globch
+
         
-        module, view, chan = dc.chmap[i].module, dc.chmap[i].view, dc.chmap[i].vchan
-        
-        if(view >= cf.n_view or view < 0 or i in cf.broken_channels or cf.module_used[module]==False):
-            dc.alive_chan[i,:] = False
+        if(view >= cf.n_view or view < 0 or glob in cf.broken_channels):
+            dc.alive_chan[i] = False
+            #print('module ', module, ' v ', view, ' channel ', chan, ' = ', glob)
 
-            '''
-            if(i in cf.broken_channels):
-                print(i, ' [m',module,' v',view,' ch',chan,'], ',sep='',end='')
-            '''
-    #print('\n')
+        else:
+            dc.alive_chan[i] = True
 
+
+    
 def arange_in_view_channels():
-    for i in range(cf.n_tot_channels):
+    daqch_start = cf.module_daqch_start[cf.imod]
+    daqch_stop = daqch_start + cf.module_nchan[cf.imod]
+    
+    for i in range(daqch_start, daqch_stop):
         module, view, chan = dc.chmap[i].get_ana_chan()
-        if(view >= cf.n_view or view < 0 or i in cf.broken_channels):
-            continue
-        dc.data[module, view, chan] = dc.data_daq[i]
 
+        glob = dc.chmap[i].get_globch()        
+        if(view >= cf.n_view or view < 0 or glob in cf.broken_channels):
+            continue
+        dc.data[view, chan] = dc.data_daq[i-daqch_start]
+
+
+def arange_in_glob_channels(array):
+    glob_order = [(i, dc.chmap[i].get_globch()) for i in range(cf.n_tot_channels)]
+    glob_order = sorted(glob_order, key=lambda tup: tup[1])            
+
+    array = [array[x[0]] for x in glob_order]    
+    return array
+
+        
+    
 def previous_and_next(some_iterable):
     #from https://stackoverflow.com/questions/1011938/loop-that-also-accesses-previous-and-next-values
     prevs, items, nexts = tee(some_iterable, 3)
@@ -70,11 +93,16 @@ def get_mapping(detector):
         get_dp_mapping()
     elif(detector == "50l"):
         get_50l_bot_mapping()
+    elif(detector == "pdhd"):
+        get_pdhd_bot_mapping()
+    elif(detector == "pdvd"):
+        get_pdvd_mapping()
         
     else:
         print("the detector ", detector, " is not recognized by the channel mapping")
         exit()
-        
+
+    #daq_shift = cf.module_daqch_start[cf.imod]
     """ get the previous and next physical channel """
     ch_list = [(x.module, x.view, x.vchan, x.daqch) for x in dc.chmap]    
     ch_list = sorted(ch_list, key=lambda x:(x[0],x[1],x[2]))
@@ -114,8 +142,9 @@ def get_pds_mapping(detector):
             globch = int(li[1])
             det    = li[2]
             chan   = int(li[3])
-
-            c = dc.channel_pds(daqch, globch, det, chan)
+            mod    = int(li[4])
+            
+            c = dc.channel_pds(daqch, globch, det, chan, mod)
             dc.chmap_daq_pds.append(c)
 
             if(globch >= 0):
@@ -254,34 +283,115 @@ def get_dp_mapping():
             c = dc.channel(daqch, globch, crp, view, channel, length, capa, gain, pos)
             dc.chmap.append(c)
 
+
+
+def get_pdhd_bot_mapping():
+    strip = get_strip_length()
+    calib  = get_calibration(idx=1)
+
+
+    with open(cf.channel_map, 'r') as f:
+        for line in f.readlines()[1:]:
+            li = line.split()
+            daqch =  int(li[0]) 
+            globch = int(li[1]) 
+            AB = int(li[2])
+            femb = int(li[3])
+            asic = int(li[4])
+            asic_ch = int(li[5])        
+            view = int(li[6])
+            channel = int(li[7])
+            module = int(li[8])-1
+
+
+            gain = calib[globch] if len(calib)==cf.n_tot_channels else calib[module]
+
+            
+            if(globch >= 0 and view >= 0 and view < cf.n_view):
+                length, capa = strip[globch]
+
+                nrepet = int(np.floor(channel/cf.view_chan_repet[view]))
+
+                pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet] +  cf.view_pitch[view]/2.
+
+            else:
+                length, capa = -1, -1
+                pos=-9999.            
+            c = dc.channel(daqch, globch, module, view, channel, length, capa, gain, pos)
+            dc.chmap.append(c)
+
+
+def get_pdvd_mapping():
+
+    
+    strip = get_strip_length()
+    calib  = get_calibration()
+    
+    n_dummy = 0
+    with open(cf.channel_map, 'r') as f:
+        for line in f.readlines()[1:]:
+            li = line.split()
+            daqch =  int(li[0])
+            globch = int(li[1])
+            AB = int(li[2])
+            femb = int(li[3])
+            asic = int(li[4])
+            asic_ch = int(li[5])        
+            view = int(li[6])
+            channel = int(li[7])
+            module  = int(li[8])
+            
+
+            gain = calib[daqch] if len(calib)==cf.n_tot_channels else calib[module]
+
+            if(globch >= 0 and view >= 0 and view < cf.n_view):
+                length, capa = strip[globch]
+
+                nrepet = int(np.floor(channel/cf.view_chan_repet[view]))
                 
+                
+                pos = channel%cf.view_chan_repet[view] * cf.view_pitch[view] + cf.view_offset_repet[module][view][nrepet] +  cf.view_pitch[view]/2.                
+
+            else:
+                n_dummy += 1
+                length, capa = -1, -1
+                pos=-9999.            
+            c = dc.channel(daqch, globch, module, view, channel, length, capa, gain, pos)
+            dc.chmap.append(c)
+
+        print('nb of dummy channels : ', n_dummy)
 
 def get_strip_length():
     strip = []
-    with open(cf.strips_length,"r") as f:
-        for line in f.readlines()[1:]:
-            li = line.split()
-            view =  int(li[0])
-            vch  =  int(li[1])
-            globch = int(li[2])
-            length = float(li[3])
+    if(len(cf.strips_length) > 0):
+        print('---> strip length is ', cf.strips_length, len(cf.strips_length))
+        with open(cf.strips_length,"r") as f:
+            for line in f.readlines()[1:]:
+                li = line.split()
+                view =  int(li[0])
+                vch  =  int(li[1])
+                globch = int(li[2])
+                length = float(li[3])
+                
+                capa = length*cf.view_capa[view]
+                
+                strip.append( (length, capa) )
+    else:
+        strip = [(0,0) for x in range(cf.n_tot_channels)]
+    return strip
 
-            capa = length*cf.view_capa[view]
-
-            strip.append( (length, capa) )
-        return strip
 
 
 
-
-def get_calibration():
+def get_calibration(idx=7):
     gain = []
     fC_per_e = 1.602e-4 #e- charge in fC
+    
     if(len(cf.channel_calib) > 0):
         with open(cf.channel_calib,"r") as f:
             for line in f.readlines()[1:]:
                 li = line.split()
-                g = float(li[7])
+                g = float(li[idx])
                 gain.append(g*fC_per_e)
     else:
         #gain = [cf.e_per_ADCtick*fC_per_e for x in range(cf.n_tot_channels)]
