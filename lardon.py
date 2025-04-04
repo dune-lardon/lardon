@@ -288,7 +288,7 @@ for ievent in range(nevent):
                 work.charge_reco_pdvd(deb)                
             else:
                 work.charge_reco(deb)
-
+                
             """ debugging tools """
             curr_mem = Process().memory_info().rss
             deb.memory_mod[cf.imod] = curr_mem
@@ -296,6 +296,8 @@ for ievent in range(nevent):
             
             #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
 
+        if(detector == 'pdhd'):
+            work.charge_reco_whole()
     
         
     if(do_charge and do_pds):
