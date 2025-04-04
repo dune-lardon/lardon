@@ -18,6 +18,7 @@ dependencies:
   - bottleneck
   - fast-histogram
   - pip
+  - psutils
   - pip:
     - rtree
     - json-with-comments
