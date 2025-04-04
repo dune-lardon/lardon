@@ -182,7 +182,7 @@ class Tracks3D(IsDescription):
     event   = UInt32Col()
     trigger = UInt32Col()
 
-    matched_2D = Int32Col(shape=(cf.n_view))
+    matched_2D = Int32Col(shape=(cf.n_module, cf.n_view))
     n_matched = UInt32Col()
     
     ID = UInt32Col()
@@ -649,8 +649,8 @@ def store_tracks3D(h5file):
        t3d['trigger'] = dc.evt_list[-1].trigger_nb
 
        t3d['ID'] = it.ID_3D
-       t3d['matched_2D'] = [it.match_ID[i] for i in range(cf.n_view)]
-       t3d['n_matched'] = sum([it.match_ID[i] >= 0 for i in range(cf.n_view)])
+       t3d['matched_2D'] = it.match_ID#[it.match_ID[i] for i in range(cf.n_view)]
+       t3d['n_matched'] = it.n_matched#sum([it.match_ID[i] >= 0 for i in range(cf.n_view)])
 
        t3d['module_ini'] = it.module_ini
        t3d['module_end'] = it.module_end
