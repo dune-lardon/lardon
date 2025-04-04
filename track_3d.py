@@ -50,9 +50,11 @@ def finalize_3d_track(track):
     n_slices = dc.reco['track_3d']['goodness']['n_slices']
     d_slice_max = dc.reco['track_3d']['goodness']['d_slice_max']
 
+    sum_match = [sum([track.match_ID[k][i] for k in range(cf.n_module)]) for i in range(cf.n_view)]
+
+    view_used = [sum_match[i] >-1*cf.n_module for i in range(cf.n_view) ]
 
     
-    view_used = [track.match_ID[i] >= 0 for i in range(cf.n_view)]
     nv = sum(view_used)
     zmin, zmax = track.ini_z_overlap, track.end_z_overlap
 
@@ -309,6 +311,8 @@ def complete_trajectories(tracks):
 
 
 def correct_timing(trk, xtol, ytol, ztol):
+    debug = False
+
     """ track points are ordered by decreasing vertical axis """
     vdrift = lar.drift_velocity()
     
@@ -330,7 +334,7 @@ def correct_timing(trk, xtol, ytol, ztol):
 
     
     through_anode = np.asarray([np.fabs(t-z) < ztol for t,z in zip(trk_z_bounds, z_anodes)], dtype=bool)
-    through_cathode = np.asarray([np.fabs(t-z) < ztol for t,z in zip(trk_z_bounds, max_drifts)], dtype = bool)
+    through_cathode = np.asarray([np.fabs(t-z) < 0. for t,z in zip(trk_z_bounds, max_drifts)], dtype = bool)
 
     through_wall_ini_x = np.asarray([np.fabs(trk.ini_x-w) < b for w, b in zip(cf.x_boundaries[mod_ini], xtol[mod_ini])], dtype=bool)
     through_wall_ini_y = np.asarray([np.fabs(trk.ini_y-w) < b for w, b in zip(cf.y_boundaries[mod_ini], ytol[mod_ini])], dtype=bool)
@@ -343,13 +347,19 @@ def correct_timing(trk, xtol, ytol, ztol):
     
     through_wall_end = np.any(np.concatenate((through_wall_end_x, through_wall_end_y), axis=None))
 
-
+    if(debug):
+        trk.dump()
     
+        print('-> through anode ', through_anode, '::', z_anodes)
+        print('-> through cathode', through_cathode, "::", max_drifts)
+        print('-> through wall ini ', through_wall_ini)
+        print('-> through wall end ', through_wall_end)
+
     
     if(through_wall_ini and through_wall_end):
         """ wall to wall track: we cannot tell """
         trk.set_t0_z0(t0, z0)
-
+        if(debug): print('wall to wall ... no t0!')
         return
     
     elif(through_wall_ini or through_wall_end):
@@ -357,22 +367,30 @@ def correct_timing(trk, xtol, ytol, ztol):
         if(through_anode[idx_o] or through_cathode[idx_o]):
             """ wall to readout : we cannot tell """
             trk.set_t0_z0(t0, z0)
-
+            if(debug): print('wall to anode/cathode ... no t0!')
             return
         else:
             zdir = 1 if (trk_z_bounds[idx_o]-trk_z_bounds[idx])>0 else -1
+
             is_late = False
             if(zdir == cf.drift_direction[trk_modules[idx_o]]):
                 zref = z_anodes[idx_o]
                 is_late = True
+                if(debug): print('wall to anode ', zdir)
             else:
                 zref = z_cathodes[idx_o]
+                if(debug): print('wall to cathode ', zdir)
                 is_late = False
-                
+
+
             z0 = zref - trk_z_bounds[idx_o]
             t0 = z0/vdrift
+            if(is_late == False and t0 > 0):
+                t0 *= -1
+            if(is_late == True and t0 < 0):
+                t0 *= -1
             trk.set_t0_z0(t0, z0)
-
+            if(debug): print('--> z0 = ', z0)
             return
 
 
@@ -389,8 +407,12 @@ def correct_timing(trk, xtol, ytol, ztol):
         if(np.sign(z0) == cf.drift_direction[trk_modules[idx_o]]):
             z0 *= -1
         t0 = z0/vdrift
+        
+        if(t0 > 0):
+            t0 *= -1
+            
         trk.set_t0_z0(t0, z0)
-
+        if(debug): print('through anode -> early track! bound ',idx,'closer to anode, z0=', z0)
         return
     
     if(np.any(through_cathode)):
@@ -399,8 +421,10 @@ def correct_timing(trk, xtol, ytol, ztol):
         idx = np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, max_drifts)])
         idx_o = 1 if idx == 0 else 0
         z0 = z_anodes[idx_o] - trk_z_bounds[idx_o]
-
+        if(debug): print('through cathode -> late track! bound ',idx,'closer to cathode, z0=', z0)
         t0 = z0/vdrift
+        if(t0 < 0):
+            t0 *= -1
         trk.set_t0_z0(t0, z0)
 
         return
@@ -410,7 +434,11 @@ def correct_timing(trk, xtol, ytol, ztol):
     """ which bound is closer to the anode?"""
     idx = np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, z_anodes)])
     z0 = z_anodes[idx] - trk_z_bounds[idx]
+    if(debug): print('no choice, late track!, z0=', z0)
     t0 = z0/vdrift
+    if(t0 < 0):
+        t0 *= -1
+        
     trk.set_t0_z0(t0, z0)
 
     return
@@ -424,8 +452,16 @@ def check_track_3D(track):
     eps = dc.reco['track_3d']['goodness']['eps']
     min_samp = dc.reco['track_3d']['goodness']['min_samp']
     n_min = dc.reco['track_3d']['goodness']['n_min']
+
+
+
+    sum_match = [sum([track.match_ID[k][i] for k in range(cf.n_module)]) for i in range(cf.n_view)]
     
-    data = [list(p) for pview,match in zip(track.path, track.match_ID) for p in pview if match>=0]
+
+    n_mod = cf.n_module 
+    data = [list(p) for iv, pview in enumerate(track.path)  for p in pview if sum_match[iv]>-1*n_mod]
+
+                                                                                              
     X = np.asarray(data)
     db = skc.DBSCAN(eps=eps,min_samples=min_samp).fit(X)
     labels = db.labels_
@@ -435,8 +471,12 @@ def check_track_3D(track):
         return
 
     count = Counter(labels)    
-    hits_ID = [h for hview,match in zip(track.hits_ID, track.match_ID) for h in hview if match>=0]
+
+    hits_ID = [h for iv, hview in enumerate(track.hits_ID) for h in hview if sum_match[iv]>-1*n_mod]
+    
     n_hits = len(hits_ID)
+    
+    
     n_above = sum([1 if nb>n_hits/4 else 0 for nb in count.values()])
 
     
@@ -446,19 +486,15 @@ def check_track_3D(track):
     
     hits_to_rm = [h for h,l in zip(hits_ID, labels) if count[l] < n_min]
 
-    [track.remove_hit(h, dc.hits_list[h-dc.n_tot_hits].view) for h in hits_to_rm]
+    [track.remove_hit(h, dc.hits_list[h-dc.n_tot_hits].view, dc.hits_list[h-dc.n_tot_hits].module) for h in hits_to_rm]
     
-
-    """ just to be sure """
-    for iv in range(3):
-        if(track.n_hits[iv] <= 1 and track.match_ID[iv]>=0):
-            track.match_ID[iv] = -1
             
     return False
 
 def find_tracks_rtree():
 
-    ztol = dc.reco['track_3d']['ztol']
+    trk_ztol = dc.reco['track_3d']['trk_ztol']
+    hit_ztol = dc.reco['track_3d']['hit_ztol']
     qfrac= dc.reco['track_3d']['qfrac']
     len_min= dc.reco['track_3d']['len_min']
     dx_tol= dc.reco['track_3d']['dx_tol']
@@ -579,7 +615,7 @@ def find_tracks_rtree():
                     trks.append(tj)
 
 
-        if(len(trks) > 1): # TO CHANGE BACK TO 1!
+        if(len(trks) > 1): 
 
             t3D = complete_trajectories(trks)
             isok = check_track_3D(t3D)
@@ -596,10 +632,12 @@ def find_tracks_rtree():
             if(isok == False):
                 continue
 
-            correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+
             trk_ID = dc.evt_list[-1].n_tracks3D + dc.n_tot_trk3d #+1
             t3D.ID_3D = trk_ID
 
+            correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+            
             dc.tracks3D_list.append(t3D)
             dc.evt_list[-1].n_tracks3D += 1
 
@@ -620,17 +658,20 @@ def track_in_module(t, modules):
 
 def find_3D_tracks_with_missing_view(modules):
     
-    ztol = dc.reco['track_3d']['ztol']
+    trk_ztol = dc.reco['track_3d']['trk_ztol']
+    hit_ztol = dc.reco['track_3d']['hit_ztol']
     qfrac= dc.reco['track_3d']['qfrac']
     len_min= dc.reco['track_3d']['len_min']
     dx_tol= dc.reco['track_3d']['dx_tol']
     dy_tol= dc.reco['track_3d']['dy_tol']
     dz_tol = dc.reco['track_3d']['dz_tol']
-    d_thresh = 1.5#0.2
-    min_z_overlap = 10.
-    trk_min_dz = 15.
-    q_thr = 0.15
-    r_z_thr = 0.8
+
+    
+    d_thresh = dc.reco['track_3d']['missing_view']['d_thresh']
+    min_z_overlap = dc.reco['track_3d']['missing_view']['min_z_overlap']
+    trk_min_dz = dc.reco['track_3d']['missing_view']['trk_min_dz']
+    q_thr = dc.reco['track_3d']['missing_view']['q_thr']
+    r_z_thr = dc.reco['track_3d']['missing_view']['r_z_thr']
     
     if(dc.evt_list[-1].det != 'pdhd'):
         unwrappers = [[0,0,0]]
@@ -646,6 +687,7 @@ def find_3D_tracks_with_missing_view(modules):
     rtree_trk_idx = index.Index(properties=trk_pties)
 
     trk_ID_shift = dc.n_tot_trk2d #tracks2D_list[0].trackID
+
 
     tracks = [x for x in dc.tracks2D_list if x.len_straight >= len_min and x.dz > trk_min_dz and x.ghost == False and track_in_module(x, modules) == True and x.match_3D < 0]
 
@@ -689,9 +731,11 @@ def find_3D_tracks_with_missing_view(modules):
     tested = set()
     ok_combo = []
     for t in tracks:
-        #print('Testing track ', t.trackID)
-        t_start = t.path[0][1]+ztol
-        t_stop  = t.path[-1][1]-ztol
+
+
+
+        t_start = t.path[0][1] + trk_ztol
+        t_stop  = t.path[-1][1] - trk_ztol
         module_start = min(t.module_ini, t.module_end)
         module_stop =  max(t.module_ini, t.module_end)
         
@@ -710,7 +754,7 @@ def find_3D_tracks_with_missing_view(modules):
 
         """ get all 3 tracks combinations """
         trk_comb = list(itertools.product(*trk_overlaps))
-        #print(trk_comb)
+        #print(len(trk_comb), ' combinations to test')
         
         for tc in trk_comb:
             """ don't test a combination already tested """
@@ -718,6 +762,8 @@ def find_3D_tracks_with_missing_view(modules):
                 continue
             else:
                 tested.add(tc)
+
+
 
             #get_channel_from_xy(x, y, view, module):
 
@@ -744,11 +790,11 @@ def find_3D_tracks_with_missing_view(modules):
                 continue
             
             dz_ov = np.fabs(hit_min_start.Z-hit_max_stop.Z)
-            
+
             if(dz_ov < min_z_overlap):
                 continue
             dz_long = np.fabs(hit_max_start.Z-hit_min_stop.Z)
-                          
+
             if(dz_ov/dz_long < r_z_thr):
                 continue
             
@@ -757,6 +803,7 @@ def find_3D_tracks_with_missing_view(modules):
             qtrk_tot=sum(qtrk)
             if(qtrk_tot == 0 or np.any(qtrk==0)):
                 continue
+
             qtrk = [(q/qtrk_tot)<q_thr for q in qtrk]
 
             if(np.any(qtrk)):
@@ -787,9 +834,11 @@ def find_3D_tracks_with_missing_view(modules):
 
 
         
-        correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+
         trk_ID = dc.evt_list[-1].n_tracks3D + dc.n_tot_trk3d #+1
         t3D.ID_3D = trk_ID
+
+        correct_timing(t3D, dx_tol, dy_tol, dz_tol)
         
         dc.tracks3D_list.append(t3D)
         dc.evt_list[-1].n_tracks3D += 1
@@ -804,12 +853,15 @@ def find_3D_tracks_with_missing_view(modules):
 def find_track_3D_rtree_new(modules):
     ta = time.time()
     
-    ztol = dc.reco['track_3d']['ztol']
+    trk_ztol = dc.reco['track_3d']['trk_ztol']
+    hit_ztol = dc.reco['track_3d']['hit_ztol']
+
     qfrac= dc.reco['track_3d']['qfrac']
     len_min= dc.reco['track_3d']['len_min']
     dx_tol= dc.reco['track_3d']['dx_tol']
     dy_tol= dc.reco['track_3d']['dy_tol']
     dz_tol = dc.reco['track_3d']['dz_tol']
+
     d_thresh = dc.reco['track_3d']['d_thresh']
     min_z_overlap = dc.reco['track_3d']['min_z_overlap']
     trk_min_dz = dc.reco['track_3d']['trk_min_dz']
@@ -865,8 +917,13 @@ def find_track_3D_rtree_new(modules):
 
     tested = set()
     for t in tracks:
-        t_start = t.path[0][1]+ztol
-        t_stop  = t.path[-1][1]-ztol
+
+        #print('testing track ', t.trackID)
+        #print('track straight length : ', t.len_straight, ' path ', t.len_path, ' r=', t.len_path/t.len_straight)
+        
+        t_start = t.path[0][1] + trk_ztol
+        t_stop  = t.path[-1][1] - trk_ztol
+
         module_start = min(t.module_ini, t.module_end)
         module_stop =  max(t.module_ini, t.module_end)
         
@@ -890,6 +947,7 @@ def find_track_3D_rtree_new(modules):
                 continue
             else:
                 tested.add(tc)
+
 
                 
             trks = [dc.tracks2D_list[i-trk_ID_shift] for i in tc]
@@ -934,7 +992,7 @@ def find_track_3D_rtree_new(modules):
                 if(iv == hit_min_start.view):
                     start_ov[iv].append(hit_min_start)
                 else:
-                    intersect = list(rtree_hit_idx.intersection((module_start, iv, tc[iv], starts[0][0]-1, module_stop, iv, tc[iv], starts[0][0]+1)))
+                    intersect = list(rtree_hit_idx.intersection((module_start, iv, tc[iv], starts[0][0]-hit_ztol, module_stop, iv, tc[iv], starts[0][0]+hit_ztol)))
                     [start_ov[iv].append(dc.hits_list[k-hits_ID_shift]) for k in intersect]
 
                 if(iv == hit_max_stop.view):
@@ -943,31 +1001,23 @@ def find_track_3D_rtree_new(modules):
                     intersect = list(rtree_hit_idx.intersection((module_start, iv, tc[iv], stops[-1][0]-1, module_stop, iv, tc[iv], stops[-1][0]+1)))
                     [stop_ov[iv].append(dc.hits_list[k-hits_ID_shift]) for k in intersect]
 
-            start_ok, stop_ok = False, False
-            min_start, min_stop = 999, 999
 
+            #print('testing combination ', tc, ':::', [len(ov) for ov in start_ov], ' and ', [len(ov) for ov in stop_ov])
+            #print(hit_max_stop.Z, hit_min_start.Z, 'dz=',dz)
 
+            
             for u in unwrappers:
                 unwrap = u
+                start_ok, stop_ok = False, False
+
                 start_d, start_xy, start_comb = h3d.compute_xy(start_ov, hit_min_start, d_thresh, u)
-                if(start_d >= 0):
-                    start_ok = True
-                    comb_ok_start = start_comb
-                    start_ok_xy = start_xy
-                    if(start_d<min_start):min_start=start_d
-                    
                 stop_d, stop_xy, stop_comb = h3d.compute_xy(stop_ov, hit_max_stop, d_thresh, u) 
-                if(stop_d >= 0):
-                    stop_ok = True
-                    comb_ok_stop = stop_comb
-                    stop_ok_xy = stop_xy
-                    if(stop_d<min_stop):min_stop=stop_d
 
+                if(start_d>=0 and stop_d>=0):
 
-                if(start_ok and stop_ok):
-                    
                     for tt in trks:
                         [tt.matched_tracks[i].append(t) for i,t in enumerate(tc) if i!=tt.view]
+                        
                     break
 
 
@@ -996,7 +1046,6 @@ def find_track_3D_rtree_new(modules):
 
     count = Counter(labels)
     n_3D_tracks = sum([1 if k>1 else 0 for k in count.values()])
-
                    
     tc = time.time()
 
@@ -1010,19 +1059,31 @@ def find_track_3D_rtree_new(modules):
         [tracks_to_3D[it.view].append(it) for it in dc.tracks2D_list if it.label3D==ilab]
 
         n_trks_per_view = [len(x) for x in tracks_to_3D]
+
+        
         if(any(x==0 for x in n_trks_per_view)):
             continue
         
-        if(any(x>1 for x in n_trks_per_view)):
+        if(any(x>1 for x in n_trks_per_view) and all(x<=2 for x in n_trks_per_view)):
+
+
+            #print('dammit, too many tracks')
+
+            #debug_ids = [it.trackID for it in dc.tracks2D_list if it.label3D==ilab]
+            #print(debug_ids)
+
+            #[it.mini_dump() for it in dc.tracks2D_list if it.label3D==ilab]
+
             
             """ merge if needed """
             [stitch.test_stitching_2D_and_merge(tracks_to_3D[iv]) for iv in range(cf.n_view)]
 
-        
+
+            
             tracks_to_3D = [[] for x in range(cf.n_view)]
             [tracks_to_3D[it.view].append(it) for it in dc.tracks2D_list if it.label3D==ilab]
             n_trks_per_view = [len(x) for x in tracks_to_3D]
-
+            
 
         
         if(all(x==1 for x in n_trks_per_view)):
@@ -1053,10 +1114,12 @@ def find_track_3D_rtree_new(modules):
             #print('oh no!')
             continue
 
-                      
-        correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+        
         trk_ID = dc.evt_list[-1].n_tracks3D + dc.n_tot_trk3d #+1
         t3D.ID_3D = trk_ID
+        correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+
+
         
         dc.tracks3D_list.append(t3D)
         dc.evt_list[-1].n_tracks3D += 1
@@ -1066,3 +1129,6 @@ def find_track_3D_rtree_new(modules):
         for t in flat_tracks:
             t.match_3D = trk_ID
             t.set_match_hits_3D(trk_ID)
+
+
+    stitch.reset_track2D_and_update_track3D_lists()
