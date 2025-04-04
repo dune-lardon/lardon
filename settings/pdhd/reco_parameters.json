@@ -84,33 +84,37 @@
 
       
       "stitching_2d":{
-	  "unwrap":{
-	      "search":1,
-	      "border_thresh":3.0,
-	      "z_thresh":4.0,
-	      "slope_thresh":10.0,
-	      "dma_thresh":6.0,	    
+	  "in_module":{
+	      "align_thr":0.97,
+	      "dma_thr":4.0,
+	      "dist_thr":15.0	
 	  },
-	  
-	  "tracks":{
-	      "dist_min":5.0,
-	      "slope_thresh":15.0,
-	      "dma_thresh":6.0,
-	  }    
+	  "from_3d":{
+	      "align_thr":0.96,
+	      "dma_thr":8.0,
+	      "dist_thr":50.0
+	  },  
       },
 
       
       "track_3d":{
-	  "ztol":3.0,
+	  "trk_ztol":3.0,
+	  "hit_ztol":2.0,
 	  "qfrac":5.0, 
 	  "len_min":20.0, 
-	  "dx_tol": [[15.0,15.0], [15.0, 15.0], [15.0,15.0], [15.0, 15.0]],
-	  "dy_tol": [[15.0,15.0], [15.0, 15.0], [15.0,15.0], [15.0, 15.0]],
-	  "dz_tol": 15.0,
+	  "dx_tol": [[25.0,25.0], [25.0, 25.0], [25.0,25.0], [25.0, 25.0]],
+	  "dy_tol": [[25.0,1.5], [1.5, 25.0], [25.0,1.5], [1.5, 25.0]],
+	  "dz_tol": 2.0,
 	  "d_thresh":0.5,
-	  "min_z_overlap":3.0,
-	  "trk_min_dz":5.0
-
+	  "min_z_overlap":20.0,
+	  "trk_min_dz":15.0,
+	  "goodness":{
+	      "eps":10,
+	      "min_samp":1,
+	      "n_min":10,
+	      "n_slices":10,
+	      "d_slice_max":20
+	  }	  
       },
 
       "ghost":{
