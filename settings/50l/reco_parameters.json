@@ -88,9 +88,23 @@
 	  "dz_tol": 2.0,
 	  "d_thresh":0.5,
 	  "min_z_overlap":3.0,
-	  "trk_min_dz":5.0
-
+	  "trk_min_dz":5.0,
+	  "goodness":{
+	      "eps":10,
+	      "min_samp":1,
+	      "n_min":10,
+	      "n_slices":10,
+	      "d_slice_max":20
+	  },
+	  "missing_view":{
+	      "d_thresh":0.5,
+	      "min_z_overlap":3.0,
+	      "trk_min_dz":4,
+	      "r_z_thr":0.3,
+	      "q_thr":0.15
+	  }
       },
+      
 
       "ghost":{
 	  "dmin":10.0
