@@ -177,15 +177,17 @@ def charge_reco(deb):
     print("---- VER Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
 
 
+    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
+    
     """ stitch together pieces of 2D tracks """
     t1 = time.time()
     stitch.stitch2D_tracks_in_module()
     deb.stitch2D[cf.imod] = time.time()-t1            
     print("---- STICH Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
             
+    
     #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
-
-
+    
     """ tag potential ghosts """
     #ghost.ghost_finder()
     
@@ -194,12 +196,17 @@ def charge_reco(deb):
     t1 = time.time()
     trk3d.find_track_3D_rtree_new([cf.imod])
     deb.trk3D[cf.imod] = time.time()-t1
-    
 
+     
+    
+    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
     """ build 3D tracks if a view is missing """
     trk3d.find_3D_tracks_with_missing_view([cf.imod])
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
 
+    #plot.plot_2dview_hits_3dtracks([cf.imod], to_be_shown=True)
+    
+    #[t.dump() for t in dc.tracks3D_list]
     """ reconstruct the ghosts """
     #ghost.ghost_trajectory()
 
@@ -209,7 +216,17 @@ def charge_reco(deb):
     deb.single[cf.imod] = time.time()-t1
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
 
+    #plot.event_display_per_view_hits_found([-50, 50],[-10, 100], option='filt', to_be_shown=True)
 
+def charge_reco_whole():
+    
+    stitch.stitch_across_modules([0,1])
+    stitch.stitch_across_modules([2,3])
+
+    #plot.plot_3d()
+
+    #[t.dump() for t in dc.tracks3D_list]
+    
 def match_charge_and_pds():
     if(cf.n_sample[cf.imod] <= 0 or cf.n_pds_sample <= 0):
         return
