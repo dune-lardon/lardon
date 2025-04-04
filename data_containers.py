@@ -818,9 +818,12 @@ class trk2D:
 class trk3D:
     def __init__(self):
 
-        self.match_ID  =  [-1]*cf.n_view
+        self.match_ID  =  [[-1]*cf.n_view for i in range(cf.n_module)]
         self.ID_3D      = -1
 
+        
+        self.n_matched = 0
+        
         self.chi2    = [-1]*cf.n_view
         self.momentum = -1
 
@@ -859,8 +862,25 @@ class trk3D:
         self.module_ini = -1
         self.module_end = -1
 
+        self.n_module_crossed = 1
+        
+        self.is_cathode_crosser = False
+        self.is_module_crosser  = False
+
+        """ (module, x, y, z, theta, phi) """
+        self.cathode_crossing   = [(-1, -1, -1, -1, -1, -1), (-1, -1, -1, -1, -1, -1)]
+        self.module_crossing   = [(-1, -1, -1, -1, -1, -1), (-1, -1, -1, -1, -1, -1)]
+        
         self.timestamp = -1
         self.match_pds_cluster = -1
+
+    def set_ID(self, ID):
+        self.ID_3D = ID
+
+    def set_module_crosser(self, crossing_points):
+        self.n_module_crossed += 1
+        self.is_module_crosser = True
+        self.module_crossing = crossing_points
         
     def set_view(self, trk, path, dq, ds, hits_id, isFake=False):
         view = trk.view
@@ -868,6 +888,7 @@ class trk3D:
         if(isFake == False):
             path, dq, ds, hits_id = self.check_descending(path, dq, ds, hits_id)
 
+        
         self.path[view]  = path
         self.dQ[view]   = dq
         self.ds[view]   = ds
@@ -884,19 +905,21 @@ class trk3D:
         else:
             self.n_hits[view] = len(path)
             self.chi2[view] = trk.chi2_fwd
-            self.match_ID[view] = trk.trackID
+            self.match_ID[trk.module_ini][view] = trk.trackID#llll
+            self.match_ID[trk.module_end][view] = trk.trackID#llll
 
             self.len_straight[view] = math.sqrt( sum([pow(path[0][i]-path[-1][i], 2) for i in range(3)]))
             self.len_path[view] = 0.
 
             self.ini_time = trk.ini_time if trk.ini_time < self.ini_time else self.ini_time
             self.end_time = trk.end_time if trk.end_time > self.end_time else self.end_time
+            self.n_matched += 1
             
             for i in range(len(path)-1):
                 self.len_path[view] +=  math.sqrt( pow(path[i][0]-path[i+1][0], 2) + pow(path[i][1]-path[i+1][1],2)+ pow(path[i][2]-path[i+1][2],2) )
 
 
-    def remove_hit(self, hit_ID, view):
+    def remove_hit(self, hit_ID, view, module):
         idx = self.hits_ID[view].index(hit_ID)
         
         self.hits_ID[view].pop(idx)
@@ -914,7 +937,8 @@ class trk3D:
 
 
         else:
-            self.match_ID[view] = -1
+            self.n_matched -= 1            
+            self.match_ID[module][view] = -1
             self.len_straight[view] = 0.
             self.len_path[view] = 0.
 
@@ -928,28 +952,41 @@ class trk3D:
         return path, dq, ds, hits_id
 
 
-    def check_descending_internal(self, iv):
+    def check_descending_internal(self):
         if(cf.tpc_orientation == 'Horizontal'):
-            if(self.path[iv][0][0] < path[iv][-1][0]):
-                return self.path[iv][::-1], self.dQ[iv][::-1], self.ds[iv][::-1], self.hits_ID[::-1]
-
+            
+            if(np.any([self.path[iv][0][0] < self.path[iv][-1][0] for iv in range(cf.n_view)])):
+                print('upside down')
+                for iv in range(cf.n_view):
+                    self.path[iv] = self.path[iv][::-1]
+                    self.dQ[iv] = self.dQ[iv][::-1]
+                    self.ds[iv] = self.ds[iv][::-1]
+                self.hits_ID = self.hits_ID[::-1]
+                self.ini_theta, self.end_theta = self.end_theta, self.ini_theta
+                self.ini_phi, self.end_phi = self.end_phi, self.ini_phi
+            
     def check_views(self):
         n_fake = 0
         for i in range(cf.n_view):
-            if(self.match_ID[i] == -1):
+            #if(np.all(self.match_ID[:][i] == -1)):
+            if(sum([self.match_ID[k][i] for k in range(cf.n_module)]) == -cf.n_module):
                 tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1,0)
 
                 self.set_view(tfake, [(-9999.,-9999.,-9999), (9999., 9999., 9999.)], [0., 0.], [1., 1.],[-1, -1], isFake=True)
                 n_fake += 1
+
+        self.n_matched = cf.n_view - n_fake
         return n_fake
 
     def set_modules(self, ini, end):
         self.module_ini = ini
         self.module_end = end
 
-    def boundaries(self):        
-        inis = np.asarray([list(self.path[i][0]) if self.match_ID[i]>=0 else [np.nan, np.nan, np.nan] for i in range(cf.n_view)])
-        ends = np.asarray([list(self.path[i][-1])  if self.match_ID[i]>=0 else [np.nan, np.nan, np.nan] for i in range(cf.n_view)])
+    def boundaries(self):
+        sum_match = [sum([self.match_ID[k][i] for k in range(cf.n_module)]) for i in range(cf.n_view)]
+                     
+        inis = np.asarray([list(self.path[i][0]) if sum_match[i]>-1*cf.n_module else [np.nan, np.nan, np.nan] for i in range(cf.n_view)])
+        ends = np.asarray([list(self.path[i][-1])  if sum_match[i]>-1*cf.n_module  else [np.nan, np.nan, np.nan] for i in range(cf.n_view)])
 
         
         lengths = np.asarray([[np.linalg.norm(e-i) for e in ends] for i in inis])
@@ -997,72 +1034,78 @@ class trk3D:
 
 
 
-    def merge(self, other):
+    def merge(self, other, idx_merge):
 
         self.ID_3D = min(self.ID_3D, other.ID_3D)
         other.ID_3D = -1
+
         
         self.momentum = -1
 
-        """ will be recomputed """
+        """ will be recomputed anyway """
         self.d_match += other.d_match
         self.d_match /= 2
 
+                
         if(self.ini_y > other.ini_y):
             self.module_end = other.module_end
             
         else:
             self.module_ini = other.module_ini
+
+        if(idx_merge[0] == 1):
+            self.end_theta = other.end_theta
+            self.end_phi = other.end_phi
+        else:
+            self.ini_theta = other.ini_theta
+            self.ini_phi = other.ini_phi
+
+        self.ini_time = min(self.ini_time, other.ini_time)
+        self.end_time = max(self.end_time, other.end_time)
+
+        self.timestamp = min(self.timestamp, other.timestamp)
+        for iv in range(cf.n_view):
+            for imod in range(cf.n_module):
+                
+                if(self.match_ID[imod][iv]>=0 and other.match_ID[imod][iv]>=0):
+                    print('wait, what ? that is not possible')
+
+                elif(self.match_ID[imod][iv]<0 and other.match_ID[imod][iv]>=0):
+                    self.match_ID[imod][iv] = other.match_ID[imod][iv]
+                    self.path[iv].extend(other.path[iv])
+                    self.dQ[iv].extend(other.dQ[iv])
+                    self.ds[iv].extend(other.ds[iv])
+                    self.hits_ID[iv].extend(other.hits_ID[iv])
+                
+                    self.chi2[iv] += other.chi2[iv]
+                    self.n_hits[iv] += other.n_hits[iv]
+
+
+                    self.tot_charge[iv] += other.tot_charge[iv]
+                    self.dray_charge[iv] += other.dray_charge[iv]
+
+
+            
+        self.check_descending_internal()
+
         
         for iv in range(cf.n_view):
-            #self.match_ID[iv].(x) for x in other.ID_3D]
-            if(self.match_ID[iv]>=0 and other.match_ID[iv]>=0):                
-                self.path[iv].extend(other.path[iv])
-                self.dQ[iv].extend(other.dQ[iv])
-                self.ds[iv].extend(other.ds[iv])
-                self.hits_ID[iv].extend(other.hits_ID[iv])
-
-                self.check_descending_internal(iv)
+            self.len_straight[iv] = math.sqrt( sum([pow(self.path[iv][0][i]-self.path[iv][-1][i], 2) for i in range(3)]))
                 
-                self.chi2[iv] += other.chi2[iv]
-                self.n_hits[iv] += other.n_hits[iv]
-
-
-                self.tot_charge[iv] += other.tot_charge[iv]
-                self.dray_charge[iv] += other.dray_charge[iv]
-
-                self.len_straight[iv] = math.sqrt( sum([pow(self.path[iv][0][i]-self.path[iv][-1][i], 2) for i in range(3)]))
-
+            for i in range(len(self.path[iv])-1):
+                self.len_path[iv] +=  math.sqrt( pow(self.path[iv][i][0]-self.path[iv][i+1][0], 2) + pow(self.path[iv][i][1]-self.path[iv][i+1][1],2)+ pow(self.path[iv][i][2]-self.path[iv][i+1][2],2) )
                 
-                for i in range(len(self.path[iv])-1):
-                    self.len_path[viv] +=  math.sqrt( pow(self.path[iv][i][0]-self.path[iv][i+1][0], 2) + pow(self.path[iv][i][1]-self.path[iv][i+1][1],2)+ pow(self.path[iv][i][2]-self.path[iv][i+1][2],2) )
-
-                    
-            elif(self.match_ID[iv]<0 and other.match_ID>=0):
-                    self.path[iv] = other.path[iv]
-                    self.dQ[iv] = other.dQ[iv]
-                    self.ds[iv] = other.ds[iv]
-                    self.hits_ID[iv] = other.hits_ID[iv]
-                    self.check_descending(iv)
-                    
-                    self.chi2[iv] = other.chi2[iv]
-                    self.n_hits[iv] = other.n_hits[iv]
-                    self.len_straight[iv] = other.len_straight[iv]
-                    self.len_path[iv] = other.len_path[iv]
-                    self.tot_charge[iv] = other.tot_charge[iv]
-                    self.dray_charge[iv] = other.dray_charge[iv]
-
-            """ other cases means we keep the values in self """
-
-
+        
+        self.check_views()
         self.boundaries()
-
+        
         
         
     def dump(self):
         print('\n----')
         print('Track with ID ', self.ID_3D)
-        print('match IDs ', self.match_ID)
+        print('match IDs ', self.match_ID, ' n view matched', self.n_matched)
+        print('test ', [len(self.path[iv]) for iv in range(cf.n_view)])
         print(" From (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f)"%(self.ini_x, self.ini_y, self.ini_z, self.end_x, self.end_y, self.end_z))
         print(" module ini ", self.module_ini, " module end ", self.module_end)
         print(" Time start ", self.ini_time, ' stop ', self.end_time)
