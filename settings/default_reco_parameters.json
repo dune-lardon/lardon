@@ -101,7 +101,8 @@
     },
 
     "track_3d":{
-	"ztol":3.0,
+	"trk_ztol":3.0,
+	"hit_ztol":1.0,
 	"qfrac":5.0, 
 	"len_min":2.0, 
 	"dx_tol": [3.0,0.5],
@@ -116,6 +117,13 @@
 	    "n_min":10,
 	    "n_slices":10,
 	    "d_slice_max":20
+	},
+	"missing_view":{
+	    "d_thresh":0.5,
+	    "min_z_overlap":10.0,
+	    "trk_min_dz":15,
+	    "r_z_thr":0.8,
+	    "q_thr":0.15
 	}
     },
     
