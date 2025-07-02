@@ -99,7 +99,7 @@ def draw_all_tracks(axs, sel='True', legend="", **kwargs):
 
 
 def template_data_view(modules):
-    #mod = 0
+
 
     fig = plt.figure(figsize=(10,5))
     gs = gridspec.GridSpec(nrows=2, ncols=cf.n_view, 
@@ -112,8 +112,7 @@ def template_data_view(modules):
 
     axs = [fig.add_subplot(gs[1, iv]) for iv in range(cf.n_view)]
     v = lar.drift_velocity()
-    
-    axs[0].get_shared_y_axes().join(*axs)
+    [axs[i].sharey(axs[0]) for i in range(1, cf.n_view)]
 
 
     mod_name = ', '.join([cf.module_name[x] for x in modules])

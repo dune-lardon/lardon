@@ -146,8 +146,10 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
                         color = 'gold'                        
                     '''
                     if(h.match_sh != -9999):
-                        color = 'gold'                        
-                    elif(h.match_3D != -9999):
+                        color = 'gold'
+                    if(h.match_2D != -9999):
+                        color = 'green'                        
+                    if(h.match_3D != -9999):
                         color = 'r'
                     
 
