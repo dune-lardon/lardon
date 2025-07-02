@@ -20,6 +20,7 @@ import time
 from psutil import Process
 
 
+
 import plotting as plot
 
 def pds_signal_proc():
@@ -90,13 +91,15 @@ def charge_signal_proc(deb):
         ped.refine_mask(n_pass=1)
     deb.ped_1[cf.imod] = time.time()-t1
 
+    #plot.event_display_per_view([-50, 50],[-10, 100], option='raw', to_be_shown=True)
     
     t1 = time.time()
     """ low pass FFT cut """
     ps = noise.FFT_low_pass(False)
     deb.fft[cf.imod] = time.time()-t1
 
-
+    #plot.event_display_per_view([-50, 50],[-10, 100], option='fft', to_be_shown=True)
+    
     if(dc.data_daq.shape[-1] != cf.n_sample[cf.imod]):
         """ 
         when the nb of sample is odd, the FFT returns 
@@ -124,7 +127,9 @@ def charge_signal_proc(deb):
     """ CNR """
     noise.coherent_noise()
     deb.cnr[cf.imod] = time.time()-t1
-        
+
+    #plot.event_display_per_view([-50, 50],[-10, 100], option='cnr', to_be_shown=True)
+    
     """ microphonic noise removal """
     noise.median_filter()
             
@@ -141,9 +146,9 @@ def charge_signal_proc(deb):
     t1 = time.time()
     hf.find_hits()    
     deb.hit_f[cf.imod] = time.time()-t1
-    print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits)
+    print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits[:,cf.imod])
 
-    
+    #plot.event_display_per_view([-50, 50],[-10, 100], option='cnr', to_be_shown=True)    
     #plot.event_display_per_view_hits_found([-50, 50],[-10, 100], option='filt', to_be_shown=True)
     #plot.plot_2dview_hits([cf.imod], to_be_shown=True)
             
@@ -160,72 +165,104 @@ def charge_reco_pdvd(deb):
 def charge_reco(deb):
     if(cf.n_sample[cf.imod] <= 0):
         return
+    
+    print('\nMODULE ', cf.imod)
 
+    """ build hits R-tree used in track2D and single hit searches """
+    clu.hits_rtree([cf.imod])
+    
+    
     """ search for 2D tracks """
-
-    """ first pass is better at finding horizontal tracks """
+    tt = time.time()
+    
     t1 = time.time()
-    trk2d.find_tracks_rtree(direction="horizontal")
+
+    trk2d.find_tracks_hough([cf.imod])
     deb.trk2D_1[cf.imod] = time.time()-t1
-    print("---- HOR Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
+    print('track2d hough took ', time.time()-tt)
+    print("---- Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
+    
+    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True, option='new_method_apa'+str(cf.imod))
+    
+    """ first pass is better at finding horizontal tracks """
+    told = time.time()
+    #t1 = time.time()
+    #trk2d.find_tracks_rtree(direction="horizontal")
+    #deb.trk2D_1[cf.imod] = time.time()-t1
+    #print("---- HOR Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
 
 
     """ second pass is better at finding vertical tracks """
-    t1 = time.time()
-    trk2d.find_tracks_rtree(direction="vertical")
-    deb.trk2D_2[cf.imod] = time.time()-t1
-    print("---- VER Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
+    #t1 = time.time()
+    #trk2d.find_tracks_rtree(direction="vertical")
+    #deb.trk2D_2[cf.imod] = time.time()-t1
+    #print("---- VER Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
+    #print('OLD track2D took ', time.time()-told)
 
-
-    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
     
     """ stitch together pieces of 2D tracks """
     t1 = time.time()
-    stitch.stitch2D_tracks_in_module()
+
+    stitch.stitch2D_in_module([cf.imod])
+    
     deb.stitch2D[cf.imod] = time.time()-t1            
     print("---- STICH Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
-            
+
     
-    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
+
+    
+    #plot.plot_2dview_2dtracks([cf.imod-1, cf.imod], to_be_shown=True, option='new_method_apa'+str(cf.imod))
+    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True, option='new_method_apa'+str(cf.imod))
     
     """ tag potential ghosts """
-    #ghost.ghost_finder()
+    ghost.ghost_finder()
     
 
     """ build 3D tracks from 3 views"""
     t1 = time.time()
     trk3d.find_track_3D_rtree_new([cf.imod])
+
+
     deb.trk3D[cf.imod] = time.time()-t1
 
      
-    
-    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
+    #print("---- 3D BUILD Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
+    #print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
     """ build 3D tracks if a view is missing """
+
     trk3d.find_3D_tracks_with_missing_view([cf.imod])
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
 
-    #plot.plot_2dview_hits_3dtracks([cf.imod], to_be_shown=True)
+
     
-    #[t.dump() for t in dc.tracks3D_list]
+        
     """ reconstruct the ghosts """
-    #ghost.ghost_trajectory()
+    ghost.ghost_trajectory()
 
     """ search for single hits in free hits """
     t1 = time.time()
-    sh.single_hit_finder_new()
+    
+    sh.single_hit_finder([cf.imod])
     deb.single[cf.imod] = time.time()-t1
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
 
-    #plot.event_display_per_view_hits_found([-50, 50],[-10, 100], option='filt', to_be_shown=True)
+    #plot.plot_2dview_hits_3dtracks([cf.imod], to_be_shown=True)
+    
+    #plot.event_display_per_view_hits_found([-50, 50],[-10, 100], option='filt_new', to_be_shown=True)
 
 def charge_reco_whole():
     
-    stitch.stitch_across_modules([0,1])
-    stitch.stitch_across_modules([2,3])
+    stitch.stitch3D_across_modules([0,1])
+    #stitch.stitch3D_across_modules([0,1])
+    stitch.stitch3D_across_modules([2,3])
 
-    #plot.plot_3d()
+    stitch.stitch3D_across_cathode([[0,1],[2,3]])
+
 
     #[t.dump() for t in dc.tracks3D_list]
+    #plot.plot_3d(to_be_shown=True)#option='new_method')
+
+    
     
 def match_charge_and_pds():
     if(cf.n_sample[cf.imod] <= 0 or cf.n_pds_sample <= 0):
