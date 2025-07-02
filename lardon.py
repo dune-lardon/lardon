@@ -8,6 +8,8 @@ import time as time
 
 from psutil import Process
 
+
+
 print("\nWelcome to LARDON !\n")
 
 tstart = time.time()
@@ -273,7 +275,7 @@ for ievent in range(nevent):
             t1 = time.time()
             if(cf.n_sample[cf.imod] <= 0):
                 print(' EVENT HAS NO CHARGE SAMPLE ...')
-                cf.n_sample = 0 #will be changed at the next event
+                cf.n_sample[cf.imod] = 0 #will be changed at the next event
                 store.store_event(output)
 
             
@@ -282,7 +284,8 @@ for ievent in range(nevent):
                 continue
             
             work.charge_signal_proc(deb)
-                        
+            #dc.n_tot_hits  += np.sum(dc.evt_list[-1].n_hits[:,cf.imod])
+
             if(detector == 'pdvd'):
                 ''' temporary workflow for PDVD data '''
                 work.charge_reco_pdvd(deb)                
@@ -337,7 +340,7 @@ for ievent in range(nevent):
             store.store_pds_cluster(output)
     deb.output = time.time()-t1
         
-    dc.n_tot_hits  += sum(dc.evt_list[-1].n_hits)
+    dc.n_tot_hits  += np.sum(dc.evt_list[-1].n_hits)
     dc.n_tot_pds_peaks += sum(dc.evt_list[-1].n_pds_peaks)    
     dc.n_tot_trk2d += sum(dc.evt_list[-1].n_tracks2D)
     dc.n_tot_trk3d += dc.evt_list[-1].n_tracks3D
@@ -371,5 +374,5 @@ print('* Nb of PDS Peaks', dc.n_tot_pds_peaks)
 print('* Nb of PDS Clusters', dc.n_tot_pds_clusters)
 print('**************')
 
-print('it took %.2f s to run'%(time.time()-tstart))
+print(f'it took {time.time()-tstart:.2f} s to run {nevent - evt_skip} events (average of {(time.time()-tstart)/(nevent - evt_skip):.2f} per event)')
 
