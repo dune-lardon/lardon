@@ -1,80 +1,46 @@
 import config as cf
 import data_containers as dc
-import numpy as np
-from copy import deepcopy
-import track_2d as trk2d
-import track_3d as trk3d
-from operator import itemgetter
-import scipy.sparse as csp
-from collections import Counter
-import time as time
-from itertools import tee
+import lar_param as lar
 
+import numpy as np
 import numba as nb
 
-def compare_slope(ls, ls_e, rs, rs_e):
-    if(ls * rs < 0.):
-            return 9999. #False
+import track_2d as trk2d
+import track_3d as trk3d
 
-    """ if slope error is too low, re-assign it to 5 percent """
-    if(ls_e == 0 or np.fabs(ls_e/ls) < 0.05):
-        ls_e = np.fabs(ls*0.05)
-        
-    if(rs_e == 0 or np.fabs(rs_e/rs) < 0.05):
-        rs_e = np.fabs(rs*0.05)
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import connected_components
+from collections import Counter
 
-    return np.fabs( (ls - rs) / (ls_e + rs_e))
+import time as time
 
-    
 
-def track_in_module(t, modules):
+
+
+def is_track_in_module(t, modules):
+    """ test if the track is in the given module(s) """
     if(t.module_ini in modules or t.module_end in modules):
         return True
     else:
         return False
     
 
-def test_stitching_2D_and_merge(tracks, debug=False):
 
-    if(len(tracks)==1):
-        return True
-    
-    """ from track3D builder, test if these tracks should be merged """
-    align_thr = dc.reco['stitching_2d']['from_3d']['align_thr']
-    dma_thr = dc.reco['stitching_2d']['from_3d']['dma_thr']
-    dist_thr = dc.reco['stitching_2d']['from_3d']['dist_thr']
-    
-    
-    if(debug):
-        print('-------')
-        [t.mini_dump() for t in tracks]
-        
-    ntrks = len(tracks)
-
-    
+def stitch2D_test_and_merge(tracks, align_thr, dma_thr, dist_thr, unwrappers, debug=False):
+    ntrks = len(tracks)    
     sparse = np.zeros((ntrks, ntrks))
     trk_ID_shift = dc.n_tot_trk2d 
 
-    view = tracks[0].view
-
-    """ in principle, try to merge tracks in same unwrapping situations """
-    module = tracks[0].module_ini
-    if(dc.evt_list[-1].det == 'pdhd' and view < 2):
-        unwrappers = [(0,0), (0, cf.unwrappers[module][1]), (cf.unwrappers[module][0], 0)]
-    else:
-        unwrappers = [(0,0)]
-
-        
-    n = 0
+    n=0
     for ti in tracks[:-1]:
-        stitchable = [tracks_compatibility(ti, tt, unwrappers, align_thr, dma_thr, dist_thr, False) for tt in tracks[n+1:]]
+        stitchable = [tracks2D_compatibility(ti, tt, unwrappers, align_thr, dma_thr, dist_thr, False) for tt in tracks[n+1:]]
              
         for k in np.where(stitchable)[0]:
             sparse[n, n+k+1] = 1
         n = n+1
 
-    graph = csp.csr_matrix(sparse)
-    n_components, labels = csp.csgraph.connected_components(csgraph=graph, directed=False, return_labels=True)
+    graph = csr_matrix(sparse)
+    n_components, labels = connected_components(csgraph=graph, directed=False, return_labels=True)
 
     count = Counter(labels)
     
@@ -85,79 +51,68 @@ def test_stitching_2D_and_merge(tracks, debug=False):
 
             tmerge = [it for it, l in zip(tracks, labels) if l == lab]
             
-            #print('!!!!!!!!!!!!!!!! lets merge tracks ', [it.trackID for it in tmerge])
-
+            if(debug):
+                print('!!!!!!!!!!!!!!!! lets merge tracks ', [it.trackID for it in tmerge])
             merge_2D(tmerge, align_thr, dma_thr, dist_thr)
-            
             n_merge += 1
+    return n_merge
 
 
-    #if(n_merge>0):
-        #reset_track2D_list()
+def stitch2D_from_3Dbuilder(tracks, debug=False):
+    """ from track3D builder we have hint that these tracks may be stitchable, test if these tracks should be merged with looser constraints """
+    
+    if(len(tracks)==1):
+        return
+    
 
+    align_thr = dc.reco['stitching_2d']['from_3d']['align_thr']
+    dma_thr = dc.reco['stitching_2d']['from_3d']['dma_thr']
+    dist_thr = dc.reco['stitching_2d']['from_3d']['dist_thr']
+    
+    
+    if(debug):
+        print('-------\n try to merge')
+        [t.mini_dump() for t in tracks]
+        
 
+    view = tracks[0].view
 
+    """ in principle, try to merge tracks in same unwrapping situations """
+    module = tracks[0].module_ini
+    if(dc.evt_list[-1].det == 'pdhd' and view < 2):
+        unwrappers = [(0,0), (0, cf.unwrappers[module][1]), (cf.unwrappers[module][0], 0)]
+    else:
+        unwrappers = [(0,0)]
+
+    _ = stitch2D_test_and_merge(tracks, align_thr, dma_thr, dist_thr, unwrappers, debug)
         
         
-def stitch2D_tracks_in_module():
+def stitch2D_in_module(modules = [cf.imod]):
     
     align_thr = dc.reco['stitching_2d']['in_module']['align_thr']
     dma_thr = dc.reco['stitching_2d']['in_module']['dma_thr']
     dist_thr = dc.reco['stitching_2d']['in_module']['dist_thr']
     
-    """
-    align_thr = dc.reco['stitching_2d']['from_3d']['align_thr']
-    dma_thr = dc.reco['stitching_2d']['from_3d']['dma_thr']
-    dist_thr = dc.reco['stitching_2d']['from_3d']['dist_thr']
-    """
-    
-    ntrks = sum(dc.evt_list[-1].n_tracks2D)
-    sparse = np.zeros((ntrks, ntrks))
-    trk_ID_shift = dc.n_tot_trk2d
+    debug=False
 
-
-    
+    n_merge = 0
     for iv in range(cf.n_view):
-        tracks = [t for t in dc.tracks2D_list if t.module_ini == cf.imod and t.view == iv and t.chi2_fwd < 9999. and t.chi2_bkwd < 9999.]
+        tracks = [t for t in dc.tracks2D_list if t.module_ini in modules and t.view == iv and t.chi2_fwd < 9999. and t.chi2_bkwd < 9999.]
 
         if(dc.evt_list[-1].det == 'pdhd' and iv < 2):
             unwrappers = [(0,0), (0, cf.unwrappers[cf.imod][1]), (cf.unwrappers[cf.imod][0], 0)]
         else:
             unwrappers = [(0,0)]
         
-
-        n = 0
-        for ti in tracks[:-1]:
-            stitchable = [tracks_compatibility(ti, tt, unwrappers, align_thr, dma_thr, dist_thr) for tt in tracks[n+1:]]
-             
-            
-            for k in np.where(stitchable)[0]:
-                sparse[ti.trackID-trk_ID_shift, tracks[k+n+1].trackID-trk_ID_shift] = 1
-            n = n+1
-
-    graph = csp.csr_matrix(sparse)
-    n_components, labels = csp.csgraph.connected_components(csgraph=graph, directed=False, return_labels=True)
-
-    count = Counter(labels)
-
-    n_merge = 0
-    for lab, nelem in count.items():     
-        if(nelem == 1): continue
-        else:
-            tmerge = [it for it, l in zip(dc.tracks2D_list, labels) if l == lab]
-            
-            #print('--->> for label ', lab, ' --> ', len(tmerge), ' tracks to go', nelem)
-            #print('::', [x.trackID for x in tmerge])
-            
-            merge_2D(tmerge, align_thr, dma_thr, dist_thr)
-            n_merge += 1
-
+        n_merge += stitch2D_test_and_merge(tracks, align_thr, dma_thr, dist_thr, unwrappers, debug)
 
     if(n_merge>0):
         reset_track2D_list()
-    #print('--->  took ', time.time()-tst)
+
+
         
 def reset_track2D_list():
+    """ re-assign ID of tracks since merging occured """
     idx = dc.n_tot_trk2d
 
     
@@ -226,7 +181,7 @@ def reset_track2D_and_update_track3D_lists():
     
 
 
-def merge_2D(trks,  align_thr, dma_thr, dist_thr):
+def merge_2D(trks,  align_thr, dma_thr, dist_thr, debug=False):
 
 
     unwrappers = [(0,0)]
@@ -240,7 +195,7 @@ def merge_2D(trks,  align_thr, dma_thr, dist_thr):
     ta = trks[0]
     merge_ID = ta.trackID
     
-
+    
 
     for ii, ta in enumerate(trks[:-1]):
         if(ta.trackID <0):
@@ -251,9 +206,10 @@ def merge_2D(trks,  align_thr, dma_thr, dist_thr):
         for tb in trks[ii+1:]:
             if(tb.trackID < 0):
                 continue
-
-            if(tracks_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, False)==False):
-
+            """ re-check the compatibility between tracks (in case some merging) """
+            if(tracks2D_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, False)==False):
+                if(debug):
+                    print(ta.trackID, ' with ', tb.trackID,' IS NOPE')
                 continue
             
 
@@ -277,49 +233,9 @@ def merge_2D(trks,  align_thr, dma_thr, dist_thr):
                 ta.merge(tb)
                 tb.set_ID(-1)
 
-            
-
         trk2d.refilter_and_find_drays(merge_ID)
-    
 
-        
-def stitch_tracks(modules):
-    i = 0
-
-    while(i < len(dc.tracks2D_list)):
-        ti = dc.tracks2D_list[i]
-        if(track_in_module(ti, modules) == False):
-            i += 1
-            continue
-        if(ti.chi2_fwd == 9999. and ti.chi2_bkwd == 9999.):
-            i += 1
-            continue
-        j = 0
-        #join = []
-        while( j < len(dc.tracks2D_list) ):
-            if(i==j):
-                j += 1
-                if(j >= len(dc.tracks2D_list) ):
-                    break
-
-            tj = dc.tracks2D_list[j]
-            if(track_in_module(tj, modules) == False):
-                j += 1
-                continue
-
-            if(tj.chi2_fwd == 9999. and tj.chi2_bkwd == 9999.):
-                j += 1
-                continue
-            
-            ok = check_and_merge_tracks([ti,tj], 15)
-            if(ok):
-                i=0
-                break
-            else:
-                j += 1
-        i = i+1
-            
-
+           
 
 @nb.jit(nopython=True)
 def dist(p, p1, p2):
@@ -353,7 +269,6 @@ def is_aligned_debug(a, b, c, d, thr):
     return abs(li.dot(lj)) > thr
 
 def is_close_debug(a1, a2, b1, b2, thr):
-    #scale = np.linalg.norm([a2 - a1, b2 - b1], axis=-1)
     dists = np.array([[dist(a1, b1, b2), dist(b1, a1, a2)],
                       [dist(a2, b1, b2), dist(b2, a1, a2)]])
         
@@ -365,14 +280,7 @@ def is_close_debug(a1, a2, b1, b2, thr):
 
 
 def one_close(a1, a2, b1, b2, thr):
-    ##scale = np.linalg.norm([a2 - a1, b2 - b1], axis=-1)
-    #dists = np.array([[dist(a1, b1, b2), dist(b1, a1, a2)],
-    #                  [dist(a2, b1, b2), dist(b2, a1, a2)]])
-        
-    #if(np.any(np.all(dists< thr, axis=1))):
-        #return True
-
-    """ test if a points are all close to b points """
+    """ test if one endpoint of trk a is close to trk b """
     dists = np.array([dist(a1, b1, b2), dist(a2, b1, b2)])
     if(np.all(dists< thr)):
         return True
@@ -382,7 +290,7 @@ def one_close(a1, a2, b1, b2, thr):
 
 
 def is_all_close(a1, a2, b1, b2, thr):
-    #scale = np.linalg.norm([a2 - a1, b2 - b1], axis=-1)
+    """ test if both enpoints of trk a are close to trk b endpoints """
     dists = np.array([[dist(a1, b1, b2), dist(b1, a1, a2)],
                       [dist(a2, b1, b2), dist(b2, a1, a2)]])
         
@@ -391,35 +299,16 @@ def is_all_close(a1, a2, b1, b2, thr):
     return False
     
     
-def segment_collinear(a1, a2, b1, b2, dot_thr, prox_thr):
-    scale = np.linalg.norm([a2 - a1, b2 - b1], axis=-1)
-    dot = dot_vector(a2-a1, b2-b1)
-    dists = np.array([[dist(a1, b1, b2), dist(b1, a1, a2)],
-                      [dist(a2, b1, b2), dist(b2, a1, a2)]])
-
-    
-    is_para, is_close = False, False
-    if(dot > dot_thr):
-        is_para = True
-        
-    if(np.all(dists<prox_thr*scale)):
-        is_close = True
-    
-    return is_para, is_close
-
-
-
-
 def in_between(a,b,c):
     return np.all([a[i]<c[i]<b[i] or a[i]>c[i]>b[i]  for i in range(2) ])
 
 
+def tracks2D_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, debug=False):
+    """ test the compatibility between trk a and trk b """
+    """ track are considered as segments using their endpoints """
 
-
-def tracks_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, debug=False):
     if(ta.label3D != tb.label3D):
         return  False
-
     
     a1 = np.array(ta.path[0])
     a2 = np.array(ta.path[-1])
@@ -428,22 +317,18 @@ def tracks_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, debug
     b2 = np.array(tb.path[-1])
 
 
-    if(debug):
-        is_aligned_debug(a1, a2, b1, b2, align_thr)
-        is_close_debug(a1, a2, b1, b2, dma_thr )
-        print([[np.linalg.norm(a1+(i,0) - b2-(j,0)), np.linalg.norm(b1+(j,0) - a2-(i,0))] for i,j in unwrappers], '-->', [[np.linalg.norm(a1+(i,0) - b2-(j,0))< dist_thr, np.linalg.norm(b1+(j,0) - a2-(i,0))< dist_thr] for i,j in unwrappers])
-        
-        print('-----')
-
-
-        
+    """ test the slopes """
     if(is_aligned(a1, a2, b1, b2, align_thr) == False):        
         return False
 
-    if(in_between(a1, a2, b1) and in_between(b1, b2, a2)):            
+
+    if(in_between(a1, a2, b1) and in_between(b1, b2, a2)):
+        """ test if trk a completely overlaps with trk b (or vice versa) """
         return is_all_close(a1, a2, b1, b2, dma_thr )
 
+    
     elif(in_between(a1, a2, b1) or in_between(b1, b2, a2)):
+        """ test if trk a partially overlaps with trk b (or vice versa) """
         if(in_between(a1, a2, b1) and in_between(a1, a2, b2)):
             return one_close(b1, b2, a1, a2, dma_thr)
         elif(in_between(b1, b2, a1) and in_between(b1, b2, a2)):
@@ -452,82 +337,70 @@ def tracks_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, debug
             return False
         
     else:
+        """ test if trk a & b are broken because of wrapped wires """
         return np.any([[np.linalg.norm(a1+(i,0) - b2-(j,0))< dist_thr, np.linalg.norm(b1+(j,0) - a2-(i,0))< dist_thr] for i,j in unwrappers])
 
     
     return False
 
 
+def tracks3D_volume_bounds(t, modules, tol):
+    """ return false for boundary to boundary tracks """
+    
+    xmin = min([cf.x_boundaries[modules[0]][0], cf.x_boundaries[modules[1]][0]])
+    xmax = max([cf.x_boundaries[modules[0]][1], cf.x_boundaries[modules[1]][1]])
+    ymin = min([cf.y_boundaries[modules[0]][0], cf.y_boundaries[modules[1]][0]])
+    ymax = max([cf.y_boundaries[modules[0]][1], cf.y_boundaries[modules[1]][1]])
 
-def track3D_module_bounds(t):
+    if(np.fabs(t.ini_x-xmin)<tol and np.fabs(t.end_x-xmax)<tol):
+        return False
+    if(np.fabs(t.ini_x-xmax)<tol and np.fabs(t.end_x-xmin)<tol):
+        return False
+    if(np.fabs(t.ini_y-ymin)<tol and np.fabs(t.end_y-ymax)<tol):
+        return False
+    if(np.fabs(t.ini_y-ymax)<tol and np.fabs(t.end_y-ymin)<tol):
+        return False
+    return True
+    
+def track3D_module_bounds(t, tol):
+    """does the 3D track stopped near the boundary of the module ?"""
 
-    tol = 5.
     if(dc.evt_list[-1].det != 'pdhd'):
         print('In track3D_module_bounds(), Please check the geometry!')
 
-        
-    for y_pts, mod in zip([t.ini_y, t.end_y], [t.module_ini, t.module_end]):
 
+    for y_pts, mod in zip([t.ini_y, t.end_y], [t.module_ini, t.module_end]):
         ylow, yhigh = cf.y_boundaries[mod][0], cf.y_boundaries[mod][1]
         if(np.fabs(y_pts-ylow) < tol or np.fabs(y_pts-yhigh) < tol):
-            #t.dump()
             return True
     return False
     
 
-def test3D_distance_and_slopes(ta, tb, d_thr, theta_thr, phi_thr):
+def tracks3D_compatibility(ta, tb, d_thr, align_thr, debug=False):
+    """ test if track a and b are not too far away and have similar angles """
+    
+    if( (ta.module_ini == tb.module_ini) or (ta.module_end == tb.module_end)):
+        return False
 
-    #print('testing ', ta.ID_3D, ' with ', tb.ID_3D)
-
+    
     if(ta.ini_x < tb.ini_x):
         ta, tb = tb, ta
         
-
-    a1 = np.asarray([ta.ini_x, ta.ini_y, ta.ini_z])
-    a2 = np.asarray([ta.end_x, ta.end_y, ta.end_z])
-    
-    b1 = np.asarray([tb.ini_x, tb.ini_y, tb.ini_z])
-    b2 = np.asarray([tb.end_x, tb.end_y, tb.end_z])
-
-
     ta_bounds = np.asarray([[ta.ini_x, ta.ini_y, ta.ini_z],  [ta.end_x, ta.end_y, ta.end_z]])  
     tb_bounds = np.asarray([[tb.ini_x, tb.ini_y, tb.ini_z],  [tb.end_x, tb.end_y, tb.end_z]])  
     lengths = np.asarray([[np.linalg.norm(b-a) for b in tb_bounds] for a in ta_bounds])
     
 
-    #print(lengths)
     if(np.any(lengths < d_thr)):
-        #print('\n-----\n close by ! ', ta.ID_3D, tb.ID_3D)
-        #print('test alignement of code : ', is_aligned_debug(a1, a2, b1, b2, 0.98))
-
-        """
-        ta.dump()
-        print("with")
-        tb.dump()
-        """
-        
-        idx = np.unravel_index(np.argmin(lengths, axis=None), lengths.shape)
-        #print('index of close point: ', idx)
-
-        
-        ta_theta = ta.ini_theta if idx[0]==0 else ta.end_theta
-        ta_phi   = ta.ini_phi   if idx[0]==0 else ta.end_phi
-
-        tb_theta = tb.ini_theta if idx[1]==0 else tb.end_theta
-        tb_phi   = tb.ini_phi   if idx[1]==0 else tb.end_phi
-
-        #print('angles ', ta_theta, ta_phi, ' and ', tb_theta, tb_phi)
-        if(np.fabs(ta_theta-tb_theta) < theta_thr and np.fabs(ta_phi-tb_phi) < phi_thr):
-            #print(' OMG let merge')
-            #llll
+        if(is_aligned(ta_bounds[0], ta_bounds[1], tb_bounds[0], tb_bounds[1], align_thr)):
             return True
     return False
 
 
 def merge_3D(trks, is_module_crosser=False):
-    dx_tol= dc.reco['track_3d']['dx_tol']
-    dy_tol= dc.reco['track_3d']['dy_tol']
-    dz_tol = dc.reco['track_3d']['dz_tol']
+    dx_tol = dc.reco['track_3d']['timing']['dx_tol']
+    dy_tol = dc.reco['track_3d']['timing']['dy_tol']
+    dz_tol = dc.reco['track_3d']['timing']['dz_tol']
 
 
     if(len(trks)>2):
@@ -572,8 +445,6 @@ def merge_3D(trks, is_module_crosser=False):
         ta.set_module_crosser(crossing_point)
     
     isok = trk3d.finalize_3d_track(ta)
-    if(isok == False):
-        print('whaaaaaaat????')
 
     trk3d.correct_timing(ta, dx_tol, dy_tol, dz_tol)
 
@@ -586,28 +457,32 @@ def merge_3D(trks, is_module_crosser=False):
     
     return ta
 
-def stitch_across_modules(modules):
-    dist_thr = 5. #cm
-    theta_thr = 5. #degrees
-    phi_thr = 5. #degrees
+def stitch3D_across_modules(modules):
+    """ stitch together 3D tracks in adjacent modules """
+
+    dist_thr = dc.reco['stitching_3d']['module']['dist_thr']
+    align_thr = dc.reco['stitching_3d']['module']['align_thr']
+    boundary_tol = dc.reco['stitching_3d']['module']['boundary_tol']
+
 
     n_trks_tot = dc.evt_list[-1].n_tracks3D
     sparse = np.zeros((n_trks_tot, n_trks_tot))
     trk_ID_shift = dc.n_tot_trk3d
 
-    trks_bound = [t for t in dc.tracks3D_list if track_in_module(t, modules) and track3D_module_bounds(t)]
-    n_trks_bound = len(trks_bound)
-
-    #print('---> in modules ', modules, ' :: ', n_trks_tot, ' tracks, and ', n_trks_bound, ' at boundaries')
-    #[t.dump() for t in trks]
+    trks_bound = [t for t in dc.tracks3D_list if is_track_in_module(t, modules) and track3D_module_bounds(t, boundary_tol)]
     
-
+    n_trks_bound = len(trks_bound)
+    
     if(n_trks_bound <2):
         return 
     
     n=0
-    for ti in trks_bound[:-1]:        
-        stitchable = [test3D_distance_and_slopes(ti, tt, dist_thr, theta_thr, phi_thr) for tt in trks_bound[n+1:]]
+    for ti in trks_bound[:-1]:
+        if(ti.ID_3D == 1 or ti.ID_3D == 4):
+            debug = True
+        else:
+            debug = False
+        stitchable = [tracks3D_compatibility(ti, tt, dist_thr, align_thr, debug) for tt in trks_bound[n+1:]]
 
 
         for k in np.where(stitchable)[0]:
@@ -616,8 +491,8 @@ def stitch_across_modules(modules):
         n = n+1
 
 
-    graph = csp.csr_matrix(sparse)
-    n_components, labels = csp.csgraph.connected_components(csgraph=graph, directed=False, return_labels=True)
+    graph = csr_matrix(sparse)
+    n_components, labels = connected_components(csgraph=graph, directed=False, return_labels=True)
 
     count = Counter(labels)
 
@@ -626,29 +501,234 @@ def stitch_across_modules(modules):
         if(nelem == 1): continue
         else:
             tmerge = [it for it, l in zip(dc.tracks3D_list, labels) if l == lab]
-            
-            #print('--->> for label ', lab, ' --> ', len(tmerge), ' tracks to go', nelem)
-            #print('::', [x.trackID for x in tmerge])
-            
+                        
             merge_3D(tmerge, is_module_crosser=True)
 
-            n_merge += 1
-
-            
+            n_merge += 1            
 
     if(n_merge>0):
         reset_track3D_list()
-    #print('merged ', n_merge, ' 3D tracks together !!! ')
-    #print('--->  took ', time.time()-tst)
+    print('merged ', n_merge, ' 3D tracks together !!! ')
 
-def stitch_across_cathode(modules):
 
+
+def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, aligned_thresh):
+    debug = False
+    
+    if(ta.ini_x < tb.ini_x):
+        ta, tb = tb, ta
+
+    a1 = np.asarray([ta.ini_x, ta.ini_y, ta.ini_z])
+    a2 = np.asarray([ta.end_x, ta.end_y, ta.end_z])
+    
+    b1 = np.asarray([tb.ini_x, tb.ini_y, tb.ini_z])
+    b2 = np.asarray([tb.end_x, tb.end_y, tb.end_z])
+    
+    if(is_aligned(a1, a2, b1, b2, aligned_thresh) ):            
+
+        dz = np.fabs(a2[2]+b1[2])
+
+        if(dz < dz_thresh):
+            """ compute tracks delta x and delta y """
+            dtrack = np.fabs(a2-b1)[:2]        
+            if(np.all([d<t for d,t in zip(dtrack, [dx_thresh, dy_thresh])])):
+                """ early / on-time cathode crossing track found """
+                return True
+            else:
+                """ test if the track is late """
+                """ in that case, each track has an endpoints at max drift time """
+                """ and the relation is true: delta x/delta y = tan theta / cos phi """
+
+                vdrift = lar.drift_velocity()
+                z_cathodes = np.asarray([cf.anode_z[ta.module_end] - cf.n_sample[ta.module_end]*cf.drift_direction[ta.module_end] * vdrift /cf.sampling[ta.module_end], cf.anode_z[tb.module_ini] - cf.n_sample[tb.module_ini]*cf.drift_direction[tb.module_ini] * vdrift /cf.sampling[tb.module_ini]])
+
+                z_ends = np.asarray([ta.end_z, tb.ini_z])
+                dz = np.fabs(z_cathodes - z_ends)
+
+                if(np.all([d<dz_thresh for d in dz])):
+                    dtrack_ratio = np.fabs(dtrack[1]/dtrack[0])
+                    ang_ratio_a = np.fabs(np.tan(np.radians(ta.end_theta))*np.cos(np.radians(ta.end_phi)))
+                    ang_ratio_b = np.fabs(np.tan(np.radians(tb.ini_theta))*np.cos(np.radians(tb.ini_phi)))
+
+                    if(np.allclose([ang_ratio_a, ang_ratio_b], [dtrack_ratio, dtrack_ratio], rtol=0.5)):
+                        return True
+               
+               
+               
+        return False
+
+def set_cathode_crossing_tracks(ta, tb, dz_thresh):
+    debug = False#True
+    
+    xtol= dc.reco['track_3d']['timing']['dx_tol']
+    ytol= dc.reco['track_3d']['timing']['dy_tol']
+
+
+    if(ta.ini_x < tb.ini_x):
+        ta, tb = tb, ta
+
+    ta.reset_anode_crosser()
+    tb.reset_anode_crosser()
+
+
+    
+    if(debug):
+        ta.dump()
+        print('with')
+        tb.dump()
+    
+    
+
+    a2 = np.asarray([ta.end_x, ta.end_y, ta.end_z])    
+    b1 = np.asarray([tb.ini_x, tb.ini_y, tb.ini_z])
+
+
+    crossing_point = [(ta.module_end, ta.end_x, ta.end_y, ta.end_z, ta.end_theta, ta.end_phi),
+                      (tb.module_ini, tb.ini_x, tb.ini_y, tb.ini_z, tb.ini_theta, tb.ini_phi)]
+
+    ta.set_cathode_crosser(crossing_point, tb.ID_3D, 1)
+    tb.set_cathode_crosser(crossing_point, ta.ID_3D, 0)
+
+    vdrift = lar.drift_velocity()
+    max_drifts = np.asarray([cf.anode_z[ta.module_end] - cf.n_sample[ta.module_end]*cf.drift_direction[ta.module_end] * vdrift /cf.sampling[ta.module_end], cf.anode_z[tb.module_ini] - cf.n_sample[tb.module_ini]*cf.drift_direction[tb.module_ini] * vdrift /cf.sampling[tb.module_ini]])
+
+    z_cathodes = [cf.anode_z[ta.module_end] - cf.drift_direction[ta.module_end]*cf.drift_length[ta.module_end], cf.anode_z[tb.module_ini] - cf.drift_direction[tb.module_ini]*cf.drift_length[tb.module_ini]]
+    z_anodes = [cf.anode_z[ta.module_end], cf.anode_z[tb.module_ini]]
+
+
+    through_wall_a_x = np.asarray([np.fabs(ta.ini_x-w) < b for w, b in zip(cf.x_boundaries[ta.module_ini], xtol[ta.module_ini])], dtype=bool)
+    through_wall_a_y = np.asarray([np.fabs(ta.ini_y-w) < b for w, b in zip(cf.y_boundaries[ta.module_ini], ytol[ta.module_ini])], dtype=bool)
+    through_wall_a = np.any(np.concatenate((through_wall_a_x, through_wall_a_y), axis=None))
+    
+    through_wall_b_x = np.asarray([np.fabs(tb.end_x-w) < b for w, b in zip(cf.x_boundaries[tb.module_end], xtol[tb.module_end])], dtype=bool)
+    through_wall_b_y = np.asarray([np.fabs(tb.end_y-w) < b for w, b in zip(cf.y_boundaries[tb.module_end], ytol[tb.module_end])], dtype=bool)
+
+    through_wall_b = np.any(np.concatenate((through_wall_b_x, through_wall_b_y), axis=None))
+
+
+
+    z_ends = np.asarray([ta.ini_z, tb.end_z])
+
+
+    borders_a = np.fabs(z_ends-z_anodes)<dz_thresh
+    z_cross = np.asarray([ta.end_z, tb.ini_z])
+
+    is_max_drift = np.fabs(z_cross-max_drifts) < dz_thresh
+    
+    
+    """ Fix the z0/t0 """
+    if(np.all(is_max_drift)):
+        
+        """ very late track """
+        dx = np.fabs(a2[0]-b1[0])
+        dz_a = np.fabs(-dx*np.sin(np.radians(ta.end_phi))*np.tan(np.radians(ta.end_theta)))
+        dz_b = np.fabs(-dx*np.sin(np.radians(tb.ini_phi))*np.tan(np.radians(tb.ini_theta)))
+
+        
+        z0 = z_cathodes[0] - ta.end_z + cf.drift_direction[ta.module_end]*dz_a/2.
+        t0 = z0/vdrift
+        if(t0 < 0):
+            t0 *= -1
+        ta.set_t0_z0(t0, z0)
+
+        z0 = z_cathodes[1] - tb.ini_z + cf.drift_direction[tb.module_ini]*dz_b/2.
+        t0 = z0/vdrift
+        if(t0 < 0):
+            t0 *= -1
+        tb.set_t0_z0(t0, z0)
+        
+        #dy_data = ta.end_y - tb.ini_y
+        #dy_th_a = dz_a/np.tan(np.radians(ta.end_phi))
+        #dy_th_b = dz_b/np.tan(np.radians(tb.ini_phi))
+        
+
+    elif(np.any(borders_a)):        
+        """ early tracks, fix t0 """
+
+
+        z0 = z_cathodes[0] - a2[2]
+        t0 = z0/vdrift        
+        if(t0 > 0):
+            t0 *= -1
+
+        ta.set_t0_z0(t0, z0)
+
+        z0 = z_cathodes[1] - b1[2]
+        t0 = z0/vdrift        
+        if(t0 > 0):
+            t0 *= -1
+        tb.set_t0_z0(t0, z0)
+
+
+    else:
+        """ on time track/slightly delayed ! """
+
+        z0 = z_cathodes[0] - a2[2]
+        t0 = z0/vdrift
+        if(t0 < 0):
+            t0 *= -1
+        ta.set_t0_z0(t0, z0)
+        z0 = z_cathodes[1] - b1[2]
+        t0 = z0/vdrift
+        if(t0 < 0):
+            t0 *= -1
+        tb.set_t0_z0(t0, z0)
+
+        
+def stitch3D_across_cathode(modules):
+    
+    dx_thresh = dc.reco['stitching_3d']['cathode']['dx_thresh']
+    dy_thresh = dc.reco['stitching_3d']['cathode']['dy_thresh']
+    dz_thresh = dc.reco['stitching_3d']['cathode']['dz_thresh']
+    align_thresh = dc.reco['stitching_3d']['cathode']['align_thresh']
+    boundary_tol = dc.reco['stitching_3d']['cathode']['boundary_tol']
+    
     n_trks_tot = dc.evt_list[-1].n_tracks3D
     trk_ID_shift = dc.n_tot_trk3d
 
-    trks_bound = [t for t in dc.tracks3D_list if track_in_module(t, modules) and track3D_module_bounds(t)]
-    n_trks_bound = len(trks_bound)
+    trks_bound_drift_a = [t for t in dc.tracks3D_list if is_track_in_module(t, modules[0]) and tracks3D_volume_bounds(t, modules[0], boundary_tol)]
+    trks_bound_drift_b = [t for t in dc.tracks3D_list if is_track_in_module(t, modules[1]) and tracks3D_volume_bounds(t, modules[1], boundary_tol)]
 
+    n_trks_bound = len(trks_bound_drift_a) + len(trks_bound_drift_b)
+    
+
+    sparse = np.zeros((n_trks_tot, n_trks_tot))
+    trk_ID_shift = dc.n_tot_trk3d
+
+    
+    n=0
+    for ti in trks_bound_drift_a:        
+        stitchable = [tracks3D_cathode_crossing_test(ti, tt, dx_thresh, dy_thresh, dz_thresh, align_thresh) for tt in trks_bound_drift_b]
+        n = n+1
+
+
+        for k in np.where(stitchable)[0]:
+            sparse[ti.ID_3D-trk_ID_shift, trks_bound_drift_b[k].ID_3D-trk_ID_shift] = 1
+
+        n = n+1
+
+
+    graph = csr_matrix(sparse)
+    n_components, labels = connected_components(csgraph=graph, directed=False, return_labels=True)
+    
+    count = Counter(labels)
+    
+    n_cross = 0
+    for lab, nelem in count.items():     
+        if(nelem == 1): continue
+        elif(nelem == 2):
+            tcross = [it for it, l in zip(dc.tracks3D_list, labels) if l == lab]
+            set_cathode_crossing_tracks(*tcross, dz_thresh)
+            n_cross += 1
+
+            
+        else:
+            print('WHAAAAT ? too many possibility for cathode stitcher, do not do anything ')
+
+    print('Found ', n_cross, ' cathode crossing tracks ')
+
+
+    
 def reset_track3D_list():
     idx = dc.n_tot_trk3d
     trk2D_ID_shift = dc.tracks2D_list[0].trackID
