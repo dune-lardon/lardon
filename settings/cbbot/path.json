@@ -1,5 +1,6 @@
 {
     "cern":"/eos/experiment/neutplatform/protodune/rawdata/np04/vd-coldbox-bottom/raw/2023/detector/test/None",
+    "cernnew":"/eos/experiment/neutplatform/protodune/dune/vd-coldbox/",
     "fnal":"/pnfs/dune/tape_backed/dunepro/vd-coldbox-bottom/raw/2023/detector/test/None",
     "custom":"/eos/user/l/lzambell/analysis/coldbox/CRP6"
 
