@@ -8,7 +8,6 @@ import numba as nb
 
 def hit_search(data, module, view, daq_chan, start, dt_min, thr1, thr2, thr3):
 
-
     ll = []
 
     if(cf.view_type[cf.imod][view] != "Collection" and cf.view_type[cf.imod][view] != "Induction"): 
@@ -299,13 +298,13 @@ def recompute_hit_charge(hit):
 
         
 def find_hits():
-
-    pad_left = dc.reco['hit_finder']['pad']['left']
-    pad_right = dc.reco['hit_finder']['pad']['left']
-    dt_min = dc.reco['hit_finder']['coll']['dt_min']
-    n_sig_coll_1 = dc.reco['hit_finder']['coll']['amp_sig'][0]
-    n_sig_coll_2 = dc.reco['hit_finder']['coll']['amp_sig'][1]
-    n_sig_ind  = dc.reco['hit_finder']['ind']['amp_sig'][0]
+    min_thr       = dc.reco['hit_finder']['min_thr']
+    pad_left      = dc.reco['hit_finder']['pad']['left']
+    pad_right     = dc.reco['hit_finder']['pad']['right']
+    dt_min        = dc.reco['hit_finder']['dt_min']
+    n_sig_coll_1  = dc.reco['hit_finder']['coll']['amp_sig'][0]
+    n_sig_coll_2  = dc.reco['hit_finder']['coll']['amp_sig'][1]
+    n_sig_ind     = dc.reco['hit_finder']['ind']['amp_sig']
     merge_tdc_thr =  dc.reco['hit_finder']['ind']['merge_tdc_thr']
 
     
@@ -327,6 +326,8 @@ def find_hits():
     assert len(start[0])==len(end[0]), " Mismatch in groups of hits"
     assert len(gpe)==len(start[0]), "Mismatch in groups of hits"    
     merge = False
+
+    found_hits = []
     
     for g in range(len(gpe)):
         if(gpe[g]):
@@ -342,9 +343,8 @@ def find_hits():
             daq_chan = chan + daq_start
             
             module, view, channel = dc.chmap[daq_chan].get_ana_chan()
-            #globch = dc.chmap[daq_chan + daq_start].get_globch()
-            
-            
+
+                       
             if(view < 0 or view >= cf.n_view):
                 continue
 
@@ -386,9 +386,9 @@ def find_hits():
             thr2 = mean + n_sig_coll_2 * rms
             thr3 = mean + n_sig_ind * rms
 
-            if(thr1 < 0.5): thr1 = 0.5
-            if(thr2 < 0.5): thr2 = 0.5
-            if(thr3 < 0.5): thr3 = 0.5
+            if(thr1 < min_thr): thr1 = min_thr
+            if(thr2 < min_thr): thr2 = min_thr
+            if(thr3 < min_thr): thr3 = min_thr
 
             
                 
@@ -423,25 +423,26 @@ def find_hits():
                         hh[i].pad_stop = hh[i+1].start #- 1
 
 
-            dc.evt_list[-1].n_hits[view] += len(hh)
-            dc.hits_list.extend(hh)
-
+            dc.evt_list[-1].n_hits[view, cf.imod] += len(hh)
+            found_hits.extend(hh)
 
     v = lar.drift_velocity()
 
-    """ transforms hit channel and tdc to positions """
-    [x.hit_positions(v) for x in dc.hits_list if x.module == cf.imod]
-
-    """ set hit an index number """
-    [dc.hits_list[i].set_index(i) for i in range(len(dc.hits_list))]
-
     
+    """ transforms hit channel and tdc to positions """
+    [x.hit_positions(v) for x in found_hits]
+
+    """ sort hit list by time and position """
+    found_hits.sort()
+    ID_shift = len(dc.hits_list)
+    [h.set_index(i+ID_shift) for i,h in enumerate(found_hits)]
+
     """ compute hit charge in fC """
-    [recompute_hit_charge(x) for x in dc.hits_list if x.module == cf.imod]
-    [x.hit_charge() for x in dc.hits_list if x.module == cf.imod]
+    [recompute_hit_charge(x) for x in found_hits]#dc.hits_list if x.module == cf.imod]
+    [x.hit_charge() for x in found_hits]#dc.hits_list if x.module == cf.imod]
 
-
-
+    """ add newly found hits to the whole hit list """
+    dc.hits_list.extend(found_hits)
 
 def compute_pds_peak_charge(peak):
     glob_ch, pad_start, pad_stop = peak.glob_ch, peak.pad_start, peak.pad_stop
@@ -450,9 +451,9 @@ def compute_pds_peak_charge(peak):
     
 def find_pds_peak():
     
-    pad_left = dc.reco['pds']['hit_finder']['pad']['left']
-    pad_right = dc.reco['pds']['hit_finder']['pad']['right']
-    dt_min = dc.reco['pds']['hit_finder']['dt_min']
+    pad_left     = dc.reco['pds']['hit_finder']['pad']['left']
+    pad_right    = dc.reco['pds']['hit_finder']['pad']['right']
+    dt_min       = dc.reco['pds']['hit_finder']['dt_min']
     n_sig_coll_1 = dc.reco['pds']['hit_finder']['amp_sig'][0]
     n_sig_coll_2 = dc.reco['pds']['hit_finder']['amp_sig'][1]
 
