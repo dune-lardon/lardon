@@ -71,7 +71,7 @@ def compute_pedestal(noise_type='None'):
         ped = dc.noise( mean, std )
         dc.evt_list[-1].set_noise_raw(ped)
 
-        inv = np.array([-1 if cf.signal_is_inverted[cf.imod]==True else 1 for x in range(cf.module_nchan[cf.imod])]) #dc.chmap])
+        inv = np.array([-1 if cf.signal_is_inverted[cf.imod]==True else 1 for x in range(cf.module_nchan[cf.imod])]) 
 
         """ remove the nans introduced to align the frames """
         dc.data_daq = np.where(np.isnan(dc.data_daq), mean[:,None]*inv[:,None], dc.data_daq)
@@ -91,13 +91,13 @@ def compute_pedestal(noise_type='None'):
       sys.exit()
 
 
-def update_mask(thresh):
-    dc.mask_daq = ne.evaluate( "where((abs(data) > thresh*rms), 0, 1)", global_dict={'data':dc.data_daq, 'rms':dc.evt_list[-1].noise_filt.ped_rms[:,None]}).astype(bool)
+def update_mask(thresh):       
+    dc.mask_daq = ne.evaluate("abs(data) <= thresh * rms", global_dict={'data': dc.data_daq, 'rms': dc.evt_list[-1].noise_filt.ped_rms[:, None],'thresh': thresh})
     dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan[:,None])
 
 
 def update_mask_inputs(thresh, mean, rms):
-    dc.mask_daq = ne.evaluate( "where((abs(data-baseline) >  thresh*std) , 0, 1)", global_dict={'data':dc.data_daq, 'baseline':mean[:,None],'std':rms[:,None]}).astype(bool)
+    dc.mask_daq = ne.evaluate( "abs(data-baseline) <=  thresh*std", global_dict={'data':dc.data_daq, 'baseline':mean[:,None],'std':rms[:,None]})
     dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan[:,None])
 
 
@@ -315,28 +315,25 @@ def compute_pedestal_pds(first=False):
         remove the median value of the waveform """
         med = bn.median(dc.data_pds, axis=1)
         dc.data_pds -= med[:,None]                
-        dc.mask_pds = ne.evaluate( "where((data >  adc_thresh)| (data <=  -abs(baseline)+10), 0, 1)", global_dict={'data':dc.data_pds, 'baseline':med[:,None]}).astype(bool)
-        #print(med)
+        dc.mask_pds = ne.evaluate( "(data <=  adc_thresh)| (data <=  -abs(baseline)+10)", global_dict={'data':dc.data_pds, 'baseline':med[:,None]})
+
 
     else:
         med = dc.evt_list[-1].noise_pds_raw.ped_mean
-        #print(med)
+
 
         
     mean, std = compute_pedestal_nb(dc.data_pds, dc.mask_pds, False)
-    #print('----> mean', mean)
-    #print('----> std', std)
     dc.data_pds -= mean[:,None]
 
 
     for i in range(n_iter):
-        dc.mask_pds = ne.evaluate( "where((data >  rms_thresh*rms)|(data <=  -abs(baseline)+10) , 0, 1)", global_dict={'data':dc.data_pds,'rms':std[:,None], 'baseline':med[:,None]}).astype(bool)
-        #dc.mask_pds = ne.evaluate( "where((data <=  -baseline+10), 0, 1)", global_dict={'data':dc.data_pds, 'baseline':med[:,None]}).astype(bool)
-        #dc.mask_pds[:,-1]=0
+        dc.mask_pds = ne.evaluate( "data <=  rms_thresh*rms)|(data <=  -abs(baseline)+10)", global_dict={'data':dc.data_pds,'rms':std[:,None], 'baseline':med[:,None]})
+
         mean, std = compute_pedestal_nb(dc.data_pds, dc.mask_pds, False)
         dc.data_pds -= mean[:,None]
 
-    #print('----> std = ', std)
+
 
     if(first==True):
         ped = dc.noise( med, std )
