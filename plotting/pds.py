@@ -41,8 +41,8 @@ def draw_pds_ED( option=None, to_be_shown=False, draw_peak=False, draw_cluster=F
 
                 axs_pds.append(fig.add_subplot(gsgs[0,0]))
                 axs_pds.append(fig.add_subplot(gsgs[1,0]))
-
-                axs_pds[-2].get_shared_x_axes().join(axs_pds[-2], axs_pds[-1])
+                axs_pds[-1].sharex(axs_pds[-2])
+                #axs_pds[-2].get_shared_x_axes().join(axs_pds[-2], axs_pds[-1])
 
                 axs[-1].set_xticks([])
                 axs[-1].set_yticks([])

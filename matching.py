@@ -1,8 +1,8 @@
 import config as cf
 import data_containers as dc
-import numpy as np
 import lar_param as lar
 
+import numpy as np
 from rtree import index
 
 def matching_charge_pds():

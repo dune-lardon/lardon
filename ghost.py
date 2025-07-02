@@ -1,14 +1,9 @@
 import config as cf
 import data_containers as dc
 import lar_param as lar
+
 from rtree import index
 import numpy as np
-import math
-#from itertools import chain
-#from collections import Counter
-
-#debugging - to remove later
-#
 
 def min_distance(xx_a, zz_a, xx_b, zz_b):
     
@@ -125,7 +120,7 @@ def ghost_trajectory():
 
     debug = False
 
-    ang_track = np.radians(cf.view_angle[2])
+    ang_track = np.radians(cf.view_angle[0][2])
     pitch = cf.view_pitch[2]
 
     prev_ghost_list = dc.ghost_list.copy()
@@ -140,7 +135,7 @@ def ghost_trajectory():
             continue
 
         t3d = find_3d_track(t2d.match_3D)
-
+        t3d.dump()
         if(t3d.match_ID[2] < 0):
             continue
 
