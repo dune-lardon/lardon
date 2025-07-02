@@ -32,7 +32,7 @@ class Event(IsDescription):
     pds_time_s     = Float64Col()
     pds_time_ns    = Float64Col()
     n_sample       = UInt32Col(shape=(cf.n_module_used))
-    n_hits         = UInt32Col(shape=(cf.n_view))
+    n_hits         = UInt32Col(shape=(cf.n_view, cf.n_module))
     n_tracks2D     = UInt32Col(shape=(cf.n_view))
     n_tracks3D     = UInt32Col()
     n_single_hits  = UInt32Col()
@@ -221,6 +221,18 @@ class Tracks3D(IsDescription):
     timestamp  = Float64Col()
     cluster_ID = Int32Col()
 
+    is_cathode_crosser = BoolCol()
+    cathode_crossing = Float32Col(shape=(2,6))
+    cathode_crosser_ID = Int32Col()
+    cathode_crossing_trk_end = Int32Col()
+    
+    is_module_crosser = BoolCol()
+    module_crossing = Float32Col(shape=(2,6))
+
+    is_anode_crosser = BoolCol()
+    exit_point = Float32Col(shape=(3))
+    exit_trk_end = Int32Col()
+    
 
 
 class Ghost(IsDescription):
@@ -277,15 +289,15 @@ class SingleHits(IsDescription):
     charge_pos = Float32Col(shape=(cf.n_view))
     charge_neg = Float32Col(shape=(cf.n_view))
 
-    charge_extend = Float32Col(shape=(cf.n_view))
-    charge_extend_pos = Float32Col(shape=(cf.n_view))
-    charge_extend_neg = Float32Col(shape=(cf.n_view))
+    #charge_extend = Float32Col(shape=(cf.n_view))
+    #charge_extend_pos = Float32Col(shape=(cf.n_view))
+    #charge_extend_neg = Float32Col(shape=(cf.n_view))
 
-    tdc_start = UInt16Col(shape=(cf.n_view))
-    tdc_stop = UInt16Col(shape=(cf.n_view))
-    tdc_max = UInt16Col(shape=(cf.n_view))
-    tdc_zero = UInt16Col(shape=(cf.n_view))
-    tdc_min = UInt16Col(shape=(cf.n_view))
+    tdc_start = Int32Col(shape=(cf.n_view))
+    tdc_stop  = Int32Col(shape=(cf.n_view))
+    tdc_max   = Int32Col(shape=(cf.n_view))
+    tdc_zero  = Int32Col(shape=(cf.n_view))
+    tdc_min   = Int32Col(shape=(cf.n_view))
 
     x = Float64Col()
     y = Float64Col()
@@ -295,7 +307,7 @@ class SingleHits(IsDescription):
     d_track_3D = Float64Col()
     d_track_2D = Float64Col()
 
-    veto = BoolCol(shape=(cf.n_view))
+    n_veto = Int32Col(shape=(cf.n_view))
 
     timestamp  = Float64Col()
     cluster_ID = Int32Col()
@@ -586,10 +598,11 @@ def store_single_hits(h5file):
         sh['d_bary_max'] = it.d_bary_max
         sh['d_track_3D'] = it.d_track_3D
         sh['d_track_2D'] = it.d_track_2D
-        sh['veto'] = it.veto
-        sh['charge_extend'] = it.charge_extend
-        sh['charge_extend_pos'] = it.charge_extend_pos
-        sh['charge_extend_neg'] = it.charge_extend_neg
+        sh['n_veto'] = it.n_veto
+
+        #sh['charge_extend'] = it.charge_extend
+        #sh['charge_extend_pos'] = it.charge_extend_pos
+        #sh['charge_extend_neg'] = it.charge_extend_neg
 
         sh['timestamp']  = it.timestamp
         sh['cluster_ID'] = it.match_pds_cluster
@@ -686,7 +699,21 @@ def store_tracks3D(h5file):
 
        t3d['timestamp'] = it.timestamp
        t3d['cluster_ID'] = it.match_pds_cluster
+
+
        
+       t3d['is_cathode_crosser'] = it.is_cathode_crosser
+       t3d['cathode_crossing'] = it.cathode_crossing
+       t3d['cathode_crosser_ID'] = it.cathode_crosser_ID
+       t3d['cathode_crossing_trk_end'] = it.cathode_crossing_trk_end
+              
+       t3d['is_module_crosser'] = it.is_module_crosser
+       t3d['module_crossing'] = it.module_crossing
+
+       t3d['is_anode_crosser'] = it.is_anode_crosser
+       t3d['exit_point'] = it.exit_point
+       t3d['exit_trk_end'] = it.exit_trk_end
+
        for i in range(cf.n_view):
            pts = [[p[0], p[1], p[2], q, s, r] for p,q,s,r in zip(it.path[i], it.dQ[i], it.ds[i], it.hits_ID[i])]
            vl_h[i].append(pts)
