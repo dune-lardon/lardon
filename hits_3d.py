@@ -1,20 +1,18 @@
 import config as cf
 import data_containers as dc
 import lar_param as lar
+
 from rtree import index
 import numpy as np
-import channel_mapping as cmap
+
 from operator import itemgetter
 from collections import Counter
-import sklearn.cluster as skc
+from sklearn.cluster import DBSCAN
 
-import itertools
+from itertools import product
 import time as time
 
-
-#import numba as nb
-#from numba import njit
-from numba import njit, float64
+from numba import njit
 
 '''
 from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
@@ -54,9 +52,153 @@ def check_combination(comb):
             return False
     
 
+@njit(nopython=True, fastmath=True, cache=True)
+def xy_leastsq_nb(ha, hb, hc, angle_v0, angle_v1, angle_v2):
+
+    # Convert inputs to float64 explicitly
+    angle_rad = np.radians(np.asarray([angle_v0, angle_v1, angle_v2], dtype=np.float64))
+    #hh_arr = np.asarray([ha, hb, hc], dtype=np.float64)
+    
+    # Precompute trigonometric functions
+    sin_ang = np.sin(angle_rad)
+    cos_ang = np.cos(angle_rad)
+    
+    # Build matrices directly without temporary arrays
+    ang_mtx_mult = np.empty((3, 2), dtype=np.float64)
+    ang_mtx_sum = np.empty((3, 2), dtype=np.float64)
+    
+    for i in range(3):
+        ang_mtx_mult[i, 0] = sin_ang[i]
+        ang_mtx_mult[i, 1] = -cos_ang[i]
+        ang_mtx_sum[i, 0] = -cos_ang[i]
+        ang_mtx_sum[i, 1] = -sin_ang[i]
+    
+    # Diagonal matrix construction
+    pos = np.zeros((3, 3), dtype=np.float64)
+    pos[0,0] = ha
+    pos[1,1] = hb
+    pos[2,2] = hc
+    
+    # Main computations
+    A = pos @ ang_mtx_mult
+    V = ang_mtx_sum
+    
+    # Optimized tensor operations
+    T = np.empty((3, 2, 2), dtype=np.float64)
+    for i in range(3):
+        vi = V[i]
+        for j in range(2):
+            for k in range(2):
+                T[i, j, k] = vi[j] * vi[k]
+        T[i, 0, 0] -= 1.0
+        T[i, 1, 1] -= 1.0
+    
+    # Sum reductions
+    S = np.zeros((2, 2), dtype=np.float64)
+    C = np.zeros(2, dtype=np.float64)
+    for i in range(3):
+        for j in range(2):
+            for k in range(2):
+                S[j, k] += T[i, j, k]
+                C[j] += T[i, j, k] * A[i, k]
+    
+    # Solve and final computations
+    X = np.linalg.solve(S, C)
+    
+    max_R = 0.0
+    for i in range(3):
+        U = (X[0] - A[i, 0]) * V[i, 0] + (X[1] - A[i, 1]) * V[i, 1]
+        dx = X[0] - (A[i, 0] + U * V[i, 0])
+        dy = X[1] - (A[i, 1] + U * V[i, 1])
+        R = np.sqrt(dx*dx + dy*dy)
+        if R > max_R:
+            max_R = R
+    
+    return X, max_R
+        
+@njit(nopython=True)
+def xy_leastsq_nb_better(ha, hb, hc, angle_v0, angle_v1, angle_v2):
+    #print(hh)
+    hh = np.asarray([ha, hb, hc], dtype=np.float64)
+    angle = np.asarray([angle_v0, angle_v1, angle_v2], dtype=np.float64)
+    n = 3  # Fixed size based on your implementation
+    d = 2  # Fixed output dimension
+    
+    # Pre-compute trigonometric functions
+    angle_rad = np.radians(angle)
+    sin_ang = np.sin(angle_rad)
+    cos_ang = np.cos(angle_rad)
+    
+    # Initialize transformation matrices directly
+    ang_mtx_mult = np.empty((n, d), dtype=np.float64)
+    ang_mtx_sum = np.empty((n, d), dtype=np.float64)
+    
+    for iv in range(n):
+        ang_mtx_mult[iv, 0] = sin_ang[iv]
+        ang_mtx_mult[iv, 1] = -cos_ang[iv]
+        ang_mtx_sum[iv, 0] = -cos_ang[iv]
+        ang_mtx_sum[iv, 1] = -sin_ang[iv]
+    
+    # Create diagonal matrix - handle both scalar and array cases for hh
+    pos = np.zeros((n, n), dtype=np.float64)
+
+    pos[0,0] = ha
+    pos[1,1] = hb
+    pos[2,2] = hc
+    
+    # Matrix multiplication
+    A = np.dot(pos, ang_mtx_mult)
+    V = ang_mtx_sum
+    
+    # Compute T matrix
+    T = np.zeros((n, d, d), dtype=np.float64)
+    eye = np.eye(d, dtype=np.float64)
+    for i in range(n):
+        vi = V[i]
+        for j in range(d):
+            for k in range(d):
+                T[i, j, k] = vi[j] * vi[k]
+        T[i] -= eye
+    
+    # Compute S matrix
+    S = np.zeros((d, d), dtype=np.float64)
+    for i in range(n):
+        for j in range(d):
+            for k in range(d):
+                S[j, k] += T[i, j, k]
+    
+    # Compute C vector
+    C = np.zeros(d, dtype=np.float64)
+    for i in range(n):
+        for j in range(d):
+            for k in range(d):
+                C[j] += T[i, j, k] * A[i, k]
+    
+    # Solve linear system
+    X = np.linalg.solve(S, C)
+    
+    # Compute U, P, R
+    U = np.zeros(n, dtype=np.float64)
+    P = np.empty((n, d), dtype=np.float64)
+    R = np.empty(n, dtype=np.float64)
+    
+    for i in range(n):
+        U[i] = 0.0
+        for j in range(d):
+            U[i] += (X[j] - A[i, j]) * V[i, j]
+        
+        for j in range(d):
+            P[i, j] = A[i, j] + U[i] * V[i, j]
+        
+        diff0 = X[0] - P[i, 0]
+        diff1 = X[1] - P[i, 1]
+        R[i] = np.sqrt(diff0**2 + diff1**2)
+    
+    return X, np.max(R)
+
 
 @njit(nopython=True)
-def xy_leastsq_nb(hh, angle):
+def xy_leastsq_nb_p(hh, angle):
 
     angle = np.asarray(angle, dtype=np.float64)
     # Matrices de transformation
@@ -158,7 +300,7 @@ def compute_xy(ov, h, d_thresh, unwrap):
         return -11111, [], None
 
     
-    combinations = list(itertools.product(*ov))
+    combinations = list(product(*ov))
     #n_comb = np.prod(nmatch)
     #print("nb of match, ", nmatch, ' nb comb ', n_comb)
 
@@ -167,7 +309,7 @@ def compute_xy(ov, h, d_thresh, unwrap):
     result = []
     ncomp = 0
 
-    result = [(*xy_leastsq_nb([h.X+u for h,u in zip(c,unwrap)], angle),c) for c in combinations]
+    result = [(*xy_leastsq_nb(*[h.X+u for h,u in zip(c,unwrap)], *angle),c) for c in combinations]
     result = [r for r in result if is_inside_volume(module, r[0][0],r[0][1])]
     
     if(len(result)==0):        
@@ -193,7 +335,7 @@ def build_hit_3D(ov, h, d_thresh, unwrap):
         return False, 2
 
     """ make a list of all hit combinations possible """
-    combinations = list(itertools.product(*ov))
+    combinations = list(product(*ov))
 
     if(len(combinations) == 0):
         return False, 0
@@ -229,7 +371,7 @@ def clustering_3D(eps,min_samp):
 
     data = [[x.x_3D,x.y_3D, x.Z] for x in hits]
     X = np.asarray(data)
-    db = skc.DBSCAN(eps=eps,min_samples=min_samp).fit(X)
+    db = DBSCAN(eps=eps,min_samples=min_samp).fit(X)
     labels = db.labels_
 
     [h.set_cluster_3D(l) for h,l in zip(hits,labels)]
@@ -260,7 +402,7 @@ def clustering_hits_per_view(y_squeez, eps, min_samp, debug):
         """ squeeze y axis instead of defining a new metric """
         data = [[x.X,x.Z*y_squeez] for x in hits]
         X = np.asarray(data)
-        db = skc.DBSCAN(eps=eps,min_samples=min_samp).fit(X)
+        db = DBSCAN(eps=eps,min_samples=min_samp).fit(X)
         labels = db.labels_
 
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
