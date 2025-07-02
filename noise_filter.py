@@ -1,51 +1,57 @@
 import config as cf
 import data_containers as dc
-import pedestals as ped
+
 
 import numpy as np
 import numexpr as ne 
+from scipy.fft import rfft, irfft, rfftfreq
 
 import bottleneck as bn
 
 
 
 def gaussian(x, mu, sig):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
-
+    return np.exp(-((x - mu) ** 2) / (2 * sig ** 2))
 
 def FFT_low_pass(save_ps=False):
-    lowpass_cut = dc.reco['noise']['fft']['low_cut']
     freq_cut    = dc.reco['noise']['fft']['freq']
+    lowpass_cut = dc.reco['noise']['fft']['low_cut']    
+    gaus_sigma  = dc.reco['noise']['fft']['gaus_sigma']
 
-    n    = int(cf.n_sample[cf.imod]/2) + 1
-    rate = cf.sampling[cf.imod] #in MHz
+    
+    nsamples      = cf.n_sample[cf.imod]
+    sampling_rate = cf.sampling[cf.imod] #in MHz
 
-    freq = np.linspace(0, rate/2., n)
 
-    """define gaussian low pass filter"""
-    gauss_cut = np.where(freq < lowpass_cut, 1., gaussian(freq, lowpass_cut, 0.02))
+    freq = rfftfreq(nsamples, d=1.0/sampling_rate)
+
+    
+    """ Build Gaussian low-pass filter """
+    gauss_cut = np.ones_like(freq)
+    mask = freq >= lowpass_cut
+    gauss_cut[mask] = gaussian(freq[mask], lowpass_cut, gaus_sigma)
+    
 
     if(freq_cut > 0):
         print('frequency at ', freq_cut, ' removed')
-        f_cut = 1.-gaussian(freq,freq_cut,0.001)
-        gauss_cut = gauss_cut*f_cut
+        gauss_cut *= 1.0 - gaussian(freq, freq_cut, 0.001)
 
 
-    """go to frequency domain"""
-    fdata = np.fft.rfft(dc.data_daq)
-
-    """get power spectrum (before cut)"""
-    if(save_ps==True):
-        ps = 1/cf.n_sample[cf.imod] * np.abs(fdata)
-        #ps = 10.*np.log10(np.abs(fdata)+1e-1) 
+    """ go to frequency domain"""
+    fdata = rfft(dc.data_daq, axis=1)  # axis=1 for multi-channel
 
     
+    """get power spectrum (before cut)"""
+    if(save_ps==True):
+        ps = np.abs(fdata) / cf.n_sample[cf.imod] 
+        #ps = 10.*np.log10(np.abs(fdata)+1e-1) 
+
     """Apply filter"""
     fdata *= gauss_cut[None, :]
 
+    
     """go back to time"""
-    dc.data_daq = np.fft.irfft(fdata)
-
+    dc.data_daq = irfft(fdata, n=cf.n_sample[cf.imod], axis=1)
 
     if(save_ps==True):
         """get power spectrum after cut"""
@@ -63,113 +69,116 @@ def coherent_noise():
         return regular_coherent_noise()
 
 
-def regular_coherent_noise():#groupings):
+def regular_coherent_noise():
+
     """
     1. Computes the mean along group of channels for non ROI points
     2. Subtract mean to all points
     """
     groupings = dc.reco['noise']['coherent']['groupings']
+
+    n_chan = cf.module_nchan[cf.imod]
+    n_sample = cf.n_sample[cf.imod]
+
     
     for group in groupings:
-        if( (cf.module_nchan[cf.imod] % group) > 0):
-            print(" Coherent Noise Filter in groups of ", group, " is not a possible ! ")
+        if( (n_chan % group_size) > 0):
+            print(f"[CNR] groups of {group} channels is not possible for {n_channels} channels! ")
             return
 
-        nslices = int(cf.module_nchan[cf.imod] / group)
-        
-        dc.data_daq = np.reshape(dc.data_daq, (nslices, group, cf.n_sample[cf.imod]))
-        dc.mask_daq = np.reshape(dc.mask_daq, (nslices, group, cf.n_sample[cf.imod]))
+        n_slices = n_chan // group_size
 
-        """sum data if mask is true"""
+        """ reshape data into (n_slices, group, nsamples) """
+        data_sliced = dc.data_daq.reshape((n_slices, group, n_samples))
+        mask_sliced = dc.mask_daq.reshape((n_slices, group, n_samples))
+
+
+        """ Compute the masked mean per group """
+        mask_sum = np.sum(mask_sliced, axis=1)
         with np.errstate(divide='ignore', invalid='ignore'):
-            """sum the data along the N channels (subscript l) if mask is true,
-            divide by nb of trues"""
-            mean = np.einsum('klm,klm->km', dc.data_daq, dc.mask_daq)/dc.mask_daq.sum(axis=1)
+            group_mean = np.einsum('klm,klm->km', data_sliced, mask_sliced) / mask_sum
 
-            """require at least 3 points to take into account the mean"""
-            mean[dc.mask_daq.sum(axis=1) < 3] = 0.
-        
+        """ set  mean to 0 where too few valid points """
+        group_mean[mask_sum < 3] = 0.
 
-        """Apply the correction to all data points"""
-        dc.data_daq -= mean[:,None,:]
+        """ Subtract group mean from each channel """
+        data_sliced -= group_mean[:, None, :]
 
-        """ restore original data shape """
-        dc.data_daq = np.reshape(dc.data_daq, (cf.module_nchan[cf.imod], cf.n_sample[cf.imod]))
-        dc.mask_daq = np.reshape(dc.mask_daq, (cf.module_nchan[cf.imod], cf.n_sample[cf.imod]))
+        """ Restore shape """
+        dc.data_daq = data_sliced.reshape((n_channels, n_samples))
+        dc.mask_daq = mask_sliced.reshape((n_channels, n_samples))
 
-
-def coherent_noise_per_view():#groupings, capa_weight, calibrated):
-    """
-    1. Get which daq channels is which view 
-    2. Computes the mean along this group of channels and this view for non ROI points
-    3. Subtract mean to all points
-    """
+def coherent_noise_per_view():
 
     groupings = dc.reco['noise']['coherent']['groupings']
     capa_weight = bool(dc.reco['noise']['coherent']['capa_weight'])
     calibrated  = bool(dc.reco['noise']['coherent']['calibrated'])
 
 
-
-    v_daq = np.empty((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]))
-    capa = np.ones((cf.module_nchan[cf.imod]))
-    calib = np.ones((cf.module_nchan[cf.imod]))
-
+    n_chan = cf.module_nchan[cf.imod]
+    n_sample = cf.n_sample[cf.imod]
     daqch_start = cf.module_daqch_start[cf.imod]
-    
-    for i in range(cf.module_nchan[cf.imod]):
-        
-        view = dc.chmap[i+daqch_start].view
-        if(view >= cf.n_view or view < 0):
-            view = -1
-
-        v_daq[i,:] = view
-        if(capa_weight):
-            capa[i] = dc.chmap[i+daqch_start].capa
-        if(calibrated):
-            calib[i] = dc.chmap[idaqch_start].gain
 
     
-    dc.data_daq *= calib[:,None]
-    dc.data_daq /= capa[:,None]
-         
+    """ Initialize arrays """
+    v_daq = np.empty((n_chan, n_sample), dtype=np.int32)
+    capa = np.ones(n_chan)
+    calib = np.ones(n_chan)
+
+    """ Vectorized channel mapping """
+    views = np.array([dc.chmap[i+daqch_start].view for i in range(n_chan)])
+    views = np.clip(views, -1, cf.n_view-1)
+    v_daq[:] = views[:, None]  # Broadcast to all samples
+    
+    if capa_weight:
+        capa[:] = [dc.chmap[i+daqch_start].capa for i in range(n_chan)]
+    if calibrated:
+        calib[:] = [dc.chmap[i+daqch_start].gain for i in range(n_chan)]
+
+    """ Apply calibration and capacitance weighting """
+    if calibrated or capa_weight:
+        dc.data_daq = dc.data_daq * (calib / capa)[:, None]
+
     for group in groupings:
-        if( (cf.module_nchan[cf.imod] % group) > 0):
-            print(" Coherent Noise Filter in groups of ", group, " is not a possible ! ")
+        # Validate groupings
+        if (n_chan % group) != 0:
+            print(f"[CNR] groups of {group} is not possible for {n_chan} channels!")
             return
 
-    nslices = int(cf.module_nchan[cf.imod] / group)
-        
-    dc.data_daq = np.reshape(dc.data_daq, (nslices, group, cf.n_sample[cf.imod]))
-    dc.mask_daq = np.reshape(dc.mask_daq, (nslices, group, cf.n_sample[cf.imod]))
+        """ Reshape along slices """
+        n_slices = n_chan // group
+        data_sliced  = dc.data_daq.reshape(n_slices, group, n_sample)
+        mask_sliced  = dc.mask_daq.reshape(n_slices, group, n_sample)
+        v_daq_sliced = v_daq.reshape(n_slices, group, n_sample)
 
 
-    v_daq = np.reshape(v_daq, (nslices, group, cf.n_sample[cf.imod]))
-
+        mean = np.zeros((n_slices, n_sample))
     
-    for i in range(cf.n_view):
-        v_mask = np.where(v_daq==i, dc.mask_daq, 0)
+        for i in range(cf.n_view):
+            """ Create view mask """
+            view_mask = (v_daq_sliced == i)
+            combined_mask = view_mask & mask_sliced
+        
+            """ Compute sum and count """
+            sum_data = np.sum(data_sliced * combined_mask, axis=1)
+            count = np.sum(combined_mask, axis=1)
+        
+            """ Compute mean if count >= 3 """
+            np.divide(sum_data, count, out=mean, where=count >= 3)
+            mean[count < 3] = 0
+        
+            """ Subtract mean """
+            data_sliced -= mean[:, None, :] * view_mask
+            
+        """ Restore original shape """
+        dc.data_daq = data_sliced.reshape(n_chan, n_sample)
+        dc.mask_daq = mask_sliced.reshape(n_chan, n_sample)
+    
+    """ Reverse calibration """ 
+    if calibrated or capa_weight:
+        dc.data_daq = dc.data_daq * (capa / calib)[:, None]
 
         
-        """sum data if mask is true"""
-        with np.errstate(divide='ignore', invalid='ignore'):
-            """sum the data along the N channels (subscript l) if mask is true,
-                divide by nb of trues"""
-            mean = np.einsum('klm,klm->km', dc.data_daq, v_mask)/v_mask.sum(axis=1)
-
-        """require at least 3 points to take into account the mean"""
-        mean[v_mask.sum(axis=1) < 3] = 0.
-
-        dc.data_daq -= mean[:,None,:]*np.where(v_daq==i,1,0)
-
-
-    """ restore original data shape """
-    dc.data_daq = np.reshape(dc.data_daq, (cf.module_nchan[cf.imod], cf.n_sample[cf.imod]))
-    dc.mask_daq = np.reshape(dc.mask_daq, (cf.module_nchan[cf.imod], cf.n_sample[cf.imod]))
-    dc.data_daq /= calib[:,None]
-    dc.data_daq *= capa[:,None]
-
-
 def centered_median_filter(array, size):
     """ pads the array such that the output is the centered sliding median"""
     rsize = size - size // 2 - 1
@@ -178,43 +187,50 @@ def centered_median_filter(array, size):
     return bn.move_median(array, size, min_count=1, axis=-1)[:, rsize:]
 
 
+
+
 def median_filter():
+    """
+    Removes microphonic noise by subtracting a median-filtered baseline
+    over a specified window, ignoring regions of interest (ROI).
+    """
+
     window = dc.reco['noise']['microphonic']['window']
-    
-    if(window < 0):
+
+    if not (0 < window <= cf.n_sample[cf.imod]):
         return
 
-    if(window > cf.n_sample[cf.imod]):
-        return
+    """ Mask ROI with NaN for median computation """
+    data_masked = np.where(dc.mask_daq, dc.data_daq, np.nan)    
     
-    """ apply median filter on data to remove microphonic noise """    
+    """ Apply centered median filter """
+    baseline = centered_median_filter(data_masked, window)
+    
+    """ Replace any full-NaN windows with 0 """
+    np.nan_to_num(baseline, copy=False, nan=0.0)
 
-    """ mask the data with nan where potential signal is (ROI)"""
-    med = centered_median_filter(np.where(dc.mask_daq==True, dc.data_daq, np.nan), window)
+    """ Subtract median-filtered noise """
+    dc.data_daq -= baseline
 
-    """ in median computation, if everything is masked (all nan) nan is returned, so to fixe these cases to 0 """
-    med = np.nan_to_num(med, nan=0.)
-
-    """ apply correction to data points """
-    dc.data_daq -= med
 
 
 def median_filter_pds():
-    window = 4000
+    ''' same as above : code for flattening the pds waveforms '''
     
-    if(window < 0):
+    window = dc.reco['pds']['noise']['flat_baseline_window']
+
+    if not (0 < window <= cf.n_pds_sample[cf.imod]):
         return
+
+    """ Mask ROI with NaN for median computation """
+    data_masked = np.where(dc.mask_pds, dc.data_pds, np.nan)
+
+    """ Apply centered median filter """
+    baseline = centered_median_filter(data_masked, window)
+
+    """ Replace any full-NaN windows with 0 """
+    np.nan_to_num(baseline, copy=False, nan=0.0)
+
+    """ Subtract median-filtered noise """
+    dc.data_pds -= baseline
     
-    if(window > cf.n_pds_sample):
-        return
-    
-    """ apply median filter on data to remove microphonic noise """    
-
-    """ mask the data with nan where potential signal is (ROI)"""
-    med = centered_median_filter(np.where(dc.mask_pds==True, dc.data_pds, np.nan), window)
-
-    """ in median computation, if everything is masked (all nan) nan is returned, so to fixe these cases to 0 """
-    med = np.nan_to_num(med, nan=0.)
-
-    """ apply correction to data points """
-    dc.data_pds -= med
