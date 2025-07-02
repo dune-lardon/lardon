@@ -2,6 +2,7 @@ import numpy as np
 import config as cf
 import time
 import math
+from rtree import index
 
 chmap = []
 evt_list = []
@@ -27,6 +28,7 @@ at first everything is considered background (all at True)
 """
 #mask_daq  = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
 mask_daq  = np.ones((1,1), dtype=bool)
+
 """
 alive_chan mask intends to not take into account broken channels
 True : not broken
@@ -69,6 +71,11 @@ def reset_evt():
     pds_peak_list.clear()
     pds_cluster_list.clear()
 
+pties = index.Property()
+pties.dimension = 4
+
+''' create an rtree index for hits (module, view, X, Z)'''
+rtree_hit_idx = index.Index(properties=pties)
 
     
 def reset_containers_trk():
@@ -79,6 +86,8 @@ def reset_containers_trk():
     data_daq[:,:] = 0.
     data[:,:,:] = 0.
     alive_chan[:] = True
+    #reset_rtree()
+
     
     if(data_daq.shape != (cf.module_nchan[cf.imod], cf.n_sample[cf.imod])):
 
@@ -103,7 +112,6 @@ def reset_containers_pds():
     data_pds[:,:] = 0.
     mask_pds[:,:] = True
     
-
 
     
 def set_waveforms():
@@ -191,7 +199,7 @@ class event:
         self.time_ns = t_ns
         self.charge_time_s = -1#t_s
         self.charge_time_ns = -1#t_ns        
-        self.n_hits = np.zeros((cf.n_view), dtype=int)
+        self.n_hits = np.zeros((cf.n_view, cf.n_module), dtype=int)
         self.n_tracks2D = np.zeros((cf.n_view), dtype=int)
         self.n_tracks3D = 0
         self.n_single_hits = 0
@@ -302,7 +310,8 @@ class hits:
         
     def __lt__(self,other):
         """ sort hits by decreasing Z and increasing channel """
-        return (self.Z > other.Z) or (self.Z == other.Z and self.X < other.X)
+        #return (self.view,  self.X, self.Z) < (other.view, other.X, other.Z)
+        return (self.view < other.view) or (self.view==other.view and self.Z > other.Z) or (self.view==other.view and self.Z == other.Z and self.X < other.X)
 
     def set_index(self, idx):
         self.ID = idx + n_tot_hits
@@ -395,7 +404,7 @@ class hits:
 
     
     def mini_dump(self):
-        print(f"Hit {self.ID} (free:{self.is_free}, cluster {self.cluster}) v{self.view} ch{self.channel} :: {self.glob_channel} ({self.daq_channel}/{self.module}) t: {self.start} to {self.stop} max {self.max_t} min {self.min_t} maxADC: {self.max_adc:.2f} minADC: {self.min_adc:.2f}, at ({self.X:.2f}, {self.Z:.2f}) [{self.Z_start:.2f},{self.Z_stop:.2f}] Q- {self.charge_neg:.2f} Q+ {self.charge_pos:.2f}")   
+        print(f"Hit {self.ID} (free:{self.is_free}, cluster {self.cluster}, trk {self.match_2D}/{self.match_dray}) v{self.view} ch{self.channel} :: {self.glob_channel} ({self.daq_channel}/{self.module}) t: {self.start} to {self.stop} max {self.max_t} min {self.min_t} maxADC: {self.max_adc:.2f} minADC: {self.min_adc:.2f}, at ({self.X:.2f}, {self.Z:.2f}) [{self.Z_start:.2f},{self.Z_stop:.2f}] Q- {self.charge_neg:.2f} Q+ {self.charge_pos:.2f}")   
 
 
     def dump(self):
@@ -440,9 +449,9 @@ class singleHits:
         self.n_hits = n_hits
         self.IDs = IDs
         self.charge_pos = [0.,0.,0.]
-        self.charge_extend = [0., 0, 0]
-        self.charge_extend_pos = [0., 0, 0]
-        self.charge_extend_neg = [0., 0, 0]
+        #self.charge_extend = [0., 0, 0]
+        #self.charge_extend_pos = [0., 0, 0]
+        #self.charge_extend_neg = [0., 0, 0]
         self.charge_neg = [0.,0.,0.]
 
         self.start   = [-1, -1, -1]
@@ -460,16 +469,17 @@ class singleHits:
         self.d_track_3D = d_min_3D
         self.d_track_2D = d_min_2D
 
-        self.veto = [False, False, False]
+        self.n_veto = [0,0,0]#False, False, False]
         self.timestamp = -1
         self.match_pds_cluster = -1
         self.Z_from_light = -9999
         
-    def set_veto(self, view, veto, q, p, n):
-        self.veto[view] = veto
-        self.charge_extend[view] = q
-        self.charge_extend_pos[view] = p
-        self.charge_extend_neg[view] = n
+    #def set_veto(self, view, veto, q, p, n):
+    def set_veto(self, view, nb):#veto, q, p, n):
+        self.n_veto[view] = nb
+        #self.charge_extend[view] = q
+        #self.charge_extend_pos[view] = p
+        #self.charge_extend_neg[view] = n
 
     def set_view(self, view, charge_pos, charge_neg, start, stop, max_t, zero_t, min_t):
         self.charge_pos[view] = charge_pos
@@ -503,10 +513,10 @@ class singleHits:
         print('Time zero ', self.zero_t)
         print('Time min ', self.min_t)
         print('Distance to closest track in 2D:', self.d_track_2D, ' in 3D ', self.d_track_3D)
-        print('Is vetoed ', self.veto)
-        print('Charge extended ', self.charge_extend)
-        print('Charge extended pos ', self.charge_extend_pos)
-        print('Charge extended neg ', self.charge_extend_neg)
+        print('Nb in veto ', self.n_veto)
+        #print('Charge extended ', self.charge_extend)
+        #print('Charge extended pos ', self.charge_extend_pos)
+        #print('Charge extended neg ', self.charge_extend_neg)
         print('Timestamp : ', self.timestamp, ' mus')
         print('Matched with light cluster : ', self.match_pds_cluster)
         print('Z estimated from light cluster : ', self.Z_from_light)
@@ -533,6 +543,7 @@ class trk2D:
         self.path    = [(x0,y0)]
         self.dQ      = [q0]
         self.dz      = -1
+        self.dx      = -1
         
         self.chi2_fwd    = chi2
         self.chi2_bkwd   = chi2
@@ -660,6 +671,7 @@ class trk2D:
             self.len_path +=  math.sqrt( pow(self.path[i][0]-self.path[i+1][0], 2) + pow(self.path[i][1]-self.path[i+1][1],2) )
         
         self.dz = np.fabs(self.path[-1][1]-self.path[0][1])
+        self.dx = np.fabs(self.path[-1][0]-self.path[0][0])
         
         self.module_ini = hits_list[self.hits_ID[0]-n_tot_hits].module
         self.module_end = hits_list[self.hits_ID[-1]-n_tot_hits].module
@@ -741,7 +753,7 @@ class trk2D:
         self.match_3D = -1
         self.ghost = False
         assert self.label3D == other.label3D
-        
+        other.label3D = -1
         
         if(self.path[0][1] > other.path[0][1]):
                self.ini_slope = self.ini_slope
@@ -834,7 +846,7 @@ class trk3D:
         self.len_straight = [-1]*cf.n_view
         self.len_path = [-1]*cf.n_view
         self.dz = -1
-
+        
         self.tot_charge = [-1]*cf.n_view
         self.dray_charge = [-1]*cf.n_view
 
@@ -865,8 +877,14 @@ class trk3D:
         self.n_module_crossed = 1
         
         self.is_cathode_crosser = False
+        self.cathode_crosser_ID = -1
         self.is_module_crosser  = False
+        self.is_anode_crosser = False
+        self.exit_point = [-1, -1, -1]
+        self.exit_trk_end = -1
+        self.cathode_crossing_trk_end = -1
 
+        
         """ (module, x, y, z, theta, phi) """
         self.cathode_crossing   = [(-1, -1, -1, -1, -1, -1), (-1, -1, -1, -1, -1, -1)]
         self.module_crossing   = [(-1, -1, -1, -1, -1, -1), (-1, -1, -1, -1, -1, -1)]
@@ -877,10 +895,27 @@ class trk3D:
     def set_ID(self, ID):
         self.ID_3D = ID
 
+    def reset_anode_crosser(self):
+        self.is_anode_crosser = False
+        self.exit_point = [-1, -1, -1]
+        self.exit_trk_end = -1
+
+    def set_anode_crosser(self, exit_point, idx):
+        self.is_anode_crosser = True
+        self.exit_point = exit_point
+        self.exit_trk_end = idx
+
     def set_module_crosser(self, crossing_points):
         self.n_module_crossed += 1
         self.is_module_crosser = True
         self.module_crossing = crossing_points
+
+        
+    def set_cathode_crosser(self, crossing_points, ID, idx):
+        self.is_cathode_crosser = True
+        self.cathode_crossing = crossing_points
+        self.cathode_crosser_ID = ID
+        self.cathode_crossing_trk_end = idx
         
     def set_view(self, trk, path, dq, ds, hits_id, isFake=False):
         view = trk.view
@@ -1117,8 +1152,10 @@ class trk3D:
         print(" Total charges ", self.tot_charge)
         print(" z0 ", self.z0_corr, " t0 ", self.t0_corr)
         print(" MATCHING DISTANCE SCORE : ", self.d_match)
-        print(" timestamp ", self.timestamp, ' mus')
-        print(" matched with light cluster ", self.match_pds_cluster)
+        #print(" timestamp ", self.timestamp, ' mus')
+        #print(" matched with light cluster ", self.match_pds_cluster)
+        print("Cathode?", self.is_cathode_crosser, " with ", self.cathode_crosser_ID)
+        print("Anode? ", self.is_anode_crosser, " exit ", self.exit_point)
         print('----\n')
 
 class ghost:
