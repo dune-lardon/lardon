@@ -1,161 +1,119 @@
 import math
-
 """ computations based on 
 Pierre Billoir Nucl.Instrum.Meth. A225 (1984) 352-366
 information matrix is the inverse of the covariance matrix
 """
-
 class PFilter:
     def __init__(self, erry, errs, pbeta):
         self.erry = erry
         self.errs = errs
         self.pbeta = pbeta
-        self.opt   = [0.,0.]
-        self.info  = [0., 0., 0.]
-        self.chi2  = 0.
+        self.reset()
 
     def reset(self):
-        self.opt   = [0.,0.]
-        self.info  = [0., 0., 0.]
-        self.chi2  = 0.
+        self.opt = [0.0, 0.0]
+        self.info = [0.0, 0.0, 0.0]
+        self.chi2 = 0.0
 
-    def initiate(self,y,a):
+    def initiate(self, y, a):
         self.reset()
         self.opt[0] = y
         self.opt[1] = a
-        self.info[0] = 1./pow(2*self.erry,2)
-        self.info[1] = 2. if a == 0. else 1./pow(0.5*a,2)
-        self.info[2] = 0. # off-diagonal element of the 2x2 matrix
+        self.info[0] = 1.0 / (4.0 * self.erry * self.erry)
+        self.info[1] = 2.0 if a == 0.0 else 1.0 / (0.25 * a * a)
+        self.info[2] = 0.0
 
-    def det(self,matrix):
-        return matrix[0]*matrix[1] - matrix[2]*matrix[2]
+    def det(self, m):
+        return m[0] * m[1] - m[2] * m[2]
 
-    def invert(self, matrix):
-        det = self.det(matrix)
-        inverse = [0., 0., 0.]
-        inverse[0] = matrix[1]/det
-        inverse[1] = matrix[0]/det
-        inverse[2] = -matrix[2]/det
-        return inverse
+    def invert(self, m):
+        d = self.det(m)
+        return [m[1]/d, m[0]/d, -m[2]/d] if d != 0 else [0.0, 0.0, 0.0]
 
-
-    def getY(self):
-        return self.opt[0]
-
-    def getSlope(self):
-        return self.opt[1]
+    def getY(self): return self.opt[0]
+    def getSlope(self): return self.opt[1]
 
     def getYerr(self):
-        det = self.det(self.info)
-        return math.sqrt(self.info[1]/det)
+        d = self.det(self.info)
+        return math.sqrt(self.info[1] / d) if d != 0 else float('inf')
 
     def getSlopeErr(self):
-        det = self.det(self.info)
-        return 0. if det == 0. else math.sqrt(math.fabs(self.info[0]/det))
-        
+        d = self.det(self.info)
+        return math.sqrt(abs(self.info[0] / d)) if d != 0 else float('inf')
+
     def getCorr(self):
         erry = self.getYerr()
         errs = self.getSlopeErr()
-        det = self.det(self.info)
-        return (self.info[2]/det)/(erry*errs)
-        
+        d = self.det(self.info)
+        return (self.info[2] / d) / (erry * errs) if erry and errs else 0.0
+
     def predict(self, step):
         return self.opt[0] + step * self.opt[1]
 
     def delta_y(self, ymeas, step):
-        return math.fabs(self.predict(step)-ymeas)
+        return abs(self.predict(step) - ymeas)
 
     def computeChi2(self, ymeas, step):
-        """ this actually is a fancy way to computer |ypred-ymeas| as errcov->0"""
-        res = self.predict(step)-ymeas
+        res = self.predict(step) - ymeas
         det = self.det(self.info)
-
-        if(det != 0):
-            errcov = self.info[1]/det
-        else:
-            print("det of I is 0")
-            errcov=10.
-        return res*res/(pow(self.erry,2)+errcov)
+        errcov = self.info[1] / det if det != 0 else 10.0
+        return res * res / (self.erry * self.erry + errcov)
 
     def chi2_if_update(self, ymeas, step):
-        """ what would be the chi2 if this point was added to the filter """
-        ypred = self.predict(step)
-        apred = self.opt[1]
+        ypred, apred = self.predict(step), self.opt[1]
+        cov = self.multScatt(step)
+        inv_info = self.invert(self.info)
+        info = self.invert([i + c for i, c in zip(inv_info, cov)])
 
-        cov   = self.multScatt(step)
-        info_inv = self.invert(self.info)
-        info_inv = [i+a for i, a in zip(info_inv, cov)]
-        info = self.invert(info_inv)
+        step2 = step * step
+        info0 = info[0]
+        info2 = info[2] = -info0 * step + info[2]
+        info1 = info[1] = info0 * step2 - 2 * info2 * step + info[1]
 
-        info[2] = -info[0]*step + info[2]
-        info[1] =  info[0]*pow(step,2) - 2.*info[2]*step + info[1]
-
-        M = [1./pow(self.erry, 2), 0., 0.]
-        i_m = [i+m for i,m in zip(info, M)]
-
+        m00_inv = 1.0 / (self.erry * self.erry)
+        i_m = [info0 + m00_inv, info1, info2]
         det = self.det(i_m)
 
-        ymeas_err = ymeas/(self.erry*self.erry)
+        common1 = m00_inv * ymeas + info0 * ypred + info2 * apred
+        common2 = info2 * ypred + info1 * apred
 
-        yopt = (info[1]/det)*(ymeas_err + info[0]*ypred + info[2]*apred) - (info[2]/det)*(info[2]*ypred + info[1]*apred)
-        aopt = -(info[2]/det)*(ymeas_err + info[0]*ypred + info[2]*apred) + (i_m[0])/det * (info[2]*ypred + info[1]*apred)
-        
-        ydelta = yopt - ypred
-        adelta = aopt - apred
+        yopt = (info1 * common1 - info2 * common2) / det
+        aopt = (-info2 * common1 + i_m[0] * common2) / det
 
-        """ chi2 is (opt-pred).T x I x (opt-pred) """
-        chi2meas = i_m[0]*pow(ydelta,2) + info[1]*pow(adelta,2) + 2.*info[2]*ydelta*adelta
-
+        ydelta, adelta = yopt - ypred, aopt - apred
+        chi2meas = i_m[0] * ydelta * ydelta + info1 * adelta * adelta + 2.0 * info2 * ydelta * adelta
         return chi2meas
 
-
-
-
     def update(self, ymeas, step):
-        """ update estimators currently for point n to point n+1 """
+        ypred, apred = self.predict(step), self.opt[1]
+        cov = self.multScatt(step)
+        inv_info = self.invert(self.info)
+        info = self.invert([i + c for i, c in zip(inv_info, cov)])
 
-        ypred = self.predict(step)
-        apred = self.opt[1]
+        step2 = step * step
+        info0 = info[0]
+        info2 = info[2] = -info0 * step + info[2]
+        info1 = info[1] = info0 * step2 - 2.0 * info2 * step + info[1]
 
-        """1. Scattering : I*[n] = (I[n]^-1 + A[n])^-1 """
-        """ <-> add the MS covariance mtx (A) to the information matrix """
-
-        cov   = self.multScatt(step)
-        info_inv = self.invert(self.info)
-        info_inv = [i+a for i, a in zip(info_inv, cov)]
-        self.info = self.invert(info_inv)
-        
-        
-        """2. Propagate I*[n+1] = D[n].T^-1 x I*[n] x D[n]^-1 """
-        """D[n] is the propagation matrix """
-        self.info[2] = -self.info[0]*step + self.info[2]
-        self.info[1] =  self.info[0]*pow(step,2) - 2.*self.info[2]*step + self.info[1]
-        
-        """3. Measurement I[n+1] = I*[n+1] + M[n] """
-        """ M: measurement error M(0,0)=1./(erry*erry) """
-        M = [1./pow(self.erry, 2), 0., 0.]
-        i_m = [i+m for i,m in zip(self.info, M)]
-
-        """4. Get new estimators (opt') given measurements """
-        """ solve (I+M)*(opt'-pred)=M(meas-pred)"""
+        m00_inv = 1.0 / (self.erry * self.erry)
+        i_m = [info0 + m00_inv, info1, info2]
         det = self.det(i_m)
 
-        ymeas_err = ymeas/(self.erry*self.erry)
+        common1 = m00_inv * ymeas + info0 * ypred + info2 * apred
+        common2 = info2 * ypred + info1 * apred
 
-        yopt = (self.info[1]/det)*(ymeas_err + self.info[0]*ypred + self.info[2]*apred) - (self.info[2]/det)*(self.info[2]*ypred + self.info[1]*apred)
-        aopt = -(self.info[2]/det)*(ymeas_err + self.info[0]*ypred + self.info[2]*apred) + (i_m[0])/det * (self.info[2]*ypred + self.info[1]*apred)
+        yopt = (info1 * common1 - info2 * common2) / det
+        aopt = (-info2 * common1 + i_m[0] * common2) / det
 
         self.opt[0] = yopt
         self.opt[1] = aopt
 
-        """add measurement error to the info matrix"""
-        self.info[0] += 1./(self.erry*self.erry)
-        
-        ydelta = yopt - ypred
-        adelta = aopt - apred
+        self.info[0] = info0 + m00_inv
+        self.info[1] = info1
+        self.info[2] = info2
 
-        """ chi2 is (opt-pred).T x I x (opt-pred) """
-        chi2meas = self.info[0]*pow(ydelta,2) + self.info[1]*pow(adelta,2) + 2.*self.info[2]*ydelta*adelta
+        ydelta, adelta = yopt - ypred, aopt - apred
+        chi2meas = self.info[0] * ydelta * ydelta + self.info[1] * adelta * adelta + 2.0 * self.info[2] * ydelta * adelta
         self.chi2 += chi2meas
         return chi2meas
 
@@ -165,32 +123,21 @@ class PFilter:
         by Jose Hernando 
         """
 
-        cov = [0., 0., 0.]
-        if(self.pbeta == 0. or step == 0.):
-            return cov
+        if self.pbeta == 0.0 or step == 0.0:
+            return [0.0, 0.0, 0.0]
 
-        X0 = 14. #LAr radiation length in cm
-        theta_ms_square = pow(0.0136/self.pbeta, 2) * math.fabs(step)/X0
+        X0 = 14.0  # LAr radiation length
+        theta2 = (0.0136 / self.pbeta) ** 2 * abs(step) / X0
+        angle = self.opt[1]
+        incFac = (1.0 + angle * angle) ** 2.5 if not math.isnan(angle) else 1.0
+        err = theta2 * incFac
 
-        ### this takes into account the projected incident angle
-        incFac = pow( 1. + pow(self.opt[1], 2), 2.5)
-        if(math.isnan(incFac)) : 
-            incFac = 1.
-        err = theta_ms_square * incFac
+        step_abs = abs(step)
+        return [
+            err * step * step / 3.0,
+            err,
+            err * step_abs / 2.0
+        ]
 
-
-        cov[0] = err * step * step / 3.
-        cov[1] = err
-        cov[2] = err * math.fabs(step) / 2.
-        
-        #this is the naive case with no correlations
-        """
-        cov[0] = 0
-        cov[1] = err
-        cov[2] = 0.
-        """
-        return cov
-        
     def getChi2(self):
         return self.chi2
-        
