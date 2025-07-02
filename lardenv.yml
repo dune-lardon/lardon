@@ -7,18 +7,19 @@ dependencies:
   - numpy
   - numba
   - python
-  - pandas
   - scikit-learn
   - scipy
   - uproot 
   - numexpr=2.8.4
   - pytables
+  - h5py
   - vitables
   - colorcet
   - bottleneck
   - fast-histogram
+  - pandas	
+  - psutil
   - pip
-  - psutils
   - pip:
     - rtree
     - json-with-comments

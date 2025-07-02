@@ -5,6 +5,7 @@ import channel_mapping as cmap
 import config as cf
 import data_containers as dc
 import tables as tab
+import h5py as hp
 
 def get_unix_time_wib_1(t):
     ts = t*20 # in units of nanoseconds
@@ -398,19 +399,21 @@ def get_daphne_trailer(daq):
 
 
 class wib:
-    def __init__(self, f, daq, det):
+    def __init__(self, f, daq, det, run):
 
         self.filename = f
-
+        
         try:
-            self.f_in = tab.open_file(f, 'r')
+            #self.f_in = tab.open_file(f, 'r')
+            self.f_in = hp.File(f, "r")
         except IOError:
             print('File ', f, ' does not exist...')
             exit()
         
         self.daq = daq
         self.det = det
-            
+        self.run = run
+        
         self.n_chan_per_link  = 256
         self.n_chan_per_wib   = 128
         self.n_chan_per_block = 64
@@ -474,10 +477,16 @@ class wib:
     def read_run_header(self):
         self.events_list = []
 
+        '''
         for group in self.f_in.walk_groups():
             if(group._v_depth != 1):
                 continue
             self.events_list.append(group._v_name)
+        '''
+
+        for name, group in self.f_in.items():  # Top-level groups
+            if isinstance(group, hp.Group):
+                self.events_list.append(name)
 
         self.events_list.sort()
 
@@ -522,7 +531,14 @@ class wib:
         fl = int(flow)
         name =  f'{fl:08d}'
 
-        trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='RawData/TR_Builder_0x'+name+'_TriggerRecordHeader',classname='Array').read()
+        if(self.det == "cbbot" and int(self.run) >= 37004):
+            name = f'{14:08d}'
+            print(name)
+        path = f"/{self.events_list[ievt]}/RawData/TR_Builder_0x{name}_TriggerRecordHeader"
+
+        #trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='RawData/TR_Builder_0x'+name+'_TriggerRecordHeader',classname='Array').read()
+        #trig_rec = self.f_in.get_node(path).read()
+        trig_rec = self.f_in[path][:]
 
         header_magic =  0x33334444
         header_version_1 = 0x00000003
@@ -730,8 +746,6 @@ class wib:
               
         names = ["0x"+format(ilink+cf.daq_links_offset[cf.imod], '08x') for ilink in range(cf.daq_nlinks[cf.imod])]
 
-        #print(names)
-        #print('number of links: ', self.nlinks)
         
         cf.n_sample[cf.imod] = -1
         tstart_link = []
@@ -745,9 +759,13 @@ class wib:
             name = names[ilink]
 
             try :
-                link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/RawData", name='Detector_Readout_'+name+'_WIBEth',classname='Array').read()
+                path = f"/{self.events_list[ievt]}/RawData/Detector_Readout_{name}_WIBEth"
+                #link_data = self.f_in.get_node(path).read()
 
-            except tab.NoSuchNodeError:
+                link_data = self.f_in[path][:]
+                #link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/RawData", name='Detector_Readout_'+name+'_WIBEth',classname='Array').read()
+
+            except KeyError:#tab.NoSuchNodeError:
                 #print('no link number ', ilink, 'with name RawData/Detector_Readout_'+name+'_WIBEth') 
                 continue
             

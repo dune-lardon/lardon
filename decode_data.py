@@ -55,10 +55,12 @@ class decoder:
 
             if(self.daq == "wib_2" or self.daq == "wib_2_eth"):
                 app_name = "dataflow"+self.flow+"_datawriter_"+self.writer
+                if(self.det == "cbbot" and r >= 37004):
+                    app_name = "df-s02-d"+self.flow+"_dw_"+self.writer+"_"
             else:
                 app_name = ""
             fl = glob.glob(path+"/*"+sub_name+"*"+app_name+"*hdf5")
-
+            print(path+"/*"+sub_name+"*"+app_name+"*hdf5")
         if(len(fl) != 1):
             print('None or more than one file matches ... : ', fl)
             exit()
@@ -69,7 +71,7 @@ class decoder:
         f = self.filename if self.filename else self.get_file_path()
         self.filename = f
 
-        self.daq_decoder = (wib.wib if 'wib' in self.daq else lyon.lyon if 'lyon' in self.daq else cern.cern)(f, self.daq, self.det)
+        self.daq_decoder = (wib.wib if 'wib' in self.daq else lyon.lyon if 'lyon' in self.daq else cern.cern)(f, self.daq, self.det, self.run)
 
         if('cern' in self.daq):
             self.daq_decoder.set_run(self.run)
