@@ -531,9 +531,12 @@ class wib:
         fl = int(flow)
         name =  f'{fl:08d}'
 
-        if(self.det == "cbbot" and int(self.run) >= 37004):
+        if(self.det == "cbbot" and int(self.run) >= 36972):
             name = f'{14:08d}'
             print(name)
+        elif(self.det == "pdvd" and int(self.run) >= 37000):
+            name = f'{28:08d}'
+
         path = f"/{self.events_list[ievt]}/RawData/TR_Builder_0x{name}_TriggerRecordHeader"
 
         #trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='RawData/TR_Builder_0x'+name+'_TriggerRecordHeader',classname='Array').read()
@@ -857,7 +860,7 @@ class wib:
             loc_stream = stream & 0x3
             link = (stream >> 6) &1
             crate = daq_infos['crate']
-            print('--> wib', wib, ' stream ', stream, ' loc ', loc_stream, 'link', link, 'crate', crate)
+            #print('--> wib', wib, ' stream ', stream, ' loc ', loc_stream, 'link', link, 'crate', crate)
 
                         
             #To get the WIB infos like pulser/calibration/?
