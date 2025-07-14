@@ -201,7 +201,7 @@ def plot_FFT_daqch(ps, option=None, to_be_shown=False):
                   origin = 'lower', 
                   aspect = 'auto', 
                   interpolation='none',
-                  cmap   = cmap_fft, extent=[0, cf.n_tot_channels, 0., cf.sampling/2.], norm=LogNorm(vmin=1e-1, vmax=5))
+                  cmap   = cmap_fft, extent=[0, cf.n_tot_channels, 0., cf.sampling[cf.imod]/2.], norm=LogNorm(vmin=1e-1, vmax=5))
     
 
     ax_2D.set_ylabel('Frequencies [MHz]')
@@ -213,7 +213,7 @@ def plot_FFT_daqch(ps, option=None, to_be_shown=False):
     cb.ax.xaxis.set_label_position('top')
 
 
-    freq = np.linspace(0., cf.sampling/2, int(cf.n_sample/2) + 1)
+    freq = np.linspace(0., cf.sampling[cf.imod]/2, int(cf.n_sample[cf.imod]/2) + 1)
 
     ax_proj.plot(np.mean(ps, axis=0), freq,c='k')
     ax_proj.yaxis.tick_right()
@@ -234,6 +234,7 @@ def plot_FFT_daqch(ps, option=None, to_be_shown=False):
 
 
 def plot_FFT_vch(ps, option=None, to_be_shown=False):
+    print("SHAPE OF PS ",ps.shape)
     fig = plt.figure(figsize=(12,6))
     gs = gridspec.GridSpec(nrows=2, 
                            ncols=cf.n_view,
@@ -249,10 +250,10 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
     axs_proj = [fig.add_subplot(gsgs[i][0, 1],sharey=axs_2D[i]) for i in range(3)]
 
 
-    freq = np.linspace(0., cf.sampling/2, int(cf.n_sample/2) + 1)
+    freq = np.linspace(0., cf.sampling[cf.imod]/2, int(cf.n_sample[cf.imod]/2) + 1)
 
 
-    ps_v = np.zeros((cf.n_view, max(cf.view_nchan), int(cf.n_sample/2)+1))
+    ps_v = np.zeros((cf.n_view, max(cf.view_nchan), int(cf.n_sample[cf.imod]/2)+1))
 
     for i in range(cf.n_tot_channels):
         view, chan = dc.chmap[i].view, dc.chmap[i].vchan
@@ -264,7 +265,7 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
 
     proj_max=[0.3, 0.2, 0.1]
 
-    freq = np.linspace(0, cf.sampling/2., int(cf.n_sample/2) + 1)
+    freq = np.linspace(0, cf.sampling[cf.imod]/2., int(cf.n_sample[cf.imod]/2) + 1)
 
     """define gaussian low pass filter"""
     gauss_cut = np.where(freq < 0.6, 1., gaussian(freq, 0.6, 0.02))
@@ -281,10 +282,10 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
                          aspect = 'auto', 
                          interpolation='none',
                          cmap   = cmap_fft,
-                         extent=[0, cf.view_nchan[i], 0., cf.sampling/2.], 
+                         extent=[0, cf.view_nchan[i], 0., cf.sampling[cf.imod]/2.], 
                          norm=LogNorm(vmin=5e-2, vmax=8e-1))
     
-        axs_2D[i].set_ylim(0., cf.sampling/2.)
+        axs_2D[i].set_ylim(0., cf.sampling[cf.imod]/2.)
 
         axs_2D[i].set_xlabel('View Channel')
         axs_2D[i].set_title('View '+str(i)+'/'+cf.view_name[i]+' ('+vname+')')
@@ -324,7 +325,7 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
 
     #plt.tight_layout()
 
-    save_with_details(fig, option, 'fft_vch')
+    save_with_details(fig, option, 'fft_vch_mod_'+cf.imod)
 
 
 
