@@ -59,8 +59,8 @@ class NoiseStudy(IsDescription):
 
 
 class FFT(IsDescription):
-    ps = Float32Col(shape=(cf.n_tot_channels, int(max(cf.n_sample)/2)+1))
-
+    ps_0 = Float32Col(shape=(cf.n_tot_channels/2, int(max(cf.n_sample)/2)+1))
+    ps_1 = Float32Col(shape=(cf.n_tot_channels/2, int(max(cf.n_sample)/2)+1))
 
 class Waveform(IsDescription):
     view        = UInt8Col()
@@ -510,9 +510,11 @@ def store_noisestudy(h5file):
     ped.append()
 
 def store_fft(h5file, ps):
-    print("WARNING THIS TAKES A LOT OF SPACE !!!")
+    print('STORE FFT ', len(ps))
+    #print("WARNING THIS TAKES A LOT OF SPACE !!!")
     fft = h5file.root.fft.row
-    fft['ps']   = ps
+    fft['ps_0']   = ps[0]
+    fft['ps_1']   = ps[1]
     fft.append()
 
 
