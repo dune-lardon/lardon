@@ -37,9 +37,18 @@ def plot_3d(option=None, to_be_shown=True):
     if(cf.tpc_orientation == 'Vertical'):        
         xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
         ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
-        zmin, zmax = min(cf.anode_z) - v*cf.n_sample/cf.sampling, max(cf.anode_z)
+        zmin, zmax = min(cf.anode_z) - v*max(cf.n_sample)/cf.sampling[0], max(cf.anode_z)
+        
         xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
 
+        bmin, bmax = ymin, ymax
+        cmin, cmax = zmin, zmax
+        amin, amax = xmin, xmax
+        
+        xlabel, ylabel, zlabel = 'x','y','Drift/z'
+        alabel, blabel, clabel = xlabel, ylabel, ylabel
+
+        
     elif(cf.tpc_orientation == 'Horizontal'):
 
 
@@ -71,8 +80,9 @@ def plot_3d(option=None, to_be_shown=True):
         corr_color = [color[iv] if cc else 'grey' for cc in corr]
         
         if(cf.tpc_orientation == 'Vertical'):
-            x, y, z = a, b, c
-
+            #x, y, z = a, b, c
+            a, b, c = x, y, z
+            
         elif(cf.tpc_orientation == 'Horizontal'):
             ###x, y, z = a, c, b            
             #x, y, z = b, c, a
