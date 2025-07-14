@@ -80,7 +80,7 @@ def charge_signal_proc(deb):
     """ mask the unused channels """
     dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan[:,None])
     
-
+    print('TEST : data daq is : ', dc.data_daq.shape)
     t1 =time.time()
     """ compute the raw pedestal to get a rough mask estimate """
     ped.compute_pedestal(noise_type='raw')
@@ -92,10 +92,17 @@ def charge_signal_proc(deb):
     deb.ped_1[cf.imod] = time.time()-t1
 
     #plot.event_display_per_view([-50, 50],[-10, 100], option='raw', to_be_shown=True)
+    #plot.event_display_per_view([-20, 20],[-10, 40], option='raw', to_be_shown=True)
+    #plot.event_display_per_daqch(adc_range=[-10,10],  option=None, to_be_shown=True)
+
     
     t1 = time.time()
     """ low pass FFT cut """
-    ps = noise.FFT_low_pass(False)
+    
+    _ = noise.FFT_low_pass(False)#True)
+    
+    
+    #plot.plot_FFT_daqch(ps, option=None, to_be_shown=True)
     deb.fft[cf.imod] = time.time()-t1
 
     #plot.event_display_per_view([-50, 50],[-10, 100], option='fft', to_be_shown=True)
@@ -149,10 +156,10 @@ def charge_signal_proc(deb):
     print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits[:,cf.imod])
 
     #plot.event_display_per_view([-50, 50],[-10, 100], option='cnr', to_be_shown=True)    
-    #plot.event_display_per_view_hits_found([-50, 50],[-10, 100], option='filt', to_be_shown=True)
+    #plot.event_display_per_view_hits_found([-20, 20],[-10, 50], option='filt', to_be_shown=True)
     #plot.plot_2dview_hits([cf.imod], to_be_shown=True)
             
-
+    #return ps
 
 
 def charge_reco_pdvd(deb):
@@ -254,9 +261,10 @@ def charge_reco_whole():
     
     stitch.stitch3D_across_modules([0,1])
     #stitch.stitch3D_across_modules([0,1])
-    stitch.stitch3D_across_modules([2,3])
 
-    stitch.stitch3D_across_cathode([[0,1],[2,3]])
+    if(dc.evt_list[-1].det == 'pdhd'):
+        stitch.stitch3D_across_modules([2,3])
+        stitch.stitch3D_across_cathode([[0,1],[2,3]])
 
 
     #[t.dump() for t in dc.tracks3D_list]
