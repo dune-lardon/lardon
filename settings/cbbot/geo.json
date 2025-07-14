@@ -140,7 +140,7 @@
 	"pds_channel_map":"cb_pds_crp6_v3b.txt",	
     },
 
-    "25068-37003":
+    "25068-36971":
     {
 	"e_drift":"0.451",
 	"drift_length":"22.7",
@@ -163,33 +163,168 @@
 	"pds_channel_map":"cb_pds_crp6_v3c.txt",	
     },
 
-    "37004-99999":
+    "36972-37024":
     {
 	"module_name":["CRP6a-8b"],
         "broken_channels":[],
-	"e_drift":["0.5"],
-	"drift_length":["22.7"],
+	"e_drift":["0.446"],
+	"drift_length":["21.4"],
 	"e_per_ADCtick":["7.3"],
 	"daq":"wib_2_eth",
 	"daq_nlinks":["48"],
 	"daq_links_offset":["1000"],
 	"chmap":"cb_chmap_bde_crp6.txt",
-	"n_pds_channels":10,
-	"pds_sampling":62.5,
-	"n_pds_sample":262144,
-	"pds_n_modules":6,
-	"pds_modules_type":["Cathode", "Cathode", "Cathode", "Cathode", "Membrane", "Membrane"],
-	"pds_x_centers":["-116.8", "-51.5", "116.8", "51.5", "168.0", "168.0"],
-	"pds_y_centers":["-42.05", "107.35", "42.05", "-107.35", "-32.65", "41.85"],
-	"pds_z_centers":["-11.1", "-11.1", "-11.1", "-11.1", "29.7125", "29.7125"],
-	"pds_length":65.3,
 	"channel_calib":"bde_calib_area_crp6.txt",
-	"pds_channel_map":"cb_pds_crp6_v3c.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
-
     },
 
     
+    "37029-37029":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.448"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
+
+    "37031-37031":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.451"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
+
+    
+    "37032-37032":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.453"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
+
+    "37034-37034":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.455"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
+
+    
+    "37035-37035":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.448"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
+
+    "37036-37036":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.451"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
+
+    "37039-37039":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.453"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
+
+    
+    "37040-37040":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.455"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
+
+    "37041-99999":
+    {
+	"module_name":["CRP6a-8b"],
+        "broken_channels":[],
+	"e_drift":["0.446"],
+	"drift_length":["21.4"],
+	"e_per_ADCtick":["7.3"],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6.txt",
+	"channel_calib":"bde_calib_area_crp6.txt",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+    },
 
 }
