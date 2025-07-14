@@ -48,7 +48,6 @@ def FFT_low_pass(save_ps=False):
 
     """Apply filter"""
     fdata *= gauss_cut[None, :]
-
     
     """go back to time"""
     dc.data_daq = irfft(fdata, n=cf.n_sample[cf.imod], axis=1)
