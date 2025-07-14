@@ -365,14 +365,21 @@ def tracks3D_volume_bounds(t, modules, tol):
 def track3D_module_bounds(t, tol):
     """does the 3D track stopped near the boundary of the module ?"""
 
-    if(dc.evt_list[-1].det != 'pdhd'):
-        print('In track3D_module_bounds(), Please check the geometry!')
+    #if(dc.evt_list[-1].det != 'pdhd'):
+        #print('In track3D_module_bounds(), Please check the geometry!')
 
-
-    for y_pts, mod in zip([t.ini_y, t.end_y], [t.module_ini, t.module_end]):
-        ylow, yhigh = cf.y_boundaries[mod][0], cf.y_boundaries[mod][1]
-        if(np.fabs(y_pts-ylow) < tol or np.fabs(y_pts-yhigh) < tol):
-            return True
+    if(dc.evt_list[-1].det == 'pdhd'):
+        for y_pts, mod in zip([t.ini_y, t.end_y], [t.module_ini, t.module_end]):
+            ylow, yhigh = cf.y_boundaries[mod][0], cf.y_boundaries[mod][1]
+            if(np.fabs(y_pts-ylow) < tol or np.fabs(y_pts-yhigh) < tol):
+                return True
+    elif(dc.evt_list[-1].det == 'pdvd'):
+        for x_pts, mod in zip([t.ini_x, t.end_x], [t.module_ini, t.module_end]):
+            xlow, xhigh = cf.x_boundaries[mod][0], cf.x_boundaries[mod][1]
+            if(np.fabs(x_pts-xlow) < tol or np.fabs(x_pts-xhigh) < tol):
+                return True
+    else:
+        print('In track3D_module_bounds(), Please check the geometry!')        
     return False
     
 
@@ -382,9 +389,12 @@ def tracks3D_compatibility(ta, tb, d_thr, align_thr, debug=False):
     if( (ta.module_ini == tb.module_ini) or (ta.module_end == tb.module_end)):
         return False
 
-    
-    if(ta.ini_x < tb.ini_x):
-        ta, tb = tb, ta
+    if(dc.evt_list[-1].det == 'pdhd'):
+        if(ta.ini_x < tb.ini_x):
+            ta, tb = tb, ta
+    elif(dc.evt_list[-1].det == 'pdvd'):
+        if(ta.ini_z < tb.ini_z):
+            ta, tb = tb, ta
         
     ta_bounds = np.asarray([[ta.ini_x, ta.ini_y, ta.ini_z],  [ta.end_x, ta.end_y, ta.end_z]])  
     tb_bounds = np.asarray([[tb.ini_x, tb.ini_y, tb.ini_z],  [tb.end_x, tb.end_y, tb.end_z]])  
@@ -409,10 +419,15 @@ def merge_3D(trks, is_module_crosser=False):
         return
     
     ta, tb =  trks[0], trks[1]
-    
-    if(ta.ini_x < tb.ini_x):
-        ta, tb = tb, ta
 
+    if(dc.evt_list[-1].det == 'pdhd'):
+        if(ta.ini_x < tb.ini_x):
+            ta, tb = tb, ta
+    elif(dc.evt_list[-1].det == 'pdvd'):
+        if(ta.ini_z < tb.ini_z):
+            ta, tb = tb, ta
+
+            
     ta_bounds = np.asarray([[ta.ini_x, ta.ini_y, ta.ini_z],  [ta.end_x, ta.end_y, ta.end_z]])  
     tb_bounds = np.asarray([[tb.ini_x, tb.ini_y, tb.ini_z],  [tb.end_x, tb.end_y, tb.end_z]])  
     lengths = np.asarray([[np.linalg.norm(b-a) for b in tb_bounds] for a in ta_bounds])
@@ -514,9 +529,13 @@ def stitch3D_across_modules(modules):
 
 def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, aligned_thresh):
     debug = False
-    
-    if(ta.ini_x < tb.ini_x):
-        ta, tb = tb, ta
+
+    if(dc.evt_list[-1].det == 'pdhd'):
+        if(ta.ini_x < tb.ini_x):
+            ta, tb = tb, ta
+    elif(dc.evt_list[-1].det == 'pdvd'):
+        if(ta.ini_z < tb.ini_z):
+            ta, tb = tb, ta
 
     a1 = np.asarray([ta.ini_x, ta.ini_y, ta.ini_z])
     a2 = np.asarray([ta.end_x, ta.end_y, ta.end_z])
@@ -563,9 +582,12 @@ def set_cathode_crossing_tracks(ta, tb, dz_thresh):
     xtol= dc.reco['track_3d']['timing']['dx_tol']
     ytol= dc.reco['track_3d']['timing']['dy_tol']
 
-
-    if(ta.ini_x < tb.ini_x):
-        ta, tb = tb, ta
+    if(dc.evt_list[-1].det == 'pdhd'):
+        if(ta.ini_x < tb.ini_x):
+            ta, tb = tb, ta
+    elif(dc.evt_list[-1].det == 'pdvd'):
+        if(ta.ini_z < tb.ini_z):
+            ta, tb = tb, ta
 
     ta.reset_anode_crosser()
     tb.reset_anode_crosser()
