@@ -1081,12 +1081,18 @@ class trk3D:
         self.d_match += other.d_match
         self.d_match /= 2
 
-                
-        if(self.ini_y > other.ini_y):
-            self.module_end = other.module_end
+        if(evt_list[-1].det == 'pdhd'):                
+            if(self.ini_y > other.ini_y):
+                self.module_end = other.module_end
             
-        else:
-            self.module_ini = other.module_ini
+            else:
+                self.module_ini = other.module_ini
+        elif(evt_list[-1].det == 'pdvd'):                
+            if(self.ini_x > other.ini_x):
+                self.module_end = other.module_end
+            
+            else:
+                self.module_ini = other.module_ini
 
         if(idx_merge[0] == 1):
             self.end_theta = other.end_theta
