@@ -53,7 +53,7 @@ def open_file(f):
 
 
 class lyon:
-    def __init__(self, f, daq, det):
+    def __init__(self, f, daq, det, run):
         self.filename = f
         f_type = f[f.rfind('.')+1:]
         print(' NB : file type is ', f_type)
@@ -65,7 +65,7 @@ class lyon:
         
         self.daq = daq
         self.det = det
-        
+        self.run = run
         """Lyon DAQ control keys"""
         self.evskey = 0xFF
         self.endkey = 0xF0
