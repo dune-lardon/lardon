@@ -39,7 +39,7 @@ parser.add_argument('-pds', dest='do_pds', action='store_true', help='Flag that 
 
 parser.add_argument('-trk', dest='do_charge', action='store_true', help='Flag that lardon is reconstructing the charge data')
 
-parser.add_argument('-hash', dest='hash_path', type=str, default='', help='data hashed directories')
+parser.add_argument('-hash', dest='hash_path', type=str, default='xx/xx', help='data hashed directories')
 
 args = parser.parse_args()
 
@@ -150,9 +150,9 @@ if(is_pulse):
     dc.set_waveforms()
     store.create_tables_pulsing(output)
 
-elif(detector == 'pdvd'):
-    store.create_tables_commissioning(output)
-    print('THIS IS TEMPORARY SIMPLE RECO CHANGE WHEN CATHODE IS ON')
+#elif(detector == 'pdvd'):
+#    store.create_tables_commissioning(output)
+#    print('THIS IS TEMPORARY SIMPLE RECO CHANGE WHEN CATHODE IS ON')
     
 else:
     store.create_tables(output)
@@ -258,6 +258,7 @@ for ievent in range(nevent):
         work.pds_reco()            
                        
 
+    #fft_ps = []
     """ Workflow for charge """
     if(do_charge == True):
 
@@ -283,14 +284,17 @@ for ievent in range(nevent):
                 work.charge_pulsing()
                 continue
             
+            
             work.charge_signal_proc(deb)
+            #fft_ps.append(ps)
             #dc.n_tot_hits  += np.sum(dc.evt_list[-1].n_hits[:,cf.imod])
 
-            if(detector == 'pdvd'):
-                ''' temporary workflow for PDVD data '''
-                work.charge_reco_pdvd(deb)                
-            else:
-                work.charge_reco(deb)
+            #if(detector == 'pdvd'):
+            #    ''' temporary workflow for PDVD data '''
+            #    work.charge_reco_pdvd(deb)                
+            #else:
+
+            work.charge_reco(deb)
                 
             """ debugging tools """
             curr_mem = Process().memory_info().rss
@@ -299,8 +303,8 @@ for ievent in range(nevent):
             
             #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
 
-        if(detector == 'pdhd'):
-            work.charge_reco_whole()
+        #if(detector == 'pdhd'):
+        work.charge_reco_whole()
     
         
     if(do_charge and do_pds):
@@ -315,7 +319,9 @@ for ievent in range(nevent):
         store.store_pedestals(output)
         store.store_noisestudy(output)
         store.store_hits(output)
+        #store.store_fft(output, fft_ps)
 
+        
         if(is_pulse==True):                      
             store.store_event(output)
             store.store_pedestals(output)
@@ -323,13 +329,13 @@ for ievent in range(nevent):
             #store.store_avf_wvf(output)
 
         else:        
-            if(detector == 'pdvd'):
-                store.store_hits_3d(output)
-            else:
-                store.store_tracks2D(output)
-                store.store_tracks3D(output)
-                store.store_single_hits(output)
-                store.store_ghost(output)
+            #if(detector == 'pdvd'):
+            #    store.store_hits_3d(output)
+            #else:
+            store.store_tracks2D(output)
+            store.store_tracks3D(output)
+            store.store_single_hits(output)
+            store.store_ghost(output)
         
     if(do_pds and cf.n_pds_sample > 0):
         store.store_pds_event(output)
