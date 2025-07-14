@@ -44,7 +44,7 @@ class decoder:
         if("lyon" in self.daq):
             path = f"{cf.data_path}/{run_path}/{self.run}_{self.sub}"
             fl = glob.glob(path+"_*")
-            
+            print(fl)
 
         else:
             path = cf.data_path + "/" + run_path
@@ -55,8 +55,10 @@ class decoder:
 
             if(self.daq == "wib_2" or self.daq == "wib_2_eth"):
                 app_name = "dataflow"+self.flow+"_datawriter_"+self.writer
-                if(self.det == "cbbot" and r >= 37004):
+                if(self.det == "cbbot" and r >= 36972):
                     app_name = "df-s02-d"+self.flow+"_dw_"+self.writer+"_"
+                if(self.det == "pdvd" and r >= 37000):
+                    app_name = "df-s0*-d"+self.flow+"_dw_"+self.writer+"_"
             else:
                 app_name = ""
             fl = glob.glob(path+"/*"+sub_name+"*"+app_name+"*hdf5")
