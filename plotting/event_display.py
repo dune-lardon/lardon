@@ -54,12 +54,13 @@ def draw(view, ax, adc_min, adc_max, roi, noise):
             tmin,tmax = cf.n_sample[cf.imod], 0
          
     elif(dc.evt_list[-1].det == "pdvd"):
-         if(cf.imod < 2):
-             origin='lower'
-             tmin,tmax=0,cf.n_sample[cf.imod]
-         else:
-             origin='upper'
-             tmin,tmax = cf.n_sample[cf.imod], 0
+        #if(cf.imod < 2):
+        if(cf.drift_direction[cf.imod] < 0):
+            origin='lower'
+            tmin,tmax=0,cf.n_sample[cf.imod]
+        else:
+            origin='upper'
+            tmin,tmax = cf.n_sample[cf.imod], 0
                   
     else:
         origin='lower'
