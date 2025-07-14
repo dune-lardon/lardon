@@ -879,7 +879,7 @@ def find_track_3D_rtree_new(modules, debug=False):
         
     tested = set()
     for t in tracks:
-                
+        
         t_start = t.path[0][1] + trk_ztol
         t_stop  = t.path[-1][1] - trk_ztol
 
@@ -904,6 +904,7 @@ def find_track_3D_rtree_new(modules, debug=False):
         trk_comb = list(product(*trk_overlaps))
         
         for tc in trk_comb:
+
             """ don't test a combination already tested """
             if(tc in tested):
                 continue
@@ -911,7 +912,6 @@ def find_track_3D_rtree_new(modules, debug=False):
                 tested.add(tc)
 
 
-                
             trks = [dc.tracks2D_list[i-trk_ID_shift] for i in tc]
             
             starts = [(it.path[0][1],it.hits_ID[0]) for it in trks]
@@ -920,7 +920,6 @@ def find_track_3D_rtree_new(modules, debug=False):
             stops  = [(it.path[-1][1],it.hits_ID[-1], ) for it in trks]
             stops = sorted(stops, key=itemgetter(0))
 
-            
             """ get the smallest z overlap in time from the combination """
             hit_min_start = dc.hits_list[starts[0][1]-hits_ID_shift]
             hit_max_stop = dc.hits_list[stops[-1][1]-hits_ID_shift]            
@@ -938,6 +937,7 @@ def find_track_3D_rtree_new(modules, debug=False):
             qtrk_tot=sum(qtrk)
             if(qtrk_tot == 0):
                 continue
+
             
             start_ov = [[] for x in range(cf.n_view)]
             stop_ov = [[] for x in range(cf.n_view)]
@@ -956,6 +956,9 @@ def find_track_3D_rtree_new(modules, debug=False):
                     [stop_ov[iv].append(dc.hits_list[k-hits_ID_shift]) for k in intersect]
 
 
+            #print('testing ', tc)                
+            #[t.mini_dump() for t in trks]
+            #print("dz : ", dz, " qtrk ", qtrk)
             
             for u in unwrappers:
                 unwrap = u
@@ -963,7 +966,8 @@ def find_track_3D_rtree_new(modules, debug=False):
 
                 start_d, start_xy, start_comb = h3d.compute_xy(start_ov, hit_min_start, d_thresh, u)
                 stop_d, stop_xy, stop_comb = h3d.compute_xy(stop_ov, hit_max_stop, d_thresh, u) 
-
+                #print('start ', start_d, start_xy, ' stop ', stop_d, stop_xy)
+                
                 if(start_d>=0 and stop_d>=0):
                     for tt in trks:
                         [tt.matched_tracks[i].append(t) for i,t in enumerate(tc) if i!=tt.view]
@@ -996,7 +1000,8 @@ def find_track_3D_rtree_new(modules, debug=False):
 
     count = Counter(labels)
     n_3D_tracks = sum([1 if k>1 else 0 for k in count.values()])
-                   
+    #print('N 3D tracks possible : ', n_3D_tracks)
+    
     tc = time.time()
     
     """ assign the label (potentital 3D track ID) to the 2D tracks """
@@ -1041,6 +1046,7 @@ def find_track_3D_rtree_new(modules, debug=False):
         isok = check_track_3D(t3D)
             
         if(isok == False):            
+            print('oh no 1')
             continue
             
         n_fake = t3D.check_views()
@@ -1052,6 +1058,7 @@ def find_track_3D_rtree_new(modules, debug=False):
 
         isok = finalize_3d_track(t3D)
         if(isok == False):
+            print('oh no 2')
             continue
 
         
