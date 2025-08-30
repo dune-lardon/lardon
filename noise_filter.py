@@ -177,6 +177,68 @@ def coherent_noise_per_view():
     if calibrated or capa_weight:
         dc.data_daq = dc.data_daq * (capa / calib)[:, None]
 
+
+def shield_coupling():
+    if(dc.evt_list[-1].det != 'pdvd'):
+        return
+    if(cf.imod < 2):
+        return
+    
+    capa_weight = False
+    calibrated  = False
+    
+    group = 476
+    n_chan = cf.module_nchan[cf.imod]
+    n_sample = cf.n_sample[cf.imod]
+    daqch_start = cf.module_daqch_start[cf.imod]
+
+    
+    """ Initialize arrays """
+    v_daq = np.empty((n_chan, n_sample), dtype=np.int32)
+    capa = np.ones(n_chan)
+    calib = np.ones(n_chan)
+
+    if capa_weight:
+        capa[:] = [dc.chmap[i+daqch_start].capa for i in range(n_chan)]
+    if calibrated:
+        calib[:] = [dc.chmap[i+daqch_start].gain for i in range(n_chan)]
+
+    """ Apply calibration and capacitance weighting """
+    if calibrated or capa_weight:
+        dc.data_daq = dc.data_daq * (calib / capa)[:, None]
+
+    for icru in range(2):
+        
+        """ Vectorized channel mapping """
+        views = np.array([dc.chmap[i+daqch_start].view==0 and int(dc.chmap[i+daqch_start].vchan/group)==icru for i in range(n_chan)])
+        views = np.clip(views, -1, cf.n_view-1)
+        v_daq[:] = views[:, None]  # Broadcast to all samples
+
+
+        mean = np.zeros((n_sample))
+    
+        view_mask = (v_daq == True)
+        print('view mask ', view_mask.shape)
+        combined_mask = view_mask & dc.mask_daq
+        print('combined mask ', combined_mask.shape)
+        
+        """ Compute sum and count """
+        sum_data = np.sum(dc.data_daq * combined_mask, axis=0)
+        count = np.sum(combined_mask, axis=0)
+        
+        """ Compute mean if count >= 3 """
+        print(sum_data.shape, count.shape, mean.shape)
+        
+        np.divide(sum_data, count, out=mean, where=count >= 3)
+        mean[count < 3] = 0
+        
+        """ Subtract mean """
+        dc.data_daq -= mean[None, :] * view_mask
+    
+    """ Reverse calibration """ 
+    if calibrated or capa_weight:
+        dc.data_daq = dc.data_daq * (capa / calib)[:, None]
+        
         
 def centered_median_filter(array, size):
     """ pads the array such that the output is the centered sliding median"""
