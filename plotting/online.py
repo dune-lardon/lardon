@@ -16,31 +16,26 @@ from .save_plot import *
 
 
 def plot_noise_all_crps(option=None, to_be_shown=False):
-    #if(
+
     
     fig = plt.figure(figsize=(12,4))
     gs = gridspec.GridSpec(nrows=2, 
                            ncols=2)#, wspace=0.08)
     
 
-    #ax_crps  = [fig.add_subplot(gs[i,j]) for i in range(2) for j in range(2)]
+
     ax_crps  = [fig.add_subplot(gs[1,0]), fig.add_subplot(gs[1,1]), fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1])] 
     
 
-    #print(len(raw), " and ", len(filt))
-
-    ch_start = [6144, 9216, 0, 3072]
+    ch_start = [0, 3072, 6144, 9216]
     nch = 3072
-    crp_name = cf.module_name#['CRP 2', 'CRP 3', 'CRP 5', 'CRP 4']
+    crp_name = cf.module_name
 
     for i in range(cf.n_module):
 
-        print('module ', i)
+
         ax_crps[i].set_title(crp_name[i])
         chan = np.linspace(ch_start[i], ch_start[i]+nch, nch, endpoint=False)
-        print(i, len(chan), " vs ", len(dc.evt_list[-1].noise_raw[i].ped_rms))
-        print(chan[:2])
-        print(chan[-1])
     
         ax_crps[i].scatter(chan, dc.evt_list[-1].noise_raw[i].ped_rms, s=2, c='k', label='raw')
         ax_crps[i].scatter(chan, dc.evt_list[-1].noise_filt[i].ped_rms, s=2, c='r', label='filtered')
@@ -50,8 +45,14 @@ def plot_noise_all_crps(option=None, to_be_shown=False):
         ax_crps[i].set_xlim(chan[0], chan[-1])
         ax_crps[i].set_ylim(0, 50)
     for ax in ax_crps:
-        ax.set_ylabel('Pedestal RMS [ADC]')
+        ax.set_ylabel('Ped. RMS [ADC]')
         ax.set_xlabel('Global Channel Nb')
 
     plt.tight_layout()
-    plt.show()
+
+
+    save_with_details(fig, option, 'noise_all_crps')
+
+
+    if(to_be_shown):
+        plt.show()

@@ -93,7 +93,7 @@ def charge_signal_proc(deb, is_online):
     deb.ped_1[cf.imod] = time.time()-t1
 
     if(is_online):
-        plot.event_display_per_view([-100, 100],[-50, 300], option='raw', to_be_shown=True)
+        plot.event_display_per_view([-100, 100],[-50, 300], option='raw', to_be_shown=False)
 
     
     t1 = time.time()
