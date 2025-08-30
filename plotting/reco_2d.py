@@ -217,7 +217,7 @@ def plot_2dview_2dtracks(modules, option=None, to_be_shown=False):
 
 def plot_2dview_hits_tracks(modules, draw_2D=True, draw_3D=True, option=None, to_be_shown=False):
     fig, ax_leg, axs = template_data_view(modules)
-    save="tracks2D_hits_type"
+    #save="tracks2D_hits_type"
 
     leg_handle = []
     leg_label = []
@@ -298,7 +298,7 @@ def plot_2dview_hits_tracks(modules, draw_2D=True, draw_3D=True, option=None, to
     #for line in leg.get_lines():
         #line.set_linewidth(3)
 
-    save_with_details(fig, option, save)
+    save_with_details(fig, option, "reco2D_module_"+str(modules[0]))
 
     if(to_be_shown):
         plt.show()
