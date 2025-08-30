@@ -177,6 +177,9 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
+	
     },
 
     
@@ -194,6 +197,9 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
+
     },
 
     "37031-37031":
@@ -210,6 +216,8 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
     },
 
     
@@ -227,6 +235,8 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
     },
 
     "37034-37034":
@@ -243,6 +253,8 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
     },
 
     
@@ -260,6 +272,8 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
     },
 
     "37036-37036":
@@ -276,6 +290,8 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
     },
 
     "37039-37039":
@@ -292,6 +308,8 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
     },
 
     
@@ -309,6 +327,8 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
     },
 
     "37041-99999":
@@ -325,6 +345,8 @@
 	"channel_calib":"bde_calib_area_crp6.txt",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
     },
 
 }
