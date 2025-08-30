@@ -6,6 +6,7 @@ import config as cf
 def get_data_path(paths, run, hash_path):
     for key, val in paths.items():
         for r in [run_directory_divided(run), run_directory_simple(run), run_directory_simple(hash_path)]:
+
             if(os.path.exists(val+'/'+r)==True):
                 return key
     return "none"
@@ -26,6 +27,7 @@ def run_directory_simple(run):
 
 def get_run_directory(run, hash_path):
     for r in [run_directory_divided(run), run_directory_simple(run), run_directory_simple(hash_path)]:
+
         if(os.path.exists(cf.data_path+'/'+r)==True):
             return r
     return ""
