@@ -41,7 +41,13 @@ parser.add_argument('-trk', dest='do_charge', action='store_true', help='Flag th
 
 parser.add_argument('-hash', dest='hash_path', type=str, default='xx/xx', help='data hashed directories')
 
+parser.add_argument('-online', dest='online_mode', action='store_true', help='LARDONline mode')
+
 args = parser.parse_args()
+
+if(online_mode):
+    print('running in lardonline mode!\n')
+
 
 print('Looking at ',args.detector, ' data' )
 
@@ -56,7 +62,7 @@ do_pds = args.do_pds
 do_charge = args.do_charge
 
 hash_path = args.hash_path
-#print('hash: ', hash_path)
+
 
 if(do_pds == False and do_charge == False):
     print('Nothing asked to be reconstructed, please set -trk and/or -pds when you call LARDON')
@@ -73,10 +79,11 @@ is_pulse = args.is_pulse
 if(is_pulse == True):
     do_charge = True
 
+online_mode = args.online_mode
+
 """ some bde special case """
 dataflow = args.dataflow
 datawriter = args.datawriter
-
 
 is_job = args.is_job
 
@@ -150,9 +157,6 @@ if(is_pulse):
     dc.set_waveforms()
     store.create_tables_pulsing(output)
 
-#elif(detector == 'pdvd'):
-#    store.create_tables_commissioning(output)
-#    print('THIS IS TEMPORARY SIMPLE RECO CHANGE WHEN CATHODE IS ON')
     
 else:
     store.create_tables(output)
@@ -162,8 +166,6 @@ if(do_pds):
     cmap.get_pds_mapping(detector)
 
 
-
-    
 
 
 """ set the channel mapping """
@@ -212,10 +214,6 @@ else:
 store.store_run_infos(output, int(run), str(sub), nevent, time.time())
 store.save_reco_param(output)
 
-'''
-if(do_charge):
-    store.store_chan_map(output)
-'''
 
 if(do_pds):
     store.store_pds_infos(output, int(run), str(sub), nevent, time.time())
@@ -263,10 +261,12 @@ for ievent in range(nevent):
     if(do_charge == True):
 
         for imodule in cf.module_used:
-            
+
             cf.imod = imodule
             dc.reset_containers_trk()
 
+            print('\nMODULE ', cf.imod)            
+            
             mod_time = time.time()
             t1 = time.time()
 
@@ -277,7 +277,7 @@ for ievent in range(nevent):
             if(cf.n_sample[cf.imod] <= 0):
                 print(' EVENT HAS NO CHARGE SAMPLE ...')
                 cf.n_sample[cf.imod] = 0 #will be changed at the next event
-                store.store_event(output)
+                #store.store_event(output)
 
             
             if(is_pulse==True):
@@ -285,26 +285,20 @@ for ievent in range(nevent):
                 continue
             
             
-            work.charge_signal_proc(deb)
+            work.charge_signal_proc(deb, online_mode)
             #fft_ps.append(ps)
-            #dc.n_tot_hits  += np.sum(dc.evt_list[-1].n_hits[:,cf.imod])
 
-            #if(detector == 'pdvd'):
-            #    ''' temporary workflow for PDVD data '''
-            #    work.charge_reco_pdvd(deb)                
-            #else:
-
-            work.charge_reco(deb)
+            work.charge_reco(deb, online_mode)
                 
             """ debugging tools """
             curr_mem = Process().memory_info().rss
             deb.memory_mod[cf.imod] = curr_mem
             deb.time_mod[cf.imod] = time.time()-mod_time
             
-            #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True)
 
-        #if(detector == 'pdhd'):
-        work.charge_reco_whole()
+
+
+        work.charge_reco_whole(online_mode)
     
         
     if(do_charge and do_pds):
@@ -313,9 +307,12 @@ for ievent in range(nevent):
                 
 
     t1 = time.time()
-    """ store the results """
-    if(do_charge and cf.n_sample[cf.imod] > 0):
+
+    if(do_charge):
         store.store_event(output)
+    """ store the results """
+    if(do_charge and any(x>0 for x in cf.n_sample)):#np.any(cf.n_sample > 0)):
+        #store.store_event(output)
         store.store_pedestals(output)
         store.store_noisestudy(output)
         store.store_hits(output)
@@ -336,9 +333,12 @@ for ievent in range(nevent):
             store.store_tracks3D(output)
             store.store_single_hits(output)
             store.store_ghost(output)
-        
-    if(do_pds and cf.n_pds_sample > 0):
+
+    if(do_pds):
         store.store_pds_event(output)
+        
+    if(do_pds and any(x>0 for x in cf.n_pds_sample)):
+        #store.store_pds_event(output)
         store.store_pds_pedestals(output)
         store.store_pds_peak(output)
 
