@@ -62,7 +62,7 @@ class decoder:
             else:
                 app_name = ""
             fl = glob.glob(path+"/*"+sub_name+"*"+app_name+"*hdf5")
-            print(path+"/*"+sub_name+"*"+app_name+"*hdf5")
+
         if(len(fl) != 1):
             print('None or more than one file matches ... : ', fl)
             exit()
