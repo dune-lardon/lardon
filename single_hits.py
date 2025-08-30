@@ -128,6 +128,28 @@ def check_times(h, ov):
                 new_ov.append(ov)
     return new_ov
 
+
+def check_cru(h, ov):
+    cru_limit = [472, 472, 584]
+    crus = [int(h.channel/cru_limit[h.view]) for o in ov for h in o]
+    if(len(set(crus)) > 1):
+        #print('we have cru situation!')
+        #print(set(crus))
+        
+        new_ov = [[] for x in range(cf.n_view)]
+        h_view = h.view
+        h_cru = int(h.channel/cru_limit[h.view])
+        #new_ov[h_view].append(h)
+        for iv in range(cf.n_view):
+            for ho in ov[iv]:
+                if(int(ho.channel/cru_limit[ho.view]) == h_cru):
+                    new_ov[iv].append(ho)
+        return new_ov
+    else:
+        return ov
+
+
+
 def check_nmatch(ov, max_per_view):
     nmatch = [len(x) for x in ov]
     is_good = True
@@ -201,7 +223,8 @@ def get_hit_xy(module, ha, hb):
 
         
 def single_hit_finder(modules = [cf.imod]):
-
+    debug = False
+    
     ''' reconstruction parameters '''
     
     ''' max nb of hits to make a single hit in a given view '''
@@ -245,6 +268,7 @@ def single_hit_finder(modules = [cf.imod]):
     """ make a subset of unmatched hits """
     free_hits = [x for x in dc.hits_list if x.is_free==True and x.signal == cf.view_type[x.module][x.view] and x.module in modules]
 
+    if(debug): print('nb of free hits ', len(free_hits))
     
     n_tot_clusters = 0
     
@@ -254,7 +278,10 @@ def single_hit_finder(modules = [cf.imod]):
         for m in modules:
             hits = [x for x in free_hits if x.module == m and x.view==iv]
             data = [[x.X,x.Z] for x in hits]
-
+            #print('SH: ', len(data))
+            if(len(data) == 0):
+                continue
+            
             X = np.asarray(data)
             db = DBSCAN(eps=eps,min_samples=min_samp).fit(X)
             labels = db.labels_
@@ -274,7 +301,8 @@ def single_hit_finder(modules = [cf.imod]):
 
         n_tot_clusters += n_clusters
 
-        
+    if(debug): print('nb of clusters : ', n_tot_clusters)
+    
     ''' for each free hits, search in the other view if free hits are compatible in time '''
     for h in free_hits:
         if(h.is_free == False or h.cluster_SH < 0):
@@ -293,8 +321,20 @@ def single_hit_finder(modules = [cf.imod]):
             else:
                  intersect = list(rtree_idx.intersection((mod, iview, start, -9999, mod, iview, stop, 9999)))
                  [overlaps[iview].append(dc.hits_list[k-ID_shift]) for k in intersect if dc.hits_list[k-ID_shift].is_free and dc.hits_list[k-ID_shift].cluster_SH >=0]
+
+
+
+
         overlaps = check_times(h, overlaps)
-                 
+        overlaps = check_cru(h, overlaps)
+        if(check_nmatch(overlaps, max_per_view)==False):
+            continue
+
+        if(debug):
+            print('\n------------')
+            #h.mini_dump()
+            [x.mini_dump() for ov in overlaps  for x in ov]
+            print('overlaps: ', [len(ov) for ov in overlaps])
         ''' from the time-compatible set of hits, try to make a 3D point '''
         best_comb = None
         best_xy = None
@@ -306,6 +346,7 @@ def single_hit_finder(modules = [cf.imod]):
             unwrap = u
             d, xy, comb = h3d.compute_xy(overlaps, h, outlier_dmax, u)
 
+            if(debug): print(u, ':', d, xy, comb)
             
             if(d >= 0 and d < outlier_dmax):
                 ok = True
@@ -317,7 +358,10 @@ def single_hit_finder(modules = [cf.imod]):
 
         if(ok == False):
             continue
-
+        if(debug):
+            h.mini_dump()
+            print('good comb at ', best_xy, 'dist ', best_d)
+        
         ''' expand the good combination with all clustered hits of the best combo '''        
         overlaps = [[] for x in range(cf.n_view)]
         for c,iview in zip(best_comb,range(cf.n_view)):
@@ -325,6 +369,7 @@ def single_hit_finder(modules = [cf.imod]):
             [overlaps[iview].append(dc.hits_list[k-ID_shift]) for k in intersect if dc.hits_list[k-ID_shift].is_free]
 
         #overlaps = check_times(h, overlaps)
+        overlaps = check_cru(h, overlaps)
         
         """ check that there is 1 or 2 overlaps in the other views """
         if(check_nmatch(overlaps, max_per_view)==False):
