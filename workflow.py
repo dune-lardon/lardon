@@ -73,14 +73,15 @@ def charge_pulsing():
     pulse.find_pulses()
 
 
-def charge_signal_proc(deb):
+def charge_signal_proc(deb, is_online):
     if(cf.n_sample[cf.imod] <= 0):
+        ped.set_dummy_pedestals()
         return
     
     """ mask the unused channels """
     dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan[:,None])
     
-    print('TEST : data daq is : ', dc.data_daq.shape)
+
     t1 =time.time()
     """ compute the raw pedestal to get a rough mask estimate """
     ped.compute_pedestal(noise_type='raw')
@@ -91,21 +92,15 @@ def charge_signal_proc(deb):
         ped.refine_mask(n_pass=1)
     deb.ped_1[cf.imod] = time.time()-t1
 
-    #plot.event_display_per_view([-50, 50],[-10, 100], option='raw', to_be_shown=True)
-    #plot.event_display_per_view([-20, 20],[-10, 40], option='raw', to_be_shown=True)
-    #plot.event_display_per_daqch(adc_range=[-10,10],  option=None, to_be_shown=True)
+    if(is_online):
+        plot.event_display_per_view([-100, 100],[-50, 300], option='raw', to_be_shown=True)
 
     
     t1 = time.time()
-    """ low pass FFT cut """
-    
-    _ = noise.FFT_low_pass(False)#True)
-    
-    
-    #plot.plot_FFT_daqch(ps, option=None, to_be_shown=True)
+    """ low pass FFT cut """    
+    _ = noise.FFT_low_pass(False)    
     deb.fft[cf.imod] = time.time()-t1
 
-    #plot.event_display_per_view([-50, 50],[-10, 100], option='fft', to_be_shown=True)
     
     if(dc.data_daq.shape[-1] != cf.n_sample[cf.imod]):
         """ 
@@ -129,18 +124,20 @@ def charge_signal_proc(deb):
     """ special microphonic noise study """
     ped.study_noise()
 
-
     t1 = time.time()
     """ CNR """
+    
+    '''
+    noise.shield_coupling()
+    plot.event_display_per_view([-200, 200],[-100, 300], option='shield', to_be_shown=True)
+    '''
     noise.coherent_noise()
     deb.cnr[cf.imod] = time.time()-t1
 
-    #plot.event_display_per_view([-50, 50],[-10, 100], option='cnr', to_be_shown=True)
     
     """ microphonic noise removal """
     noise.median_filter()
             
-
     t1 = time.time()
     """ finalize pedestal RMS and ROI """
     ped.compute_pedestal(noise_type='filt')
@@ -155,8 +152,7 @@ def charge_signal_proc(deb):
     deb.hit_f[cf.imod] = time.time()-t1
     print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits[:,cf.imod])
 
-    #plot.event_display_per_view([-50, 50],[-10, 100], option='cnr', to_be_shown=True)    
-    #plot.event_display_per_view_hits_found([-20, 20],[-10, 50], option='filt', to_be_shown=True)
+    #plot.event_display_per_view_hits_found([-20, 20],[-10, 50], option='filt', to_be_shown=False)
     #plot.plot_2dview_hits([cf.imod], to_be_shown=True)
             
     #return ps
@@ -169,11 +165,10 @@ def charge_reco_pdvd(deb):
     h3d.build_3D_hits_with_cluster()
             
     
-def charge_reco(deb):
+def charge_reco(deb, is_online):
     if(cf.n_sample[cf.imod] <= 0):
         return
     
-    print('\nMODULE ', cf.imod)
 
     """ build hits R-tree used in track2D and single hit searches """
     clu.hits_rtree([cf.imod])
@@ -186,26 +181,9 @@ def charge_reco(deb):
 
     trk2d.find_tracks_hough([cf.imod])
     deb.trk2D_1[cf.imod] = time.time()-t1
-    print('track2d hough took ', time.time()-tt)
-    print("---- Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
     
-    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True, option='new_method_apa'+str(cf.imod))
+    #print("---- Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
     
-    """ first pass is better at finding horizontal tracks """
-    told = time.time()
-    #t1 = time.time()
-    #trk2d.find_tracks_rtree(direction="horizontal")
-    #deb.trk2D_1[cf.imod] = time.time()-t1
-    #print("---- HOR Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
-
-
-    """ second pass is better at finding vertical tracks """
-    #t1 = time.time()
-    #trk2d.find_tracks_rtree(direction="vertical")
-    #deb.trk2D_2[cf.imod] = time.time()-t1
-    #print("---- VER Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
-    #print('OLD track2D took ', time.time()-told)
-
     
     """ stitch together pieces of 2D tracks """
     t1 = time.time()
@@ -213,13 +191,10 @@ def charge_reco(deb):
     stitch.stitch2D_in_module([cf.imod])
     
     deb.stitch2D[cf.imod] = time.time()-t1            
-    print("---- STICH Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
 
-    
+    print("---- Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
 
-    
-    #plot.plot_2dview_2dtracks([cf.imod-1, cf.imod], to_be_shown=True, option='new_method_apa'+str(cf.imod))
-    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True, option='new_method_apa'+str(cf.imod))
+    #plot.plot_2dview_2dtracks([cf.imod], to_be_shown=True, option='mod_'+str(cf.imod))
     
     """ tag potential ghosts """
     ghost.ghost_finder()
@@ -233,14 +208,10 @@ def charge_reco(deb):
     deb.trk3D[cf.imod] = time.time()-t1
 
      
-    #print("---- 3D BUILD Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
-    #print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
     """ build 3D tracks if a view is missing """
-
     trk3d.find_3D_tracks_with_missing_view([cf.imod])
+    
     print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
-
-
     
         
     """ reconstruct the ghosts """
@@ -253,23 +224,25 @@ def charge_reco(deb):
     deb.single[cf.imod] = time.time()-t1
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
 
-    #plot.plot_2dview_hits_3dtracks([cf.imod], to_be_shown=True)
-    
+    #plot.plot_2dview_hits_3dtracks([cf.imod], to_be_shown=False)    
     #plot.event_display_per_view_hits_found([-50, 50],[-10, 100], option='filt_new', to_be_shown=True)
 
-def charge_reco_whole():
+def charge_reco_whole(is_online):
     
     stitch.stitch3D_across_modules([0,1])
-    #stitch.stitch3D_across_modules([0,1])
+    stitch.stitch3D_across_modules([2,3])
 
-    if(dc.evt_list[-1].det == 'pdhd'):
-        stitch.stitch3D_across_modules([2,3])
+
+    if(dc.evt_list[-1].det == 'pdhd'):        
         stitch.stitch3D_across_cathode([[0,1],[2,3]])
-
+    else:
+        stitch.stitch3D_across_cathode([[2,3], [0,1]])
 
     #[t.dump() for t in dc.tracks3D_list]
-    #plot.plot_3d(to_be_shown=True)#option='new_method')
 
+    if(is_online):
+        plot.plot_3d(to_be_shown=False)
+        plot.plot_noise_all_crps(to_be_shown=False)
     
     
 def match_charge_and_pds():
