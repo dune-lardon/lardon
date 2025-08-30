@@ -116,6 +116,8 @@ def plot_wvf_current_daqch(daqch_list, adc_min=-1, adc_max=-1, option=None, to_b
 
 def plot_track_wvf_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
     chmap.arange_in_view_channels()
+    #print(vch_list)
+
     
     nview = len(vch_list)
     fig = plt.figure(figsize=(12, 3*nview))
