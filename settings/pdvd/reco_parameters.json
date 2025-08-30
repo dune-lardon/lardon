@@ -8,10 +8,10 @@
       "mask":{
 	  "coll":{
 	      "min_dt":10,
-	      "low_thr":[2.0,2.0],
-	      "high_thr":[5.0,3.0],
+	      "low_thr":[1.8, 1.8],
+	      "high_thr":[2.2, 2.5],
 	      "min_rise":3,
-	      "min_fall":8,
+	      "min_fall":5,
 	      "pad_bef":10,
 	      "pad_aft":15
 	  },
@@ -21,19 +21,19 @@
 	      "pad_bef":10,
 	      "pad_aft":15,
 	      "pos":{
-		  "min_dt":8,
+		  "min_dt":6,
 		  "low_thr":[1.8,2.0],
-		  "high_thr":[2.5,3.0],
-		  "min_rise":3,
+		  "high_thr":[2.2,2.5],
+		  "min_rise":2,
 		  "min_fall":1
 	      },
 	      
 	      "neg":{
-		  "min_dt":8,
-		  "low_thr":[-1.8,-1.8],
-		  "high_thr":[-2.5,-2.5],
+		  "min_dt":6,
+		  "low_thr":[-1.8,-2.0],
+		  "high_thr":[-2.2,-2.5],
 		  "min_rise":1,
-		  "min_fall":3
+		  "min_fall":2
 	      }
 	  }
       },
@@ -58,10 +58,10 @@
       },
       
       "hit_finder":{
-	  "dt_min":8,
+	  "dt_min":5,
 	  "min_thr":0.5,
           "coll":{
-              "amp_sig": [2.0,5.0],
+              "amp_sig": [2.0,3.0],
           },
           "ind":{
               "amp_sig": 1.6,
@@ -74,7 +74,7 @@
       },
 
       "track_2d":{
-	  "min_nb_hits": 5,
+	  "min_nb_hits": 10,
 	  "rcut": 6.0,
 	  "chi2cut": 8.0,
 	  "y_error": 0.5,
@@ -114,8 +114,8 @@
 	  "trk_min_dz":15.0,
 	  "trk_min_dx":8.0,
 	  "timing":{
-	      "dx_tol": [[25.0,25.0], [25.0, 25.0], [25.0,25.0], [25.0, 25.0]],
-	      "dy_tol": [[25.0,4.0], [4.0, 25.0], [25.0,4.0], [4.0, 25.0]],
+	      "dx_tol": [[5.0,25.0], [25.0, 5.0], [25.0,5.0], [5.0, 25.0]],//[[25.0,5.0], [5.0, 25.0], [25.0,25.0], [25.0, 25.0]],
+	      "dy_tol": [[25.0,25.0], [25.0, 25.0], [25.0,25.0], [25.0, 25.0]],
 	      "dz_tol": 2.0,
 	  },
 
@@ -136,11 +136,11 @@
 	      "boundary_tol":5.0,
 	  },
 	  "cathode":{
-	      "dx_thresh":15.0,
-	      "dy_thresh":15.0,
-	      "dz_thresh":15.0,
+	      "dx_thresh":20.0,
+	      "dy_thresh":20.0,
+	      "dz_thresh":20.0,
 	      "align_thresh":0.96,
-	      "boundary_tol":5.0,
+	      "boundary_tol":10.0,
 	  },
       },
 
