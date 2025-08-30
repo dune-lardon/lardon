@@ -10,7 +10,20 @@ import bottleneck as bn
 import time
 
 
+def set_dummy_pedestals():
+    """ when the data has no sample """
+    shape = dc.data_daq.shape
 
+    mean  = np.zeros(shape[:-1])
+    std   = np.zeros(shape[:-1])
+    mean -= 1
+    std  -= 1
+    
+
+    
+    ped = dc.noise( mean, std )
+    dc.evt_list[-1].set_noise_raw(ped)
+    dc.evt_list[-1].set_noise_filt(ped)
 
 @nb.jit(nopython = True)
 def compute_pedestal_nb(data, mask, is_raw):
