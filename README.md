@@ -2,7 +2,7 @@
 ![Logo](figs/lardon_logo_text.png)
 
 
-## Librairies needed to run lardon
+# Librairies needed to run lardon
 You need miniconda installed :
 
 https://docs.conda.io/en/latest/miniconda.html#linux-installers
@@ -13,23 +13,27 @@ and then get the librairies as stated in **lardenv.yml** :
 
  :warning: It'll take about 2-3 GB of space!
 
+(the library `pylandau` can somewhat no longer be installed recently ...)
+
 then : `conda activate lardenv`
  
-## Before running lardon
-Check and modify **config.py** and files in `settings/` :
+# Before running lardon
+Check and modify `config.py` :
 * *store_path* : your directory where the output file will be stored
 * *plot_path*  : your directory where control plots will be stored
-* Update the detector & runs configuration files in `settings/` if needed [with caution!]
-* Change the reconstruction parameters in `settings/the_detector/reco_parameters.json` if needed
+Check and modify files in `settings/your_detector/` :
+* Update the runs configuration files in `geo.json` if needed [**with caution!**]
+* Change the reconstruction parameters in `reco_parameters.json` if needed
+* Update the raw files location in `path.json` if needed
 
-## To run lardon on data
+# To run lardon on data
 To launch lardon, type `python lardon.py` with the following arguments:<br/>
 **Mandatory**:<br/>
-* `-det <cb1top/cb1bot/cbtop/cbbot/dp/50l>` which detector<br/>
+* `-det <cb1top/cb1bot/cbtop/cbbot/dp/50l/pdhd/pdvd>` which detector<br/>
 * `-run <run nb>` which run number
 * `-sub <subfile name>` which subfile (*e.g.* 1_a, 0)<br/>
 * `-flow <flow nb> -writer <writer nb>` if used <br/>
-* `hash <ab/cd>` the hashed sub-directory where the data is (use rucio to find out) <br/>
+* `-hash <ab/cd>` the hashed sub-directory where the data is (use rucio to find out) <br/>
 
 **Depending on the requested reconstruction**:<br/>
 * `-trk` if you want the **charge/TPC** reconstruction<br/>
@@ -61,24 +65,24 @@ the output h5file will be **$store_path/pdvd_39246_00_full_example.h5**
 
 `python lardon.py -det cbbot -run 37040 -sub 23 -hash 5a/a2  -n 10 -trk -out few_events`
 
-When `flow_nb` and `writer_nb` are both 0, you don't need to provide it.
+NB: When `flow_nb` and `writer_nb` are both 0, you don't need to provide it.
 The output h5file will be **$store_path/cbbot_37040_23_few_events.h5**
 
 
-## LARDON Conventions
+# LARDON Conventions
 * In lardon, electrons drift along the third / `z` axis.
 * All units are in cm.
-* For **ProtoDUNE-II*, the origin of the (x,y,z) system matches LarSoft convention. Control plots labels the axes as larsoft for simplicity.
+* For **ProtoDUNE-II**, the origin of the (x,y,z) system matches LarSoft convention. Control plots labels the axes as larsoft for simplicity.
 * For other detectors (coldbox, 50L) the origin is at the center of the detector.
 
-# ProtoDUNE-II
+## ProtoDUNE-II
 ![pdconvention](figs/ProtoDUNEs.png)
 
-# VD-Coldbox
+## VD-Coldbox
 ![cbconvention](figs/coldbox_2.png)
 
 
-## Control Plots
+# Control Plots
 :warning: The data is structured in `daq_channel` ordering, which can have a mix of views<br/>
 
 By default, no control plots is produced, but you can call the plotting functions in **lardon.py** anywhere in the reconstruction loop.
