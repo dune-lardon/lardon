@@ -69,6 +69,9 @@ def refilter_and_find_drays(idtrk, debug=False):
 
     """ build graph from hits """
     coords = np.array([(h.X, h.Z) for h in hits])
+    
+    if(len(coords) <= n_NN):
+        return
     dist_matrix = cdist(coords, coords, 'euclidean')
 
     """ only keep the two closest points  of each hit in the graph """
