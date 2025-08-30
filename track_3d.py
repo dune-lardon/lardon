@@ -253,8 +253,9 @@ def complete_trajectories(tracks):
         dQ, ds, t3d_hits_id = [], [], []
         length              = 0.
 
-        """debug"""
+
         xp, yp, zp, pp= 0,0,0,0
+        dr_p = cf.view_pitch[v_track]
         hits_ID_shift = dc.hits_list[0].ID
 
         
@@ -348,7 +349,11 @@ def complete_trajectories(tracks):
                 
             
             dr = cf.view_pitch[v_track]/cosgamma if cosgamma != 0 else np.sqrt(pow(x-xp,2)+pow(y-yp,2)+pow(z-zp,2))
+            if(dr < cf.view_pitch[v_track]):
+                dr = dr_p
+                
             xp, yp, zp = x, y, z
+            dr_p = dr
             trajectory.append( (x,y,z) )
             dQ.append(track.dQ[p])
             ds.append(dr)
@@ -359,9 +364,6 @@ def complete_trajectories(tracks):
     return the_track
 
 def compute_exit_point(trk, idx_anode, zcorr):
-    if(dc.evt_list[-1].det != 'pdhd'):
-        print('Exit point computation to be checked for ', dc.evt_list[-1].det,' geometry')
-        return False, []
 
     box_min = [min([cf.x_boundaries[i][0] for i in range(cf.n_module)]),min([cf.y_boundaries[i][0] for i in range(cf.n_module)]), min(cf.anode_z)]
     box_max = [max([cf.x_boundaries[i][1] for i in range(cf.n_module)]),max([cf.y_boundaries[i][1] for i in range(cf.n_module)]), max(cf.anode_z)]
@@ -378,11 +380,37 @@ def compute_exit_point(trk, idx_anode, zcorr):
         sign = -1.*cf.drift_direction[trk.module_end]*np.sign(phi)
 
 
+    if(dc.evt_list[-1].det == 'pdhd'):
+        dx = sign*np.cos(np.radians(theta))
+        dy = sign*np.sin(np.radians(theta))*np.cos(np.radians(phi))
+        dz = sign*np.sin(np.radians(theta))*np.sin(np.radians(phi))
+
+
+
+    elif(dc.evt_list[-1].det == 'pdvd'):
+        sign = cf.drift_direction[trk.module_ini] if idx_anode==0 else cf.drift_direction[trk.module_end]
+
+        '''
+        print('\n = = = = = ')
+        trk.dump()
+
+        print('test sign: ', cf.drift_direction[trk.module_end], 'and ', np.sign(phi), ' -->', sign)
+        print('box min', box_min)
+        print('box max', box_max)
+        print('zcorr :: ', zcorr)
+        print('idx anode: ', idx_anode)
+        '''
         
-    dx = sign*np.cos(np.radians(theta))
-    dy = sign*np.sin(np.radians(theta))*np.cos(np.radians(phi))
-    dz = sign*np.sin(np.radians(theta))*np.sin(np.radians(phi))
-    
+        dz = sign*np.cos(np.radians(theta))
+        dx = sign*np.sin(np.radians(theta))*np.cos(np.radians(phi))
+        dy = sign*np.sin(np.radians(theta))*np.sin(np.radians(phi))
+
+        #print('--> ', dx, dy, dz)
+
+    else:        
+        print('Exit point computation to be checked for ', dc.evt_list[-1].det,' geometry')
+        return False, []
+
     direction = np.array([dx, dy, dz])
     origin = np.array(point)
 
@@ -401,18 +429,22 @@ def compute_exit_point(trk, idx_anode, zcorr):
     # We're inside the box, so t_enter < 0 and we want the smallest positive t_exit
     t_exit = np.min(t2)
 
-    """
-    print('testing mins')
+    '''
+    print('\ntesting mins')
     for t in tmin:
         print(t, ' test out ', origin + t * direction)
     print('testing maxs')
     for t in tmax:
         print(t, ' test out ', origin + t * direction)
-    """
+    print('---> t exit : ', t_exit)
+    '''
+    
     if t_exit <= 0:
         return False, []  # Line doesn't exit in the direction given
 
     exit_point = origin + t_exit * direction
+
+    #print('====>>>>> exit point ', exit_point)
     return True, exit_point    
     
 def correct_timing(trk, xtol, ytol, ztol):
@@ -483,7 +515,7 @@ def correct_timing(trk, xtol, ytol, ztol):
             if(zdir == cf.drift_direction[trk_modules[idx_o]]):
                 zref = z_anodes[idx_o]
                 is_late = True
-                if(debug): print('wall to anode ', zdir)
+                if(debug): print('wall to anode ', zdir, idx, idx_o)
                 ok, exit_point = compute_exit_point(trk, idx_o, zref-trk_z_bounds[idx_o])
                 if(debug) : print('EXIT POINT IS ', exit_point)
                 if(ok):
@@ -794,7 +826,10 @@ def find_3D_tracks_with_missing_view(modules):
         t3D.ID_3D = trk_ID
 
         correct_timing(t3D, dx_tol, dy_tol, dz_tol)
-        
+        '''
+        t3D.dump()
+        print('=*=*=*')
+        '''
         dc.tracks3D_list.append(t3D)
         dc.evt_list[-1].n_tracks3D += 1
 
