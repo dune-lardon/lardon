@@ -325,7 +325,7 @@ def get_pdvd_mapping():
 
     
     strip = get_strip_length()
-    calib  = get_calibration()
+    calib  = get_calibration(idx=1)
     
     n_dummy = 0
     with open(cf.channel_map, 'r') as f:
