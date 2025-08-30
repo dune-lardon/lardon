@@ -129,8 +129,9 @@ def configure(detector, run, do_pds, hash_path):
             cf.broken_channels = data["broken_channels"]
         except KeyError:
             print("No broken channels !")
-        try : 
-            cf.channel_calib = cf.lardon_path+"/settings/calib/"+data['channel_calib']
+        try :            
+            if(len(data['channel_calib'])>0):
+                cf.channel_calib = cf.lardon_path+"/settings/calib/"+data['channel_calib']
         except KeyError:
             print('No Channel Calibration available - Constant value will be used')
 
@@ -139,6 +140,9 @@ def configure(detector, run, do_pds, hash_path):
         cf.daq = data["daq"]
         cf.daq_nlinks = [int(x) for x in data['daq_nlinks']]
         cf.daq_links_offset = [int(x) for x in data['daq_links_offset']]
+
+        cf.daq_TRBuilder_number = data['daq_TRBuilder_number']
+        cf.daq_link_name = [x for x in data['daq_link_name']]
         
         if(do_pds == True):
             try :
