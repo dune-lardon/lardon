@@ -21,11 +21,13 @@ then : `conda activate lardenv`
 Check and modify `config.py` :
 * *store_path* : your directory where the output file will be stored
 * *plot_path*  : your directory where control plots will be stored
-Check and modify files in `settings/your_detector/` :
+
+
+Check and modify files in `settings/the_detector/` :
 * Update the runs configuration files in `geo.json` if needed [**with caution!**]
 * Change the reconstruction parameters in `reco_parameters.json` if needed
-* Update the raw files location in `path.json` if needed
-
+* Update the raw files location in `path.json` if needed. LARDON search the requested `*hdf5` file in the `/directory` and in the subdirectories `/directory/ha/sh/`, `/directory/runnumber/` and in `/directory/ru/nu/mb/er`.
+  	 
 # To run lardon on data
 To launch lardon, type `python lardon.py` with the following arguments:<br/>
 **Mandatory**:<br/>
@@ -72,7 +74,7 @@ The output h5file will be **$store_path/cbbot_37040_23_few_events.h5**
 # LARDON Conventions
 * In lardon, electrons drift along the third / `z` axis.
 * All units are in cm.
-* For **ProtoDUNE-II**, the origin of the (x,y,z) system matches LarSoft convention. Control plots labels the axes as larsoft for simplicity.
+* For **ProtoDUNE-II**, the origin of the (x,y,z) system matches LarSoft convention. 
 * For other detectors (coldbox, 50L) the origin is at the center of the detector.
 
 ## ProtoDUNE-II
