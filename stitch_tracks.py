@@ -420,6 +420,7 @@ def merge_3D(trks, is_module_crosser=False):
     
     ta, tb =  trks[0], trks[1]
 
+    
     if(dc.evt_list[-1].det == 'pdhd'):
         if(ta.ini_x < tb.ini_x):
             ta, tb = tb, ta
@@ -427,6 +428,14 @@ def merge_3D(trks, is_module_crosser=False):
         if(ta.ini_z < tb.ini_z):
             ta, tb = tb, ta
 
+
+
+    """
+    print('MERGING ')
+    ta.dump()
+    print('WITH')
+    tb.dump()
+    """
             
     ta_bounds = np.asarray([[ta.ini_x, ta.ini_y, ta.ini_z],  [ta.end_x, ta.end_y, ta.end_z]])  
     tb_bounds = np.asarray([[tb.ini_x, tb.ini_y, tb.ini_z],  [tb.end_x, tb.end_y, tb.end_z]])  
@@ -456,6 +465,7 @@ def merge_3D(trks, is_module_crosser=False):
 
     
     ta.merge(tb, idx)
+
     if(is_module_crosser):
         ta.set_module_crosser(crossing_point)
     
@@ -468,13 +478,15 @@ def merge_3D(trks, is_module_crosser=False):
     ta.dump()
     print(' and now ')
     tb.dump()
-    """
     
+    print('----->>>>> MERGED ')
+    ta.dump()
+    """
     return ta
 
 def stitch3D_across_modules(modules):
     """ stitch together 3D tracks in adjacent modules """
-
+    debug=False
     dist_thr = dc.reco['stitching_3d']['module']['dist_thr']
     align_thr = dc.reco['stitching_3d']['module']['align_thr']
     boundary_tol = dc.reco['stitching_3d']['module']['boundary_tol']
@@ -493,10 +505,12 @@ def stitch3D_across_modules(modules):
     
     n=0
     for ti in trks_bound[:-1]:
+        '''
         if(ti.ID_3D == 1 or ti.ID_3D == 4):
             debug = True
         else:
             debug = False
+        '''
         stitchable = [tracks3D_compatibility(ti, tt, dist_thr, align_thr, debug) for tt in trks_bound[n+1:]]
 
 
@@ -523,26 +537,50 @@ def stitch3D_across_modules(modules):
 
     if(n_merge>0):
         reset_track3D_list()
-    print('merged ', n_merge, ' 3D tracks together !!! ')
+    print(modules, 'merged ', n_merge, ' 3D tracks together !!! ')
 
 
 
 def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, aligned_thresh):
     debug = False
 
+    is_horizontal = False
     if(dc.evt_list[-1].det == 'pdhd'):
+        is_horizontal = True
         if(ta.ini_x < tb.ini_x):
             ta, tb = tb, ta
     elif(dc.evt_list[-1].det == 'pdvd'):
-        if(ta.ini_z < tb.ini_z):
+        if(ta.module_ini < tb.module_ini):
             ta, tb = tb, ta
 
+    
+    
+            
     a1 = np.asarray([ta.ini_x, ta.ini_y, ta.ini_z])
     a2 = np.asarray([ta.end_x, ta.end_y, ta.end_z])
     
     b1 = np.asarray([tb.ini_x, tb.ini_y, tb.ini_z])
     b2 = np.asarray([tb.end_x, tb.end_y, tb.end_z])
-    
+
+
+
+    if(debug):
+        dz = np.fabs(a2[2]+b1[2])
+        dtrack = np.fabs(a2-b1)[:2]
+        if(dz < 30 or np.all([d<t for d,t in zip(dtrack, [dx_thresh, dy_thresh])])):
+
+            ta.dump()
+            print('with')
+            tb.dump()
+            print('DZ = ', dz)
+            print('---> delta endpoints ', dtrack)
+            is_aligned_debug(a1, a2, b1, b2, aligned_thresh) 
+
+            dtrack_ratio = np.fabs(dtrack[0]/dtrack[1])
+            ang_ratio_a = np.fabs(np.tan(np.radians(ta.end_phi)))
+            ang_ratio_b = np.fabs(np.tan(np.radians(tb.ini_phi)))
+            print('ratio : ', dtrack_ratio, ' vs ', ang_ratio_a, ' and ', ang_ratio_b)
+            
     if(is_aligned(a1, a2, b1, b2, aligned_thresh) ):            
 
         dz = np.fabs(a2[2]+b1[2])
@@ -552,12 +590,14 @@ def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, alig
             dtrack = np.fabs(a2-b1)[:2]        
             if(np.all([d<t for d,t in zip(dtrack, [dx_thresh, dy_thresh])])):
                 """ early / on-time cathode crossing track found """
+                if(debug): print('EARLY BINGPOT!!!!!!!!!!!!!!!!!!')
                 return True
             else:
                 """ test if the track is late """
                 """ in that case, each track has an endpoints at max drift time """
-                """ and the relation is true: delta x/delta y = tan theta / cos phi """
-
+                """ and the relation is true: """
+                """ for PDHD: delta x/delta y = tan theta / cos phi """
+                """ for PDVD: delta x/delta y = 1/ tan phi """
                 vdrift = lar.drift_velocity()
                 z_cathodes = np.asarray([cf.anode_z[ta.module_end] - cf.n_sample[ta.module_end]*cf.drift_direction[ta.module_end] * vdrift /cf.sampling[ta.module_end], cf.anode_z[tb.module_ini] - cf.n_sample[tb.module_ini]*cf.drift_direction[tb.module_ini] * vdrift /cf.sampling[tb.module_ini]])
 
@@ -565,11 +605,18 @@ def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, alig
                 dz = np.fabs(z_cathodes - z_ends)
 
                 if(np.all([d<dz_thresh for d in dz])):
-                    dtrack_ratio = np.fabs(dtrack[1]/dtrack[0])
-                    ang_ratio_a = np.fabs(np.tan(np.radians(ta.end_theta))*np.cos(np.radians(ta.end_phi)))
-                    ang_ratio_b = np.fabs(np.tan(np.radians(tb.ini_theta))*np.cos(np.radians(tb.ini_phi)))
+
+                    if(is_horizontal):
+                        dtrack_ratio = np.fabs(dtrack[1]/dtrack[0])
+                        ang_ratio_a = np.fabs(np.tan(np.radians(ta.end_theta))*np.cos(np.radians(ta.end_phi)))
+                        ang_ratio_b = np.fabs(np.tan(np.radians(tb.ini_theta))*np.cos(np.radians(tb.ini_phi)))
+                    else:
+                        dtrack_ratio = np.fabs(dtrack[0]/dtrack[1])
+                        ang_ratio_a = np.fabs(np.tan(np.radians(ta.end_phi)))
+                        ang_ratio_b = np.fabs(np.tan(np.radians(tb.ini_phi)))
 
                     if(np.allclose([ang_ratio_a, ang_ratio_b], [dtrack_ratio, dtrack_ratio], rtol=0.5)):
+                        if(debug): print('LATE BINGPOT!!!!!!!!!!!!!!!!!!')
                         return True
                
                
@@ -577,7 +624,7 @@ def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, alig
         return False
 
 def set_cathode_crossing_tracks(ta, tb, dz_thresh):
-    debug = False#True
+    debug = False
     
     xtol= dc.reco['track_3d']['timing']['dx_tol']
     ytol= dc.reco['track_3d']['timing']['dy_tol']
@@ -586,7 +633,7 @@ def set_cathode_crossing_tracks(ta, tb, dz_thresh):
         if(ta.ini_x < tb.ini_x):
             ta, tb = tb, ta
     elif(dc.evt_list[-1].det == 'pdvd'):
-        if(ta.ini_z < tb.ini_z):
+        if(ta.module_ini < tb.module_ini):
             ta, tb = tb, ta
 
     ta.reset_anode_crosser()
@@ -595,6 +642,7 @@ def set_cathode_crossing_tracks(ta, tb, dz_thresh):
 
     
     if(debug):
+        print('CATHODE CROSSERS!')
         ta.dump()
         print('with')
         tb.dump()
@@ -717,6 +765,7 @@ def stitch3D_across_cathode(modules):
     sparse = np.zeros((n_trks_tot, n_trks_tot))
     trk_ID_shift = dc.n_tot_trk3d
 
+    print(len(trks_bound_drift_a), ' vs ', len(trks_bound_drift_b))
     
     n=0
     for ti in trks_bound_drift_a:        
@@ -729,12 +778,12 @@ def stitch3D_across_cathode(modules):
 
         n = n+1
 
-
+    
     graph = csr_matrix(sparse)
     n_components, labels = connected_components(csgraph=graph, directed=False, return_labels=True)
     
     count = Counter(labels)
-    
+
     n_cross = 0
     for lab, nelem in count.items():     
         if(nelem == 1): continue
