@@ -45,6 +45,7 @@ parser.add_argument('-online', dest='online_mode', action='store_true', help='LA
 
 args = parser.parse_args()
 
+online_mode = args.online_mode
 if(online_mode):
     print('running in lardonline mode!\n')
 
@@ -79,7 +80,7 @@ is_pulse = args.is_pulse
 if(is_pulse == True):
     do_charge = True
 
-online_mode = args.online_mode
+
 
 """ some bde special case """
 dataflow = args.dataflow
