@@ -15,7 +15,7 @@ plot_path  = lardon_path+"/results"
 data_path = ""
 domain = ""
 
-LAr_temperature = 87. #K - to check in the slow control 
+LAr_temperature = 89. #K - to check in the slow control 
 e_drift = []  #in kV/cm
 
 """ default values overwritten by the json file """
@@ -61,6 +61,8 @@ elec = []
 daq = ""
 daq_nlinks = []
 daq_links_offset = []
+daq_TRBuilder_number = 0
+daq_link_name=[]
 inner_coll_plane = []
 imod = 0
 daq_shift = 0

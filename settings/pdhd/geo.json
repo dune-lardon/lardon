@@ -60,6 +60,8 @@
 	"pds_z_centers":["-11.1", "-11.1", "-11.1", "-11.1", "29.7125", "29.7125"],
 	"pds_length":65.3,
 	"pds_channel_map":"pdhd_pds_chmap.txt",
+	"daq_TRBuilder_number":0,
+	"daq_link_name":["WIBEth", "WIBEth", "WIBEth", "WIBEth"],
 	
     }
 }

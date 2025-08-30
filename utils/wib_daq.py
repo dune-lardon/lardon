@@ -1,11 +1,20 @@
 import numpy as  np
 import numba as nb
+import re
 
 import channel_mapping as cmap
 import config as cf
 import data_containers as dc
 import tables as tab
 import h5py as hp
+
+def extract_server_number(filename):
+    match = re.search(r'df-s(\d+)', filename)
+    if match:
+        return int(match.group(1))
+    else:
+        return -1
+
 
 def get_unix_time_wib_1(t):
     ts = t*20 # in units of nanoseconds
@@ -413,6 +422,8 @@ class wib:
         self.daq = daq
         self.det = det
         self.run = run
+
+        self.server = extract_server_number(f)
         
         self.n_chan_per_link  = 256
         self.n_chan_per_wib   = 128
@@ -531,17 +542,24 @@ class wib:
         fl = int(flow)
         name =  f'{fl:08d}'
 
+        if(self.server >= 0):            
+            name = f'{self.server*10+fl:08x}'
+        else:
+            name = f'{cf.daq_TRBuilder_number+fl:08x}'
+        """
         if(self.det == "cbbot" and int(self.run) >= 36972):
             name = f'{14:08d}'
             print(name)
         elif(self.det == "pdvd" and int(self.run) >= 37000):
-            name = f'{28:08d}'
-
+            name = f'{40+fl:08x}'
+        """
+        
         path = f"/{self.events_list[ievt]}/RawData/TR_Builder_0x{name}_TriggerRecordHeader"
-
+        trig_rec = self.f_in[path][:]
+        
         #trig_rec = self.f_in.get_node("/"+self.events_list[ievt], name='RawData/TR_Builder_0x'+name+'_TriggerRecordHeader',classname='Array').read()
         #trig_rec = self.f_in.get_node(path).read()
-        trig_rec = self.f_in[path][:]
+        
 
         header_magic =  0x33334444
         header_version_1 = 0x00000003
@@ -574,6 +592,9 @@ class wib:
 
 
         """ nb of links have to be hard-coded as the number of components is wrong """
+        self.nlinks = cf.daq_nlinks
+
+        """
         if(self.det == '50l'):
             self.nlinks = 2
         elif(self.det == 'cbbot'):
@@ -582,6 +603,7 @@ class wib:
             self.nlinks = 40
         elif(self.det == 'pdvd'):
             self.nlinks = 48
+        """
         
         t_s, t_ns = get_unix_time_wib_2(head['timestamp'][0])
         dc.evt_list.append( dc.event(self.det, "bot", head['run_nb'][0], sub, ievt, head['trig_num'][0], t_s, t_ns) )
@@ -758,18 +780,17 @@ class wib:
         delta_start, delta_stop = 0, 0
         delta_samp = 0
 
-        for ilink in range(self.nlinks):   
+        for ilink in range(self.nlinks[cf.imod]):   
             name = names[ilink]
 
             try :
-                path = f"/{self.events_list[ievt]}/RawData/Detector_Readout_{name}_WIBEth"
-                #link_data = self.f_in.get_node(path).read()
-
+                path = f"/{self.events_list[ievt]}/RawData/Detector_Readout_{name}_{cf.daq_link_name[cf.imod]}"
                 link_data = self.f_in[path][:]
+                
+                #link_data = self.f_in.get_node(path).read()
                 #link_data = self.f_in.get_node("/"+self.events_list[ievt]+"/RawData", name='Detector_Readout_'+name+'_WIBEth',classname='Array').read()
 
             except KeyError:#tab.NoSuchNodeError:
-                #print('no link number ', ilink, 'with name RawData/Detector_Readout_'+name+'_WIBEth') 
                 continue
             
             frag_head = np.frombuffer(link_data[:self.fragment_header_size], dtype = self.fragment_header_type)
@@ -789,11 +810,11 @@ class wib:
             wib_ts = np.frombuffer(wib_ts, dtype='<u8')/32
             wib_ts = wib_ts.astype(np.int64)
 
-            
+            #print(wib_ts[0])
             tstart_link.append(wib_ts[0])
             tstop_link.append(wib_ts[-1])
 
-            n_event_frames = int(wib_ts[-1]-wib_ts[0])+64
+            n_event_frames = n_link_frames#int(wib_ts[-1]-wib_ts[0])+64
             
 
             if(n_event_frames != n_link_frames):
@@ -802,7 +823,7 @@ class wib:
                 else:
                     print(f'... the wib have skipped {n_event_frames-n_link_frames} frames')
             
-            n_frames = n_event_frames
+            n_frames = n_link_frames#n_event_frames
 
             if(cf.n_sample[cf.imod] < 0): #first pass
                 if(n_event_frames == 0):
@@ -842,7 +863,7 @@ class wib:
                         dc.data_daq = np.pad(dc.data_daq, ((0,0), (t_bef, t_end)), 'constant', constant_values=np.nan)
 
 
-                cf.n_sample[cf.imod] = int(event_end-event_begin)+64
+                cf.n_sample[cf.imod] = n_event_frames#int(event_end-event_begin)+64
 
             
             wib_head = np.frombuffer(link_data[:self.wib_header_size], dtype = self.wib_header_type)
@@ -854,14 +875,14 @@ class wib:
             # to get the detector, crate, slot, (etc) informations
             # detdataformats/include/detdataformats/DAQEthHeader.hpp
             daq_infos = get_daq_eth_infos(wib_head['daqethinfos'][0])
-            #print(daq_infos)
+            print(daq_infos)
             wib = daq_infos['slot'] +1
             stream = daq_infos['stream']
             loc_stream = stream & 0x3
             link = (stream >> 6) &1
             crate = daq_infos['crate']
             #print('--> wib', wib, ' stream ', stream, ' loc ', loc_stream, 'link', link, 'crate', crate)
-
+            
                         
             #To get the WIB infos like pulser/calibration/?
             #fddetdataformats/include/fddetdataformats/WIBEthFrame.hpp
@@ -910,7 +931,7 @@ class wib:
         #self.nlinks = 0
         self.links = []
 
-        print('number of samples: ', cf.n_sample[cf.imod])
+        
 
         if(cf.n_sample[cf.imod] > 0):
 
