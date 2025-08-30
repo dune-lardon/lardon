@@ -220,7 +220,6 @@ class event:
         self.noise_raw[cf.imod] = noise
 
     def set_noise_filt(self, noise):
-
         self.noise_filt[cf.imod] = noise
 
     def set_noise_study(self, noise):
@@ -933,7 +932,7 @@ class trk3D:
         if(isFake == True):
             self.len_straight[view] = 0.
             self.len_path[view] = 0.
-            self.n_hits[view] = 0.
+            self.n_hits[view] = 0
             self.chi2[view] = 0.
 
             
@@ -1019,7 +1018,8 @@ class trk3D:
 
     def boundaries(self):
         sum_match = [sum([self.match_ID[k][i] for k in range(cf.n_module)]) for i in range(cf.n_view)]
-                     
+
+        
         inis = np.asarray([list(self.path[i][0]) if sum_match[i]>-1*cf.n_module else [np.nan, np.nan, np.nan] for i in range(cf.n_view)])
         ends = np.asarray([list(self.path[i][-1])  if sum_match[i]>-1*cf.n_module  else [np.nan, np.nan, np.nan] for i in range(cf.n_view)])
 
@@ -1071,10 +1071,24 @@ class trk3D:
 
     def merge(self, other, idx_merge):
 
-        self.ID_3D = min(self.ID_3D, other.ID_3D)
+        
         other.ID_3D = -1
 
         
+
+        if(self.module_ini == self.module_end):
+            imod = self.module_ini
+            for iv in range(cf.n_view):
+                if(self.match_ID[imod][iv] < 0):
+                    self.path[iv].clear()
+                    self.dQ[iv].clear()
+                    self.ds[iv].clear()
+                    self.hits_ID[iv].clear()
+
+        else:
+            print('WHAAAT?')
+            
+
         self.momentum = -1
 
         """ will be recomputed anyway """
@@ -1087,12 +1101,10 @@ class trk3D:
             
             else:
                 self.module_ini = other.module_ini
+
+
         elif(evt_list[-1].det == 'pdvd'):                
-            if(self.ini_x > other.ini_x):
                 self.module_end = other.module_end
-            
-            else:
-                self.module_ini = other.module_ini
 
         if(idx_merge[0] == 1):
             self.end_theta = other.end_theta
@@ -1101,16 +1113,26 @@ class trk3D:
             self.ini_theta = other.ini_theta
             self.ini_phi = other.ini_phi
 
-        self.ini_time = min(self.ini_time, other.ini_time)
-        self.end_time = max(self.end_time, other.end_time)
+        if(evt_list[-1].det == 'pdvd' and cf.drift_direction[self.module_ini] == -1):
+            self.ini_time = max(self.ini_time, other.ini_time)
+            self.end_time = min(self.end_time, other.end_time)
+        else:
+            self.ini_time = min(self.ini_time, other.ini_time)
+            self.end_time = max(self.end_time, other.end_time)
 
+        
+            
         self.timestamp = min(self.timestamp, other.timestamp)
+
+
+        
+
         for iv in range(cf.n_view):
             for imod in range(cf.n_module):
-                
+                #
                 if(self.match_ID[imod][iv]>=0 and other.match_ID[imod][iv]>=0):
                     print('wait, what ? that is not possible')
-
+                
                 elif(self.match_ID[imod][iv]<0 and other.match_ID[imod][iv]>=0):
                     self.match_ID[imod][iv] = other.match_ID[imod][iv]
                     self.path[iv].extend(other.path[iv])
@@ -1124,11 +1146,9 @@ class trk3D:
 
                     self.tot_charge[iv] += other.tot_charge[iv]
                     self.dray_charge[iv] += other.dray_charge[iv]
-
-
             
         self.check_descending_internal()
-
+        self.check_views()
         
         for iv in range(cf.n_view):
             self.len_straight[iv] = math.sqrt( sum([pow(self.path[iv][0][i]-self.path[iv][-1][i], 2) for i in range(3)]))
@@ -1137,7 +1157,7 @@ class trk3D:
                 self.len_path[iv] +=  math.sqrt( pow(self.path[iv][i][0]-self.path[iv][i+1][0], 2) + pow(self.path[iv][i][1]-self.path[iv][i+1][1],2)+ pow(self.path[iv][i][2]-self.path[iv][i+1][2],2) )
                 
         
-        self.check_views()
+
         self.boundaries()
         
         
