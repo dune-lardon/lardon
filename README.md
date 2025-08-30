@@ -19,8 +19,8 @@ then : `conda activate lardenv`
 Check and modify **config.py** and files in `settings/` :
 * *store_path* : your directory where the output file will be stored
 * *plot_path*  : your directory where control plots will be stored
-* Update the detector & runs configuration files in `settings/` if needed
-
+* Update the detector & runs configuration files in `settings/` if needed [with caution!]
+* Change the reconstruction parameters in `settings/the_detector/reco_parameters.json` if needed
 
 ## To run lardon on data
 To launch lardon, type `python lardon.py` with the following arguments:<br/>
@@ -28,9 +28,12 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 * `-det <cb1top/cb1bot/cbtop/cbbot/dp/50l>` which detector<br/>
 * `-run <run nb>` which run number
 * `-sub <subfile name>` which subfile (*e.g.* 1_a, 0)<br/>
+* `-flow <flow nb> -writer <writer nb>` if used <br/>
+* `hash <ab/cd>` the hashed sub-directory where the data is (use rucio to find out) <br/>
+
 **Depending on the requested reconstruction**:<br/>
 * `-trk` if you want the **charge/TPC** reconstruction<br/>
-* `-pds` if you want the **PDS** reconstruction<br/>
+* `-pds` if you want the **PDS** reconstruction [DO NOT USE NOW, NEEDS DEBUGGING]<br/>
 **You can ask both!**
 
 *Optional*:<br/>
@@ -39,35 +42,40 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 * `-skip <nb to skip>` number of events to skip
 * `-event <event number>` to analyze only one event
 * `-pulse` To analyse charge pulsing (calibration) data
+* `-online` If running as online monitoring (produces ED and control plots)
 
 
+*e.g. 1* : To run TPC reco on event 11 of PDVD file `np02vd_raw_run039229_0024_df-s05-d4_dw_0_20250829T115242.hdf5` on lxplus: 
 
-*e.g. 1* : To run TPC reco on the first 10 events of top electronics run 1740 subfile 5_b, type :
+`python lardon.py -det pdvd -run 39229 -sub 24 -flow 4 -writer 0 -hash 86/ad -event 11 -out one_event -trk`
 
-`python lardon.py -det cbtop -run 1740 -sub 5_b -n 10 -out example -trk`
+the output h5file will be **$store_path/pdvd_39229_24_40_one_event.h5**
 
-the output h5file will be **store_path/cbtop_1740_5_b_example.h5**
+*e.g. 2* : To run TPC reco on all events of PDVD file `np02vd_raw_run039246_0006_df-s04-d0_dw_0_20250829T152837.hdf5` :
 
-*e.g. 2* : To run TPC reco on all events of bottom electronics run 20199 subfile 0, type :
+`python lardon.py -det pdvd -run 39246 -sub 6 -flow 0 -writer 0 -out full_example -trk`
 
-`python lardon.py -det cbbot -run 20199 -sub 0 -out full_example -trk`
+the output h5file will be **$store_path/pdvd_39246_00_full_example.h5**
 
-the output h5file will be **store_path/cbbot_20199_0_full_example.h5**
+*e.g. 3* : To run TPC on first 10 events of VD-CB file `np02vdcoldbox_raw_run037040_0023_df-s02-d0_dw_0_20250704T183417.hdf5` :
 
-*e.g. 3* : To run TPC and PDS reco the 5th event of bottom electronics run 23868 subfile 23, type:
+`python lardon.py -det cbbot -run 37040 -sub 23 -hash 5a/a2  -n 10 -trk -out few_events`
 
-`python lardon.py -det cbbot -run 23868 -sub 23 -event 5 -trk -pds -out one_event`
+When `flow_nb` and `writer_nb` are both 0, you don't need to provide it.
+The output h5file will be **$store_path/cbbot_37040_23_few_events.h5**
 
-the output h5file will be **store_path/cbbot_23868_23_one_event.h5**
 
+## LARDON Conventions
+* In lardon, electrons drift along the third / `z` axis.
+* All units are in cm.
+* For **ProtoDUNE-II*, the origin of the (x,y,z) system matches LarSoft convention. Control plots labels the axes as larsoft for simplicity.
+* For other detectors (coldbox, 50L) the origin is at the center of the detector.
 
-## lardon Convention
-# Coldbox 2nd period
-![convention](figs/coldbox_2.png)
+# ProtoDUNE-II
+![pdconvention](figs/ProtoDUNEs.png)
 
-* electrons drift along z axis
-* the origin of the (x,y,z) system is at the center of the detector
-* all distance are in cm
+# VD-Coldbox
+![cbconvention](figs/coldbox_2.png)
 
 
 ## Control Plots
