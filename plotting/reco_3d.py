@@ -37,7 +37,7 @@ def plot_3d(option=None, to_be_shown=True):
     if(cf.tpc_orientation == 'Vertical'):        
         xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
         ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
-        zmin, zmax = min(cf.anode_z) - v*max(cf.n_sample)/cf.sampling[0], max(cf.anode_z)
+        zmin, zmax = -500, 500#min(cf.anode_z) - v*max(cf.n_sample)/cf.sampling[0], max(cf.anode_z)
         
         xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
 
