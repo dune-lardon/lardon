@@ -10,11 +10,12 @@
 	"view_type":[["Induction","Induction", "Collection"],["Induction","Induction", "Collection"],["Induction","Induction", "Collection"],["Induction","Induction", "Collection"]],
 	"view_angle":[["60", "120", "180"],["60", "120", "180"],["120", "60", "180"],["120", "60", "180"]],
 	"view_pitch":["0.765", "0.765", "0.51"],
-	"view_capa":["10.3","10.3","8.1"],
+	"strips_length":"PDVD_strip_length.txt",
+	"view_capa":["1.03","1.03","0.81"],
 	"view_nchan":["952", "952", "1168"],
 	"view_chan_repet":["476","476","292"],
 	"view_length":["728.28","728.28","297.84"],
-	"view_z_offset":[["0.","0.","0"],["0.","0.","0"],["0.","0.","0"],["0.","0.","0"]],
+	"view_z_offset":[["-1.32","-0.32","0"],["-1.32","-0.32","0"],["-1.32","-0.32","0"],["-1.32","-0.32","0"]],
 	"n_tot_channels":"12288", //
 	"module_nchan": ["3072","3072","3072","3072"],
 	"module_daqch_start":["0","3072","6144", "9216"],
@@ -40,6 +41,7 @@
 	"signal_is_inverted":["0","0","0","0"],
 	"e_drift":["0.45","0.45","0.45","0.45"],
 	"drift_length":["338.5","338.5","338.5","338.5"],
+	"tmpanode_z":["-341.5", "-341.5", "341.5", "341.5"],
 	"anode_z":["-338.5", "-338.5", "338.5", "338.5"],
 	"drift_direction":["-1","-1","1", "1"],//
 	"elec":["bot", "bot", "top", "top"],
@@ -48,7 +50,19 @@
 	"daq_links_offset":["500","400","201","301"],
 	"broken_channels":[293, 955, 1482, 2657, 2705, 2727, 4242, 4243, 5471, 5797, 6089, 8632],// in global channel number
 	"daq_TRBuilder_number":40,
-	"daq_link_name":["WIBEth","WIBEth","TDEEth","TDEEth"]
+	"daq_link_name":["WIBEth","WIBEth","TDEEth","TDEEth"],
+
+
+	"n_pds_channels":16,
+	"pds_sampling":62.5,
+	"n_pds_sample":262144,
+	"pds_n_modules":8,
+	"pds_modules_type":["Cathode", "Cathode", "Cathode", "Cathode", "Cathode", "Cathode", "Cathode", "Cathode"],
+	"pds_x_centers":["288.53", "120.6", "36.65", "204.57", "-47.3", "-215.23", "-215.23", "-131.27"],
+	"pds_y_centers":["185.7", "260.2", "111.17", "36.65", "185.7", "260.2", "111.17", "36.65"],
+	"pds_z_centers":["0.", "0.", "0.", "0.", "0.", "0.", "0.", "0.", "0."],
+	"pds_length":58.8,
+	"pds_channel_map":"pdvd_pds_chmap.txt",
     },
 
     "2816-3244":
