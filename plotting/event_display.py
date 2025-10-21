@@ -132,7 +132,7 @@ def event_display_per_view(adc_ind=[-10,10], adc_coll=[-5,30], option=None, to_b
         if(draw_hits):
             for h in dc.hits_list:
                 if(h.view==iv and h.module==cf.imod):
-                    color = 'k'
+                    color = 'r'
                     '''
                     if(h.signal != cf.view_type[h.view]):
                         color = 'r'
