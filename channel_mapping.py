@@ -340,7 +340,8 @@ def get_pdvd_mapping():
             view = int(li[6])
             channel = int(li[7])
             module  = int(li[8])
-            
+            slot    = int(li[9])
+            card = int(10*slot+femb)
 
             gain = calib[daqch] if len(calib)==cf.n_tot_channels else calib[module]
 
@@ -356,9 +357,9 @@ def get_pdvd_mapping():
                 n_dummy += 1
                 length, capa = -1, -1
                 pos=-9999.            
-            c = dc.channel(daqch, globch, module, view, channel, length, capa, gain, pos)
+            c = dc.channel(daqch, globch, module, view, channel, length, capa, gain, pos, card)
             dc.chmap.append(c)
-
+            
         print('nb of dummy channels : ', n_dummy)
 
 def get_strip_length():

@@ -40,10 +40,16 @@ def FFT_low_pass(save_ps=False):
     """ go to frequency domain"""
     fdata = rfft(dc.data_daq, axis=1)  # axis=1 for multi-channel
 
-    
+
+    if(fdata.shape[1] != gauss_cut.shape[0]):
+        if(fdata.shape[1] < gauss_cut.shape[0]):
+            gauss_cut = gauss_cut[:fdata.shape[1]]
+
     """get power spectrum (before cut)"""
+    
     if(save_ps==True):
         ps = np.abs(fdata) / cf.n_sample[cf.imod] 
+        print("PS shape ", ps.shape)
         #ps = 10.*np.log10(np.abs(fdata)+1e-1) 
 
     """Apply filter"""
@@ -62,7 +68,9 @@ def FFT_low_pass(save_ps=False):
 
 
 def coherent_noise():
-    if(dc.reco['noise']['coherent']['per_view'] ==1):
+    if(dc.reco['noise']['coherent']['per_view_per_card'] ==1):
+        return coherent_noise_per_view_per_card()
+    elif(dc.reco['noise']['coherent']['per_view'] ==1):
         return coherent_noise_per_view()
     else :
         return regular_coherent_noise()
@@ -107,7 +115,77 @@ def regular_coherent_noise():
         dc.data_daq = data_sliced.reshape((n_channels, n_samples))
         dc.mask_daq = mask_sliced.reshape((n_channels, n_samples))
 
+
+
+        import numpy as np
+
+def coherent_noise_per_view_per_card():
+    capa_weight = bool(dc.reco['noise']['coherent']['capa_weight'])
+    calibrated  = bool(dc.reco['noise']['coherent']['calibrated'])
+    
+    n_chan = cf.module_nchan[cf.imod]
+    n_tot_chan = cf.n_tot_channels
+    n_sample = cf.n_sample[cf.imod]
+
+
+    """ channel mapping """
+    views = np.array([dc.chmap[i].view for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
+    cards = np.array([dc.chmap[i].card for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
+
+    
+    # Optional per-channel weights
+    capa = np.ones(n_chan)
+    calib = np.ones(n_chan)
+    if capa_weight:
+        capa = np.array([dc.chmap[i].capacitance for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
+    if calibrated:
+        calib = np.array([dc.calib[i] for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
+
+    """ Apply calibration and capacitance weighting """
+    if calibrated or capa_weight:
+        dc.data_daq = dc.data_daq * (calib / capa)[:, None]
+
+
+    # get the noise only data 
+    data = dc.data_daq * dc.mask_daq 
+
+                
+    """ Vectorized grouping """
+    # Assign integer group IDs from (view, card)
+    # We use structured array trick to make them unique pairs
+    keys = np.core.defchararray.add(views.astype(str), "_" + cards.astype(str))
+    _, group_ids = np.unique(keys, return_inverse=True)
+    n_groups = group_ids.max() + 1
+
+    
+    # Weighted sums per group for all samples
+    sums = np.zeros((n_groups, n_sample))
+    norm = np.zeros((n_groups, n_sample))
+
+    # Use np.add.at to accumulate directly
+    np.add.at(sums, group_ids, data)
+    np.add.at(norm, group_ids, dc.mask_daq)
+
+    # Compute means (shape = (n_groups, n_sample))
+    #means = sums / norm[:, None]
+    # safe division
+    denom = norm.copy()
+    denom[denom == 0] = 1.0
+    means = sums / denom
+    means[norm == 0] = 0.0
+
+    """ Subtract group mean from each channel """
+
+    dc.data_daq -= means[group_ids]
+
+    """ Reverse calibration """ 
+    if calibrated or capa_weight:
+        dc.data_daq = dc.data_daq * (capa / calib)[:, None]
+
+      
+    
 def coherent_noise_per_view():
+
 
     groupings = dc.reco['noise']['coherent']['groupings']
     capa_weight = bool(dc.reco['noise']['coherent']['capa_weight'])
@@ -115,6 +193,7 @@ def coherent_noise_per_view():
 
 
     n_chan = cf.module_nchan[cf.imod]
+    n_tot_chan = cf.n_tot_channels
     n_sample = cf.n_sample[cf.imod]
     daqch_start = cf.module_daqch_start[cf.imod]
 
@@ -125,8 +204,7 @@ def coherent_noise_per_view():
     calib = np.ones(n_chan)
 
     """ Vectorized channel mapping """
-    views = np.array([dc.chmap[i+daqch_start].view for i in range(n_chan)])
-    views = np.clip(views, -1, cf.n_view-1)
+    views = np.array([dc.chmap[i].view for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
     v_daq[:] = views[:, None]  # Broadcast to all samples
     
     if capa_weight:
@@ -143,19 +221,28 @@ def coherent_noise_per_view():
         if (n_chan % group) != 0:
             print(f"[CNR] groups of {group} is not possible for {n_chan} channels!")
             return
-
+        
         """ Reshape along slices """
         n_slices = n_chan // group
         data_sliced  = dc.data_daq.reshape(n_slices, group, n_sample)
         mask_sliced  = dc.mask_daq.reshape(n_slices, group, n_sample)
         v_daq_sliced = v_daq.reshape(n_slices, group, n_sample)
 
-
+        #tmp_views = views.reshape(n_slices, group)
+        #print('temp :: ', tmp_views.shape)
+        
+        #print('data: ', data_sliced.shape)
+        #data_tmp  = np.zeros((n_slices, group, n_sample))
+        
         mean = np.zeros((n_slices, n_sample))
     
         for i in range(cf.n_view):
+            #tmp_views_sel = (tmp_views == i)
+            #print([(k,np.sum(tmp_views_sel[k])) for k in range(5)])
             """ Create view mask """
             view_mask = (v_daq_sliced == i)
+            #print(" view ", i, view_mask.shape, "=::", np.sum(view_mask, axis=0), ' or ', np.sum(view_mask, axis=1))
+            
             combined_mask = view_mask & mask_sliced
         
             """ Compute sum and count """
@@ -168,11 +255,16 @@ def coherent_noise_per_view():
         
             """ Subtract mean """
             data_sliced -= mean[:, None, :] * view_mask
+            #data_tmp += mean[:, None, :] * view_mask
+
             
         """ Restore original shape """
         dc.data_daq = data_sliced.reshape(n_chan, n_sample)
         dc.mask_daq = mask_sliced.reshape(n_chan, n_sample)
-    
+
+        #data_tmp = data_tmp.reshape(n_chan, n_sample)
+        #dc.data_daq = data_tmp        
+        
     """ Reverse calibration """ 
     if calibrated or capa_weight:
         dc.data_daq = dc.data_daq * (capa / calib)[:, None]
@@ -184,14 +276,16 @@ def shield_coupling():
     if(cf.imod < 2):
         return
     
-    capa_weight = False
+    capa_weight = True
     calibrated  = False
     
     group = 476
-    n_chan = cf.module_nchan[cf.imod]
+    n_tot_chan = cf.n_tot_channels#
+    n_chan = cf.module_nchan[cf.imod]##
     n_sample = cf.n_sample[cf.imod]
     daqch_start = cf.module_daqch_start[cf.imod]
 
+    #print(n_chan, 'and ', daqch_start)
     
     """ Initialize arrays """
     v_daq = np.empty((n_chan, n_sample), dtype=np.int32)
@@ -199,41 +293,28 @@ def shield_coupling():
     calib = np.ones(n_chan)
 
     if capa_weight:
-        capa[:] = [dc.chmap[i+daqch_start].capa for i in range(n_chan)]
+        capa[:] = [dc.chmap[i].capa for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod]
     if calibrated:
-        calib[:] = [dc.chmap[i+daqch_start].gain for i in range(n_chan)]
+        calib[:] = [dc.chmap[i].gain for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod]
 
+
+    
     """ Apply calibration and capacitance weighting """
     if calibrated or capa_weight:
         dc.data_daq = dc.data_daq * (calib / capa)[:, None]
 
+
+    views = np.array([int(dc.chmap[i].vchan // group)  if dc.chmap[i].view==0  else -1 for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
+
+
+
     for icru in range(2):
-        
-        """ Vectorized channel mapping """
-        views = np.array([dc.chmap[i+daqch_start].view==0 and int(dc.chmap[i+daqch_start].vchan/group)==icru for i in range(n_chan)])
-        views = np.clip(views, -1, cf.n_view-1)
-        v_daq[:] = views[:, None]  # Broadcast to all samples
+        idx = (views == icru)
+        if not np.any(idx):
+            continue
+        med = np.median(dc.data_daq[idx, :], axis=0)
+        dc.data_daq[idx, :] -= med
 
-
-        mean = np.zeros((n_sample))
-    
-        view_mask = (v_daq == True)
-        print('view mask ', view_mask.shape)
-        combined_mask = view_mask & dc.mask_daq
-        print('combined mask ', combined_mask.shape)
-        
-        """ Compute sum and count """
-        sum_data = np.sum(dc.data_daq * combined_mask, axis=0)
-        count = np.sum(combined_mask, axis=0)
-        
-        """ Compute mean if count >= 3 """
-        print(sum_data.shape, count.shape, mean.shape)
-        
-        np.divide(sum_data, count, out=mean, where=count >= 3)
-        mean[count < 3] = 0
-        
-        """ Subtract mean """
-        dc.data_daq -= mean[None, :] * view_mask
     
     """ Reverse calibration """ 
     if calibrated or capa_weight:
@@ -280,7 +361,7 @@ def median_filter_pds():
     
     window = dc.reco['pds']['noise']['flat_baseline_window']
 
-    if not (0 < window <= cf.n_pds_sample[cf.imod]):
+    if not (0 < window <= cf.n_pds_sample):
         return
 
     """ Mask ROI with NaN for median computation """
