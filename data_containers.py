@@ -120,7 +120,7 @@ def set_waveforms():
 
     
 class channel:
-    def __init__(self, daqch, globch, module, view, vchan, length, capa, gain, pos):
+    def __init__(self, daqch, globch, module, view, vchan, length, capa, gain, pos, card=-1):
         self.daqch = daqch
         self.globch = globch
         self.module = module
@@ -132,6 +132,7 @@ class channel:
         self.pos  = pos
         self.prev_daqch = -1
         self.next_daqch = -1
+        self.card = card
 
 
     def __str__(self):
@@ -150,6 +151,8 @@ class channel:
     def get_globch(self):
         return self.globch
 
+    def get_card_nb(self):
+        return self.card
 
 class channel_pds:
     def __init__(self, daqch, globch, det, chan, mod):
@@ -404,8 +407,7 @@ class hits:
     
     def mini_dump(self):
         print(f"Hit {self.ID} (free:{self.is_free}, cluster {self.cluster}, trk {self.match_2D}/{self.match_dray}) v{self.view} ch{self.channel} :: {self.glob_channel} ({self.daq_channel}/{self.module}) t: {self.start} to {self.stop} max {self.max_t} min {self.min_t} maxADC: {self.max_adc:.2f} minADC: {self.min_adc:.2f}, at ({self.X:.2f}, {self.Z:.2f}) [{self.Z_start:.2f},{self.Z_stop:.2f}] Q- {self.charge_neg:.2f} Q+ {self.charge_pos:.2f}")   
-
-
+        
     def dump(self):
 
         print("\n**View ", self.view, " Channel ", self.channel, " ID: ", self.ID)
@@ -954,6 +956,7 @@ class trk3D:
 
 
     def remove_hit(self, hit_ID, view, module):
+        
         idx = self.hits_ID[view].index(hit_ID)
         
         self.hits_ID[view].pop(idx)
@@ -1166,7 +1169,7 @@ class trk3D:
         print('\n----')
         print('Track with ID ', self.ID_3D)
         print('match IDs ', self.match_ID, ' n view matched', self.n_matched)
-        print('test ', [len(self.path[iv]) for iv in range(cf.n_view)])
+        #print('test ', [len(self.path[iv]) for iv in range(cf.n_view)])
         print(" From (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f)"%(self.ini_x, self.ini_y, self.ini_z, self.end_x, self.end_y, self.end_z))
         print(" module ini ", self.module_ini, " module end ", self.module_end)
         print(" Time start ", self.ini_time, ' stop ', self.end_time)
@@ -1179,16 +1182,18 @@ class trk3D:
         print(" z0 ", self.z0_corr, " t0 ", self.t0_corr)
         print(" MATCHING DISTANCE SCORE : ", self.d_match)
         #print(" timestamp ", self.timestamp, ' mus')
-        #print(" matched with light cluster ", self.match_pds_cluster)
+        print(" matched with light cluster ", self.match_pds_cluster)
         print("Cathode?", self.is_cathode_crosser, " with ", self.cathode_crosser_ID)
         print("Anode? ", self.is_anode_crosser, " exit ", self.exit_point)
         print('----\n')
 
 class ghost:
-    def __init__(self, ghost_id, t2d_id, min_dist, ghost_charge, trk_charge, nhits):#, t3d_id, min_dist, xstart, ystart, zstart):
+    def __init__(self, ghost_id, t2d_id, min_dist, ghost_charge, trk_charge, nhits, mod):#, t3d_id, min_dist, xstart, ystart, zstart):
         self.ghost_ID = ghost_id
         self.trk2D_ID = t2d_id
 
+        self.module_ini = mod[0]
+        self.module_end = mod[1]
         self.trk3D_ID = -1
         self.anode_x = -9999
         self.anode_y = -9999
