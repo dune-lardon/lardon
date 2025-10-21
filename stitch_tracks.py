@@ -15,7 +15,11 @@ from collections import Counter
 import time as time
 
 
+def extrapolate_2D(gap):
+    return 
 
+def extrapolate_3D(gap):
+    return
 
 def is_track_in_module(t, modules):
     """ test if the track is in the given module(s) """
@@ -89,6 +93,7 @@ def stitch2D_from_3Dbuilder(tracks, debug=False):
         
 def stitch2D_in_module(modules = [cf.imod]):
     
+    
     align_thr = dc.reco['stitching_2d']['in_module']['align_thr']
     dma_thr = dc.reco['stitching_2d']['in_module']['dma_thr']
     dist_thr = dc.reco['stitching_2d']['in_module']['dist_thr']
@@ -98,7 +103,7 @@ def stitch2D_in_module(modules = [cf.imod]):
     n_merge = 0
     for iv in range(cf.n_view):
         tracks = [t for t in dc.tracks2D_list if t.module_ini in modules and t.view == iv and t.chi2_fwd < 9999. and t.chi2_bkwd < 9999.]
-
+        
         if(dc.evt_list[-1].det == 'pdhd' and iv < 2):
             unwrappers = [(0,0), (0, cf.unwrappers[cf.imod][1]), (cf.unwrappers[cf.imod][0], 0)]
         else:
@@ -108,8 +113,8 @@ def stitch2D_in_module(modules = [cf.imod]):
 
     if(n_merge>0):
         reset_track2D_list()
-
-
+    
+    
         
 def reset_track2D_list():
     """ re-assign ID of tracks since merging occured """
@@ -191,23 +196,19 @@ def merge_2D(trks,  align_thr, dma_thr, dist_thr, debug=False):
     trks = sorted(trks, key=lambda k: -1.*k.path[0][1])
 
 
-
-    ta = trks[0]
-    merge_ID = ta.trackID
-    
-    
-
     for ii, ta in enumerate(trks[:-1]):
         if(ta.trackID <0):
             continue
         merge_ID = ta.trackID
 
-        
         for tb in trks[ii+1:]:
             if(tb.trackID < 0):
                 continue
+
+
             """ re-check the compatibility between tracks (in case some merging) """
             if(tracks2D_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, False)==False):
+
                 if(debug):
                     print(ta.trackID, ' with ', tb.trackID,' IS NOPE')
                 continue
@@ -373,6 +374,7 @@ def track3D_module_bounds(t, tol):
             ylow, yhigh = cf.y_boundaries[mod][0], cf.y_boundaries[mod][1]
             if(np.fabs(y_pts-ylow) < tol or np.fabs(y_pts-yhigh) < tol):
                 return True
+            
     elif(dc.evt_list[-1].det == 'pdvd'):
         for x_pts, mod in zip([t.ini_x, t.end_x], [t.module_ini, t.module_end]):
             xlow, xhigh = cf.x_boundaries[mod][0], cf.x_boundaries[mod][1]
@@ -403,6 +405,9 @@ def tracks3D_compatibility(ta, tb, d_thr, align_thr, debug=False):
 
     if(np.any(lengths < d_thr)):
         if(is_aligned(ta_bounds[0], ta_bounds[1], tb_bounds[0], tb_bounds[1], align_thr)):
+            if(debug):
+                print(ta.ID_3D, ' with ', tb.ID_3D, ' --> ', is_aligned_debug(ta_bounds[0], ta_bounds[1], tb_bounds[0], tb_bounds[1], align_thr))
+                print('lengths: ', lengths)
             return True
     return False
 
@@ -429,13 +434,6 @@ def merge_3D(trks, is_module_crosser=False):
             ta, tb = tb, ta
 
 
-
-    """
-    print('MERGING ')
-    ta.dump()
-    print('WITH')
-    tb.dump()
-    """
             
     ta_bounds = np.asarray([[ta.ini_x, ta.ini_y, ta.ini_z],  [ta.end_x, ta.end_y, ta.end_z]])  
     tb_bounds = np.asarray([[tb.ini_x, tb.ini_y, tb.ini_z],  [tb.end_x, tb.end_y, tb.end_z]])  
@@ -473,18 +471,12 @@ def merge_3D(trks, is_module_crosser=False):
 
     trk3d.correct_timing(ta, dx_tol, dy_tol, dz_tol)
 
-
-    """
-    ta.dump()
-    print(' and now ')
-    tb.dump()
-    
-    print('----->>>>> MERGED ')
-    ta.dump()
-    """
     return ta
 
 def stitch3D_across_modules(modules):
+
+
+
     """ stitch together 3D tracks in adjacent modules """
     debug=False
     dist_thr = dc.reco['stitching_3d']['module']['dist_thr']
@@ -495,9 +487,9 @@ def stitch3D_across_modules(modules):
     n_trks_tot = dc.evt_list[-1].n_tracks3D
     sparse = np.zeros((n_trks_tot, n_trks_tot))
     trk_ID_shift = dc.n_tot_trk3d
-
-    trks_bound = [t for t in dc.tracks3D_list if is_track_in_module(t, modules) and track3D_module_bounds(t, boundary_tol)]
     
+    trks_bound = [t for t in dc.tracks3D_list if is_track_in_module(t, modules) and track3D_module_bounds(t, boundary_tol)]
+
     n_trks_bound = len(trks_bound)
     
     if(n_trks_bound <2):
@@ -505,12 +497,6 @@ def stitch3D_across_modules(modules):
     
     n=0
     for ti in trks_bound[:-1]:
-        '''
-        if(ti.ID_3D == 1 or ti.ID_3D == 4):
-            debug = True
-        else:
-            debug = False
-        '''
         stitchable = [tracks3D_compatibility(ti, tt, dist_thr, align_thr, debug) for tt in trks_bound[n+1:]]
 
 
@@ -530,14 +516,13 @@ def stitch3D_across_modules(modules):
         if(nelem == 1): continue
         else:
             tmerge = [it for it, l in zip(dc.tracks3D_list, labels) if l == lab]
-                        
             merge_3D(tmerge, is_module_crosser=True)
 
             n_merge += 1            
 
     if(n_merge>0):
         reset_track3D_list()
-    print(modules, 'merged ', n_merge, ' 3D tracks together !!! ')
+    print(modules, 'merged ', n_merge, ' 3D tracks together across module !!! ')
 
 
 
@@ -590,7 +575,7 @@ def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, alig
             dtrack = np.fabs(a2-b1)[:2]        
             if(np.all([d<t for d,t in zip(dtrack, [dx_thresh, dy_thresh])])):
                 """ early / on-time cathode crossing track found """
-                if(debug): print('EARLY BINGPOT!!!!!!!!!!!!!!!!!!')
+                if(debug): print('EARLY BINGPOT!')
                 return True
             else:
                 """ test if the track is late """
@@ -616,7 +601,7 @@ def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, alig
                         ang_ratio_b = np.fabs(np.tan(np.radians(tb.ini_phi)))
 
                     if(np.allclose([ang_ratio_a, ang_ratio_b], [dtrack_ratio, dtrack_ratio], rtol=0.5)):
-                        if(debug): print('LATE BINGPOT!!!!!!!!!!!!!!!!!!')
+                        if(debug): print('LATE BINGPOT!')
                         return True
                
                
