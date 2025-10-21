@@ -9,7 +9,7 @@ dependencies:
   - python
   - scikit-learn
   - scipy
-  - uproot 
+  - uproot
   - numexpr=2.8.4
   - pytables
   - h5py
@@ -17,11 +17,11 @@ dependencies:
   - colorcet
   - bottleneck
   - fast-histogram
-  - pandas	
+  - pandas
   - psutil
   - pip
   - pip:
     - rtree
     - json-with-comments
     - iminuit
-    - pylandau	
+    - pylandau
