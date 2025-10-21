@@ -59,8 +59,19 @@ class NoiseStudy(IsDescription):
 
 
 class FFT(IsDescription):
-    ps_0 = Float32Col(shape=(cf.n_tot_channels/2, int(max(cf.n_sample)/2)+1))
-    ps_1 = Float32Col(shape=(cf.n_tot_channels/2, int(max(cf.n_sample)/2)+1))
+    """ ADJUST THE NUMBERS OF THE PS SHAPE ACCORDING TO THE RUN CONFIGURATION """
+    print('test: ', (cf.module_nchan[0]/2, int(cf.n_sample[0]/2)+1), ' and ', cf.module_nchan[2]/2, int(cf.n_sample[2]/2)+1)
+    ps_0 = Float32Col(shape=(cf.module_nchan[0], 3937))
+    ps_1 = Float32Col(shape=(cf.module_nchan[1], 3937))
+    ps_2 = Float32Col(shape=(cf.module_nchan[2], 4033))
+    ps_3 = Float32Col(shape=(cf.module_nchan[3], 4033))
+
+
+class Corr(IsDescription):
+    corr_0 = Float32Col(shape=(cf.module_nchan[0], cf.module_nchan[0]))
+    corr_1 = Float32Col(shape=(cf.module_nchan[1], cf.module_nchan[1]))
+    corr_2 = Float32Col(shape=(cf.module_nchan[2], cf.module_nchan[2]))
+    corr_3 = Float32Col(shape=(cf.module_nchan[3], cf.module_nchan[3]))
 
 class Waveform(IsDescription):
     view        = UInt8Col()
@@ -93,7 +104,7 @@ class PDSInfos(IsDescription):
     n_channels   = UInt16Col()
     sampling     = Float32Col()
     n_samples    = Float32Col()
-    e_drift      = Float32Col()
+    e_drift      = Float32Col(shape=(cf.n_module_used))
 
 
 class PDSEvent(IsDescription):
@@ -377,7 +388,8 @@ def create_tables(h5file):
     table = h5file.create_table("/", 'event', Event, "Event")
     table = h5file.create_table("/", 'pedestals', Pedestal, 'Pedestals')
     table = h5file.create_table("/", 'noisestudy', NoiseStudy, 'Noise Study')
-    table = h5file.create_table("/", 'fft', FFT, 'fft')
+    #table = h5file.create_table("/", 'fft', FFT, 'fft')
+    #table = h5file.create_table("/", 'corr', Corr, 'corr')
     table = h5file.create_table("/", 'hits', Hits, 'Hits')
     table = h5file.create_table("/", 'single_hits', SingleHits, 'Single Hits')
     table = h5file.create_table("/", 'ghost', Ghost, 'Ghost Tracks')
@@ -394,15 +406,6 @@ def create_tables(h5file):
     t = h5file.create_vlarray("/", 'ghost_tracks', Float64Atom(shape=(6)), "3D Path (x, y, z, dq, ds, ID)")
 
 
-
-def create_tables_commissioning(h5file):
-    table = h5file.create_table("/", 'infos', Infos, 'Infos')
-    table = h5file.create_table("/", 'chmap', ChanMap, "ChanMap")
-    table = h5file.create_table("/", 'event', Event, "Event")
-    table = h5file.create_table("/", 'pedestals', Pedestal, 'Pedestals')
-    table = h5file.create_table("/", 'noisestudy', NoiseStudy, 'Noise Study')
-    table = h5file.create_table("/", 'hits', Hits, 'Hits')
-    table = h5file.create_table("/", "hits3D", Hits3D, 'Hits3D')    
 
 def create_table_debug(h5file):
     table = h5file.create_table("/", "debug", Debug, 'Debug')    
@@ -510,12 +513,29 @@ def store_noisestudy(h5file):
     ped.append()
 
 def store_fft(h5file, ps):
-    print('STORE FFT ', len(ps))
-    #print("WARNING THIS TAKES A LOT OF SPACE !!!")
+    #print('fft shapes: ', ps[0].shape, " ", ps[1].shape, " ", ps[2].shape, " ", ps[3].shape)
+    print("WARNING !!! FFT PS PLOTS TAKE A LOT OF SPACE !!!")
+
     fft = h5file.root.fft.row
-    fft['ps_0']   = ps[0]
-    fft['ps_1']   = ps[1]
+    if(ps[0].shape[1] == 3937):
+        fft['ps_0']   = ps[0]
+    if(ps[1].shape[1] == 3937):
+        fft['ps_1']   = ps[1]
+    if(ps[2].shape[1] == 4033):
+        fft['ps_2']   = ps[2]
+    if(ps[3].shape[1] == 4033):
+        fft['ps_3']   = ps[3]
     fft.append()
+
+def store_corr(h5file, corr):
+    #print('STORE corr ', len(corr))    
+    print("WARNING !! CORRELATION PLOTS TAKE A LOT OF SPACE !!!")
+    cnr = h5file.root.corr.row
+    cnr['corr_0']   = corr[0]
+    cnr['corr_1']   = corr[1]
+    cnr['corr_2']   = corr[2]
+    cnr['corr_3']   = corr[3]
+    cnr.append()
 
 
 def store_hits(h5file):
@@ -839,7 +859,7 @@ def store_pds_infos(h5file, run, sub, nevent, time):
     inf['n_channels']    = cf.n_pds_channels
     inf['sampling']      = cf.pds_sampling
     inf['n_samples']     = cf.n_pds_sample
-    inf['e_drift']       = cf.e_drift
+    inf['e_drift']       = [cf.e_drift[i] for i in cf.module_used]
     inf.append()
 
 def store_pds_event(h5file):
