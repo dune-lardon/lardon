@@ -5,9 +5,13 @@ import lar_param as lar
 import numpy as np
 from rtree import index
 
+import plotting as plot
+
+
 def matching_charge_pds():
     if(len(dc.tracks3D_list)== 0 or len(dc.pds_cluster_list) == 0):
         return
+    n_sh, n_trk = 0, 0
 
     time_tol = dc.reco['pds']['matching']['time_tol'] #in mus
     
@@ -52,6 +56,7 @@ def matching_charge_pds():
     id_sh_shift = dc.n_tot_sh
     
     """ search for the 3D track - light clusters """
+    #print('nb of trks to search : ', len(dc.tracks3D_list))
     for trk in dc.tracks3D_list:
         if(trk.match_pds_cluster >= 0):
             continue
@@ -86,8 +91,14 @@ def matching_charge_pds():
             continue
         
         trk.match_pds_cluster = min_clus
+        #trk.dump()
+
         clus = dc.pds_cluster_list[min_clus-id_cluster_shift]
+        #print("--->>> matched with ", clus.glob_chans)
         clus.match_trk3D = trk_idx
+
+
+        n_trk += 1
 
         for pds_ch in clus.glob_chans[::2]:
             module_chan = int(pds_ch/2)
@@ -98,7 +109,9 @@ def matching_charge_pds():
             clus.point_impact.extend([r[2] for r in res])
             clus.point_closest_above.extend([r[3] for r in res])
             clus.point_closest.extend([r[4] for r in res])
-    
+        #plot.plot_track_pds_matched(trk.ID_3D, option=None, to_be_shown=True)
+
+        
     vdrift = lar.drift_velocity()
                 
     """ search for the single hits - light clusters """
@@ -110,8 +123,11 @@ def matching_charge_pds():
         sh_idx   = sh.ID_SH
 
         z_anode = cf.anode_z[sh.module]
+
         ''' maximum drift distance given the time window '''
-        max_drift = cf.drift_length/(cf.drift_direction[sh.module] * vdrift)        
+        #max_drift = cf.drift_length[sh.module]/(cf.drift_direction[sh.module] * vdrift)
+        max_drift = cf.drift_length[sh.module]/ vdrift
+        #print(max_drift, ':', sh_start-time_tol-max_drift, sh_start+time_tol)
         overlaps = list(rtree.intersection((sh_start-time_tol-max_drift, 2, sh_start+time_tol, 2)))
         
         free_overlaps = []
@@ -132,6 +148,7 @@ def matching_charge_pds():
             best_overlap = sh_closest_cluster(sh, free_overlaps, id_cluster_shift)
 
         if(best_overlap >=0):
+            n_sh += 1
             clus = dc.pds_cluster_list[best_overlap-id_cluster_shift]
             delay = sh_start - clus.timestamp        
 
@@ -153,7 +170,7 @@ def matching_charge_pds():
 
 
 
-            
+    print('nb of match trk ', n_trk, ' sh ', n_sh)
 
 def extrapolate_trk_to_z(a0, a1, z_end):
     dx = a1[0] - a0[0]
