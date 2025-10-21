@@ -72,7 +72,8 @@ class decoder:
     def open_file(self):
         f = self.filename if self.filename else self.get_file_path()
         self.filename = f
-
+        print('raw file is ', self.filename)
+        
         self.daq_decoder = (wib.wib if 'wib' in self.daq else lyon.lyon if 'lyon' in self.daq else cern.cern)(f, self.daq, self.det, self.run)
 
         if('cern' in self.daq):

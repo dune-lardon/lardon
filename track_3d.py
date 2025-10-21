@@ -23,7 +23,7 @@ import stitch_tracks as stitch
 from sklearn.cluster import DBSCAN
 
 
-#import matplotlib.pyplot as plt
+
 
 def dist_points(xa, ya, xb, yb):
     return np.sqrt(pow(xa-xb,2)+pow(ya-yb,2))
@@ -179,24 +179,27 @@ def complete_trajectories(tracks):
     module_ini, module_end = -1, -1
 
     debug = False
+    if(debug):
+        print('building 3D track from ', [t.trackID for t in tracks])
+
+        for iv in range(3):
+            if(n_trk == 3):              
+                print(f'\n v{iv} = ')
+                print(tracks[iv].path)
+        print('-------------------------')
+        
     for i in range(n_trk):
+        if(debug):
+            print('\n\ncomputing view ',i)
         track = tracks[i]
         k = i+1
         if(k == n_trk): k=0
         other = tracks[k]
 
 
-        #if(module_ini < 0):
-        module_ini = track.module_ini
-        #else:
-        #    if(track.module_ini != module_ini):
-        #        print('Matching problems, initial modules do not correspond')
 
-        #if(module_end < 0):
+        module_ini = track.module_ini
         module_end = track.module_end
-        #else:
-        #    if(track.module_end != module_end):
-        #        print('Matching problems, ending modules do not correspond')
 
         
 
@@ -260,12 +263,15 @@ def complete_trajectories(tracks):
 
         
         for p in range(len(track.path)):
+
             pos = track.path[p][0]
             z = track.path[p][1]
 
             hid = track.hits_ID[p]
             hit_module = dc.hits_list[hid-hits_ID_shift].module
-            
+            if(debug):
+                print(p, '/',len(track.path),':', pos, z)
+                dc.hits_list[hid-hits_ID_shift].mini_dump()
             
             if( p == 0 ):
                 a0t = 0. if track.ini_slope == 0 else 1./track.ini_slope
@@ -288,11 +294,14 @@ def complete_trajectories(tracks):
                 pos_spl = linear_interp(z-z_o_max, pos_o_max, deriv_z_max)
                 a1t = deriv_z_max 
 
+            if(debug):
+                print('with splined ', pos_spl)
+            
             xy = A.dot([pos_spl, pos])/D
             x, y = xy[0], xy[1]
                                           
             if(debug):
-                print(p, ' at ', pos, "---->", x, y, is_inside_volume(hit_module, x,y))
+                print("---->3D AT ", x, y, 'inside? ', is_inside_volume(hit_module, x,y))
                 
             if(dc.evt_list[-1].det == 'pdhd'):
                 if(is_inside_volume(hit_module, x,y)==False):
@@ -320,20 +329,9 @@ def complete_trajectories(tracks):
                                     xb, yb = x, y
                                     db = d
                     if(unwrapped == False):
-                        #print(track.trackID, ' with ', other.trackID,' in module ', hit_module, ' ->point still outside, set to ', xb, yb, z, ' at ', db, ' PREV at ', xp, yp, zp)
-
                         x,y=xb,yb
-                        """
-                        if(db < 2):
-                            x,y=xb,yb
-                            
-                        else:
-                            continue
-                        """
-                        #print('point still outside, set to ', xb, yb, ' at ', db)
-                        #x, y = xb, yb
-                        #continue
-                    
+
+
             dxdy = A.dot([a1t, a0t])/D
             dxdz, dydz = dxdy[0], dxdy[1]
 
@@ -364,7 +362,8 @@ def complete_trajectories(tracks):
     return the_track
 
 def compute_exit_point(trk, idx_anode, zcorr):
-
+    debug = False
+    
     box_min = [min([cf.x_boundaries[i][0] for i in range(cf.n_module)]),min([cf.y_boundaries[i][0] for i in range(cf.n_module)]), min(cf.anode_z)]
     box_max = [max([cf.x_boundaries[i][1] for i in range(cf.n_module)]),max([cf.y_boundaries[i][1] for i in range(cf.n_module)]), max(cf.anode_z)]
     
@@ -390,22 +389,23 @@ def compute_exit_point(trk, idx_anode, zcorr):
     elif(dc.evt_list[-1].det == 'pdvd'):
         sign = cf.drift_direction[trk.module_ini] if idx_anode==0 else cf.drift_direction[trk.module_end]
 
-        '''
-        print('\n = = = = = ')
-        trk.dump()
+        if(debug):
+            print('\n = = = = = ')
+            trk.dump()
 
-        print('test sign: ', cf.drift_direction[trk.module_end], 'and ', np.sign(phi), ' -->', sign)
-        print('box min', box_min)
-        print('box max', box_max)
-        print('zcorr :: ', zcorr)
-        print('idx anode: ', idx_anode)
-        '''
+            print('test sign: ', cf.drift_direction[trk.module_end], 'and ', np.sign(phi), ' -->', sign)
+            print('box min', box_min)
+            print('box max', box_max)
+            print('zcorr :: ', zcorr)
+            print('idx anode: ', idx_anode)
+        
         
         dz = sign*np.cos(np.radians(theta))
         dx = sign*np.sin(np.radians(theta))*np.cos(np.radians(phi))
         dy = sign*np.sin(np.radians(theta))*np.sin(np.radians(phi))
 
-        #print('--> ', dx, dy, dz)
+        if(debug):
+            print('--> ', dx, dy, dz)
 
     else:        
         print('Exit point computation to be checked for ', dc.evt_list[-1].det,' geometry')
@@ -429,22 +429,22 @@ def compute_exit_point(trk, idx_anode, zcorr):
     # We're inside the box, so t_enter < 0 and we want the smallest positive t_exit
     t_exit = np.min(t2)
 
-    '''
-    print('\ntesting mins')
-    for t in tmin:
-        print(t, ' test out ', origin + t * direction)
-    print('testing maxs')
-    for t in tmax:
-        print(t, ' test out ', origin + t * direction)
-    print('---> t exit : ', t_exit)
-    '''
+    if(debug):
+        print('\ntesting mins')
+        for t in tmin:
+            print(t, ' test out ', origin + t * direction)
+        print('testing maxs')
+        for t in tmax:
+            print(t, ' test out ', origin + t * direction)
+        print('---> t exit : ', t_exit)
+    
     
     if t_exit <= 0:
         return False, []  # Line doesn't exit in the direction given
 
     exit_point = origin + t_exit * direction
-
-    #print('====>>>>> exit point ', exit_point)
+    if(debug):
+        print('====>>>>> exit point ', exit_point)
     return True, exit_point    
     
 def correct_timing(trk, xtol, ytol, ztol):
@@ -628,7 +628,7 @@ def check_track_3D(track):
         return False
     
     hits_to_rm = [h for h,l in zip(hits_ID, labels) if count[l] < n_min]
-
+    
     [track.remove_hit(h, dc.hits_list[h-dc.n_tot_hits].view, dc.hits_list[h-dc.n_tot_hits].module) for h in hits_to_rm]
     
             
@@ -741,7 +741,7 @@ def find_3D_tracks_with_missing_view(modules):
 
         """ get all 3 tracks combinations """
         trk_comb = list(product(*trk_overlaps))
-        #print(len(trk_comb), ' combinations to test')
+
         
         for tc in trk_comb:
             """ don't test a combination already tested """
@@ -826,14 +826,11 @@ def find_3D_tracks_with_missing_view(modules):
         t3D.ID_3D = trk_ID
 
         correct_timing(t3D, dx_tol, dy_tol, dz_tol)
-        '''
-        t3D.dump()
-        print('=*=*=*')
-        '''
+
         dc.tracks3D_list.append(t3D)
         dc.evt_list[-1].n_tracks3D += 1
 
-        #t3D.dump()
+        
             
         for t in flat_tracks:
             t.match_3D = trk_ID
@@ -991,9 +988,6 @@ def find_track_3D_rtree_new(modules, debug=False):
                     [stop_ov[iv].append(dc.hits_list[k-hits_ID_shift]) for k in intersect]
 
 
-            #print('testing ', tc)                
-            #[t.mini_dump() for t in trks]
-            #print("dz : ", dz, " qtrk ", qtrk)
             
             for u in unwrappers:
                 unwrap = u
@@ -1001,7 +995,7 @@ def find_track_3D_rtree_new(modules, debug=False):
 
                 start_d, start_xy, start_comb = h3d.compute_xy(start_ov, hit_min_start, d_thresh, u)
                 stop_d, stop_xy, stop_comb = h3d.compute_xy(stop_ov, hit_max_stop, d_thresh, u) 
-                #print('start ', start_d, start_xy, ' stop ', stop_d, stop_xy)
+
                 
                 if(start_d>=0 and stop_d>=0):
                     for tt in trks:
@@ -1035,7 +1029,7 @@ def find_track_3D_rtree_new(modules, debug=False):
 
     count = Counter(labels)
     n_3D_tracks = sum([1 if k>1 else 0 for k in count.values()])
-    #print('N 3D tracks possible : ', n_3D_tracks)
+
     
     tc = time.time()
     
