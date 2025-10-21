@@ -19,7 +19,7 @@ from .save_plot import *
 
 def draw_pds_ED( option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(11,9))
     n_modules = cf.pds_n_modules
     n_chan = cf.n_pds_channels
     gs = gridspec.GridSpec(nrows=int(n_modules/2), ncols=2)

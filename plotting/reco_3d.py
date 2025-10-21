@@ -35,8 +35,8 @@ def plot_3d(option=None, to_be_shown=True):
 
     v = lar.drift_velocity()
     if(cf.tpc_orientation == 'Vertical'):        
-        xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
-        ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
+        xmin, xmax = min(min(cf.x_boundaries))-10, max(max(cf.x_boundaries))+10
+        ymin, ymax = min(min(cf.y_boundaries))-10, max(max(cf.y_boundaries))+10
         zmin, zmax = -500, 500#min(cf.anode_z) - v*max(cf.n_sample)/cf.sampling[0], max(cf.anode_z)
         
         xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
@@ -47,6 +47,8 @@ def plot_3d(option=None, to_be_shown=True):
         
         xlabel, ylabel, zlabel = 'x','y','Drift/z'
         alabel, blabel, clabel = xlabel, ylabel, ylabel
+
+
 
         
     elif(cf.tpc_orientation == 'Horizontal'):
@@ -68,7 +70,10 @@ def plot_3d(option=None, to_be_shown=True):
     gs = gridspec.GridSpec(nrows = 2, ncols = 2)
     ax  = fig.add_subplot(gs[:,0], projection='3d')
     ax_xz = fig.add_subplot(gs[0, 1])
-    ax_yz = fig.add_subplot(gs[1,1], sharex=ax_xz)
+    if(cf.tpc_orientation == 'Vertical'):
+        ax_yz = fig.add_subplot(gs[1,1], sharey=ax_xz)
+    elif(cf.tpc_orientation == 'Horizontal'):
+        ax_yz = fig.add_subplot(gs[1,1], sharex=ax_xz)
 
 
     
@@ -96,37 +101,83 @@ def plot_3d(option=None, to_be_shown=True):
 
         xini, yini, zini = [t.ini_x for t in dc.tracks3D_list], [t.ini_y for t in dc.tracks3D_list], [t.ini_z for t in dc.tracks3D_list]
         xend, yend, zend = [t.end_x for t in dc.tracks3D_list], [t.end_y for t in dc.tracks3D_list], [t.end_z for t in dc.tracks3D_list]
+        mod_ini = [t.module_ini for t in dc.tracks3D_list]
+        mod_end = [t.module_end for t in dc.tracks3D_list]
+        color_module = ['blue','tab:cyan','red','tab:orange']
+        
         t_ID = [t.ID_3D for t in dc.tracks3D_list]
         
         ax.scatter(a, b, c, c=corr_color, s=4)
-        ax.scatter(zini, yini, xini, marker="*", c='r', s=20)
-        ax.scatter(zend, yend, xend, marker="*", c='k', s=20)    
-        
-        ax_xz.scatter(z, x, c=corr_color, s=4)  
-        ax_yz.scatter(z, y, c=corr_color, s=4)  
-        ax_xz.axvline(0,ls='dotted',c='k',lw=1)
-        ax_yz.axvline(0,ls='dotted',c='k',lw=1)
-        ax_xz.scatter(zini, xini, c='r', marker='*', s=20)
-        ax_xz.scatter(zend, xend, c='k', marker='*', s=20)  
-        ax_xz.plot([zini, zend], [xini, xend], c='tab:cyan', ls='dashed', lw=1)
+        if(cf.tpc_orientation == 'Vertical'):
+            ax.scatter(xini, yini, zini, marker="*", c='r', s=20)
+            ax.scatter(xend, yend, zend, marker="p", c='k', s=20)    
 
-        ax_yz.scatter(zini, yini, c='r', marker='*', s=20)
-        ax_yz.scatter(zend, yend, c='k', marker='*', s=20)
-        ax_yz.plot([zini, zend], [yini, yend], c='tab:cyan', ls='dashed', lw=1)        
+        elif(cf.tpc_orientation == 'Horizontal'):
+                ax.scatter(zini, yini, xini, marker="*", c='r', s=20)
+                ax.scatter(zend, yend, xend, marker="*", c='k', s=20)    
+
+        if(cf.tpc_orientation == 'Vertical'):
+            ax_xz.scatter(x, z, c=corr_color, s=4)  
+            ax_yz.scatter(y, z, c=corr_color, s=4)  
+            ax_xz.axvline(0,ls='dotted',c='k',lw=1)
+
+            ax_xz.scatter(xini, zini, c=[color_module[m] for m in mod_ini], marker='*', s=20)
+            ax_xz.scatter(xend, zend, c=[color_module[m] for m in mod_ini], marker='p', s=20)  
+            ax_yz.scatter(yini, zini, c=[color_module[m] for m in mod_ini], marker='*', s=20)
+            ax_yz.scatter(yend, zend, c=[color_module[m] for m in mod_ini], marker='p', s=20)  
+
+            
+            for xi,yi,zi,xe,ye,ze,m  in zip(xini, yini, zini, xend, yend, zend, mod_ini):
+                col = 'b' if m < 2 else 'k'
+                ax_xz.plot([xi,xe],[zi,ze],c=col,ls='dashed',lw=1)
+                ax_yz.plot([yi,ye],[zi,ze],c=col,ls='dashed',lw=1)
+                #ax_xz.plot([xini, xend], [zini, zend], c=['tab:olive' if m < 2 else 'tab:pink' for m in mod_ini], ls='dashed', lw=1)
 
 
-        for zi, xi, yi, ti in zip(zini, xini, yini, t_ID):
-            ax_xz.text(zi,xi,str(ti))
-            ax_yz.text(zi,yi,str(ti))
+                #ax_yz.plot([yini, yend], [zini, zend], c=['tab:olive' if m < 2 else 'tab:pink' for m in mod_ini], ls='dashed', lw=1)
 
+            
+            for zi, xi, yi, ti in zip(zini, xini, yini, t_ID):
+                ax_xz.text(xi, zi, str(ti))
+                ax_yz.text(yi, zi, str(ti))
+
+            
+        elif(cf.tpc_orientation == 'Horizontal'):
+            ax_xz.scatter(z, x, c=corr_color, s=4)  
+            ax_yz.scatter(z, y, c=corr_color, s=4)
+            
+            ax_xz.axvline(0,ls='dotted',c='k',lw=1)
+            ax_yz.axvline(0,ls='dotted',c='k',lw=1)
+            ax_xz.scatter(zini, xini, c='r', marker='*', s=20)
+            ax_xz.scatter(zend, xend, c='k', marker='*', s=20)  
+            ax_xz.plot([zini, zend], [xini, xend], c='tab:cyan', ls='dashed', lw=1)
+
+            ax_yz.scatter(zini, yini, c='r', marker='*', s=20)
+            ax_yz.scatter(zend, yend, c='k', marker='*', s=20)
+            ax_yz.plot([zini, zend], [yini, yend], c='tab:cyan', ls='dashed', lw=1)        
+
+
+            for zi, xi, yi, ti in zip(zini, xini, yini, t_ID):
+                ax_xz.text(zi,xi,str(ti))
+                ax_yz.text(zi,yi,str(ti))
+
+
+
+                
         
     """ single hits"""
     sh = get_3dsingle_hits()
     
     if(len(sh)>0):
-        ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=6)
-        ax_xz.scatter([x[2] for x in sh], [x[0] for x in sh], c='k', s=6)
-        ax_yz.scatter([x[2] for x in sh], [x[1] for x in sh], c='k', s=6)
+        if(cf.tpc_orientation == 'Vertical'):
+            ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=6)
+            ax_xz.scatter([x[0] for x in sh], [x[2] for x in sh], c='k', s=6)
+            ax_yz.scatter([x[1] for x in sh], [x[2] for x in sh], c='k', s=6)
+        
+        elif(cf.tpc_orientation == 'Horizontal'):
+            ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=6)
+            ax_xz.scatter([x[2] for x in sh], [x[0] for x in sh], c='k', s=6)
+            ax_yz.scatter([x[2] for x in sh], [x[1] for x in sh], c='k', s=6)
         
     """ghosts"""
     ghost = correct_path_orientation(get_3dghost())
@@ -138,21 +189,40 @@ def plot_3d(option=None, to_be_shown=True):
     ax.set_ylim3d(bmin, bmax)
     ax.set_zlim3d(cmin, cmax)
 
-    ax_xz.set_xlim(zmin, zmax)
-    ax_yz.set_xlim(zmin, zmax)
-    ax_xz.set_ylim(xmin, xmax)
-    ax_yz.set_ylim(ymin, ymax)
-
     ax.set_xlabel(alabel+' [cm]')
     ax.set_ylabel(blabel+' [cm]')
     ax.set_zlabel(clabel+' [cm]')
 
-    
-    ax_xz.set_xlabel(zlabel+' [cm]')
-    ax_yz.set_xlabel(zlabel+' [cm]')
-    ax_xz.set_ylabel(xlabel+' [cm]')
-    ax_yz.set_ylabel(ylabel+' [cm]')
 
+
+
+
+    if(cf.tpc_orientation == 'Vertical'):
+        ax_xz.set_ylim(zmin, zmax)
+        ax_yz.set_ylim(zmin, zmax)
+        ax_xz.set_xlim(xmin, xmax)
+        ax_yz.set_xlim(ymin, ymax)
+
+    
+        ax_xz.set_ylabel(zlabel+' [cm]')
+        ax_yz.set_ylabel(zlabel+' [cm]')
+        ax_xz.set_xlabel(xlabel+' [cm]')
+        ax_yz.set_xlabel(ylabel+' [cm]')
+
+
+    elif(cf.tpc_orientation == 'Horizontal'):
+        ax_xz.set_xlim(zmin, zmax)
+        ax_yz.set_xlim(zmin, zmax)
+        ax_xz.set_ylim(xmin, xmax)
+        ax_yz.set_ylim(ymin, ymax)
+
+    
+        ax_xz.set_xlabel(zlabel+' [cm]')
+        ax_yz.set_xlabel(zlabel+' [cm]')
+        ax_xz.set_ylabel(xlabel+' [cm]')
+        ax_yz.set_ylabel(ylabel+' [cm]')
+
+    
 
     ax.grid(False)
     ax.xaxis.pane.set_edgecolor('black')
