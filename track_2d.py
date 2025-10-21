@@ -67,6 +67,10 @@ def refilter_and_find_drays(idtrk, debug=False):
     hits = [dc.hits_list[i - ID_shift] for i in track.hits_ID]
     hits = sorted(hits, key=lambda k: (-k.Z, k.X))
 
+    #print('\n\n track ', track.trackID)
+    #print([h.ID for h in hits])
+    
+    
     """ build graph from hits """
     coords = np.array([(h.X, h.Z) for h in hits])
     
@@ -179,6 +183,7 @@ def refilter_and_find_drays(idtrk, debug=False):
         else:
             final_trk_hits.append(hit)
 
+
     if debug:
         print(f"Final count: {track.n_hits} hits, {track.n_hits_dray} delta rays")
         print(f"DRAY IDs: {sorted(track.drays_ID)}")
@@ -188,6 +193,11 @@ def refilter_and_find_drays(idtrk, debug=False):
     IDs = [h.ID for h in final_trk_hits]
     track.reset_path(coord, charge, IDs)
     track.set_match_hits_2D(idtrk)
+
+
+    #print('FINAL track')
+    #print(track.hits_ID)
+    #print(track.drays_ID)
 
     if debug:
         print(f"Track {idtrk} final hit count: {track.n_hits}, delta rays: {track.n_hits_dray}")
@@ -244,8 +254,11 @@ def find_tracks_hough(modules = [cf.imod]):
 
     
     idx_start = [0]
+    
     n_hits_per_module =  np.sum(dc.evt_list[-1].n_hits, axis=0)
     idx_start.extend(np.cumsum(n_hits_per_module))
+
+    
     visited = np.zeros((n_tot_hits),dtype=bool)
     
     n_hits_tot = np.sum(dc.evt_list[-1].n_hits)
@@ -256,18 +269,13 @@ def find_tracks_hough(modules = [cf.imod]):
         hits = []
 
         for m in modules:
-            n_hits_in_module = [0]
-            [n_hits_in_module.append(n) for n in dc.evt_list[-1].n_hits[:,m]]
-
-            cs_hits_mod = np.cumsum(n_hits_in_module)
-
-            idx0 = idx_start[m] + cs_hits_mod[iview]
-            idx1 = idx_start[m] + cs_hits_mod[iview+1]-1
-
-            ''' select free hits in that view '''
-            visited[idx0:idx1] = 0
-        
-            hits.extend(dc.hits_list[int(idx0):int(idx1)])
+            """ get the part in dc.hits_list of hits that belong to module m """
+            idx0 = idx_start[m]
+            idx1 = idx_start[m+1]
+            hits.extend([h for h in dc.hits_list[int(idx0):int(idx1)] if h.view==iview])
+            ''' set hits unvisited in that view '''
+            ids = [h.ID - ID_shift for h in hits]
+            visited[ids] = 0
             
         n_hits = len(hits)
         if(n_hits==0): continue
