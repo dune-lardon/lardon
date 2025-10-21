@@ -1,5 +1,6 @@
 import config as cf
 import data_containers as dc
+import channel_mapping as chmap
 
 import numpy as np
 import matplotlib as mpl
@@ -31,14 +32,16 @@ def plot_noise_all_crps(option=None, to_be_shown=False):
     nch = 3072
     crp_name = cf.module_name
 
+    raw = chmap.arange_in_glob_channels(list(itr.chain.from_iterable(x.ped_rms for x in dc.evt_list[-1].noise_raw)))
+    filt = chmap.arange_in_glob_channels(list(itr.chain.from_iterable(x.ped_rms for x in dc.evt_list[-1].noise_filt)))
+    print(len(raw))
+    
     for i in range(cf.n_module):
-
 
         ax_crps[i].set_title(crp_name[i])
         chan = np.linspace(ch_start[i], ch_start[i]+nch, nch, endpoint=False)
-    
-        ax_crps[i].scatter(chan, dc.evt_list[-1].noise_raw[i].ped_rms, s=2, c='k', label='raw')
-        ax_crps[i].scatter(chan, dc.evt_list[-1].noise_filt[i].ped_rms, s=2, c='r', label='filtered')
+        ax_crps[i].scatter(chan, raw[ch_start[i]:ch_start[i]+3072], s=2, c='k', label='raw')
+        ax_crps[i].scatter(chan, filt[ch_start[i]:ch_start[i]+3072], s=2, c='r', label='filtered')
 
         for vch in [951.5, 1903.5]:
             ax_crps[i].axvline(ch_start[i]+vch, c='k', ls='dashed')

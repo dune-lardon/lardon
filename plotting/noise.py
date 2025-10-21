@@ -340,14 +340,15 @@ def plot_FFT_vch(ps, option=None, to_be_shown=False):
 
 def plot_correlation_globch(option=None, to_be_shown=False):
     data_globch = np.zeros(dc.data_daq.shape)
-    for i in range(cf.n_tot_channels):
-        gch = dc.chmap[i].globch
+    daqch_start = cf.module_daqch_start[cf.imod]
+    for i in range(cf.module_nchan[cf.imod]):
+        gch = dc.chmap[i+daqch_start].globch
         if(gch < 0):
             continue
-        data_globch[gch] = dc.data_daq[i]
+        data_globch[gch-3072*cf.imod] = dc.data_daq[i]
 
-    return plot_correlation(np.corrcoef(data_globch),"glob",option,to_be_shown)
-
+    #return plot_correlation(np.corrcoef(data_globch),"glob",option,to_be_shown)
+    return np.corrcoef(data_globch)
 
 def plot_correlation_daqch(option=None, to_be_shown=False):
     return plot_correlation(np.corrcoef(dc.data_daq),"daq",option,to_be_shown)
@@ -368,8 +369,8 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
                    aspect = 'auto', 
                    interpolation='none',
                    cmap   = cmap_corr,
-                   extent=[0, cf.n_tot_channels, 0., cf.n_tot_channels],
-                   vmin=-0.6, vmax=0.6)#vmin=-1, vmax=1)
+                   extent=[0, cf.module_nchan[cf.imod], 0., cf.module_nchan[cf.imod]],
+                   vmin=-0.2, vmax=0.2)#vmin=-1, vmax=1)
 
     if(corr_type=='daq'):
         title = 'DAQ Channels'
@@ -382,8 +383,10 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
     ax_corr.set_ylabel(title)
     ax_corr.set_xlabel(title)
 
-    jump = 64 if dc.evt_list[-1].elec == "top" else 128
-    for i in range(0,cf.n_tot_channels,jump):
+    
+    jump = 64 if cf.elec[cf.imod] == "top" else 128
+    
+    for i in range(0,cf.module_nchan[cf.imod],jump):
         ax_corr.axvline(i, ls=':',lw=.2,c='k')
         ax_corr.axhline(i, ls=':',lw=.2,c='k')
 
@@ -395,7 +398,7 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
             nprev += cf.view_nchan[i]
     elif(corr_type=='daq'):
         jump = 640 if dc.evt_list[-1].elec == "top" else 128
-        for i in range(0,cf.n_tot_channels,jump):
+        for i in range(0,cf.module_nchan[cf.imod],jump):
             ax_corr.axvline(i, ls='--',lw=.4,c='k')
             ax_corr.axhline(i, ls='--',lw=.4,c='k')
             
@@ -408,15 +411,15 @@ def plot_correlation(corr,corr_type,option,to_be_shown):
     cb.ax.xaxis.set_label_position('top')
 
     plt.tight_layout()
-    #save_with_details(fig, option, 'correlation_'+corr_type+'ch')
-
+    save_with_details(fig, option, 'correlation_'+corr_type+'ch_mod_'+str(cf.imod))
+    
 
     if(to_be_shown):
         plt.show()
 
     plt.close()
     
-    return corr
+    #return corr
 
 
 def plot_sticky_finder_daqch(option='', to_be_shown=False):

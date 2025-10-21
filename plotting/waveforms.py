@@ -165,22 +165,25 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
     #chmap.arange_in_view_channels()
     n_wvf = len(vch_list)
 
-    fig = plt.figure(figsize=(7, 3*n_wvf))#(12, 3*n_wvf))
+    fig = plt.figure(figsize=(12, 3*n_wvf))#(12, 3*n_wvf))
     gs = gridspec.GridSpec(nrows=n_wvf, ncols=1)
     ax = [fig.add_subplot(gs[0,0])]
     ax.extend([fig.add_subplot(gs[i,0], sharex=ax[0]) for i in range(1,n_wvf)])
 
+    daq_start = cf.module_daqch_start[cf.imod]
+    print('daq start is : ', daq_start)
     for i in range(n_wvf):
         view, ch = vch_list[i]
         
         """ ugly but it works """
         for k in dc.chmap:
-            if(k.view == view and k.vchan == ch):
+            if(k.view == view and k.vchan == ch and k.module == cf.imod):
                 daq_ch = k.daqch
+                glob_ch = k.globch#k.daqch
                 break
 
         legend = "v"+str(view)+" ch"+str(ch)
-        ax[i] = draw_current_waveform(daq_ch, -1, -1, ax=ax[i], label=legend, c='k')
+        ax[i] = draw_current_waveform(daq_ch-daq_start, -1, -1, ax=ax[i], label=legend, c='k')
         ax[i].set_ylabel('ADC')
         #ax[i].legend(loc='upper right')
 
@@ -192,11 +195,14 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
 
 
         ymin, ymax = ax[i].get_ylim()
-        ped_mean = dc.evt_list[-1].noise_filt.ped_mean[daq_ch]
-        ped_rms = dc.evt_list[-1].noise_filt.ped_rms[daq_ch]
+        ped_mean = dc.evt_list[-1].noise_filt[cf.imod].ped_mean[daq_ch-daq_start]
+        ped_rms = dc.evt_list[-1].noise_filt[cf.imod].ped_rms[daq_ch-daq_start]
+        print('--> ', view, ch, ' daq ', daq_ch, ' ped = ', ped_mean, ' rms = ', ped_rms)
+        print('wvf min ',min(dc.data_daq[daq_ch-daq_start]), ' max ', max(dc.data_daq[daq_ch-daq_start]))
 
+              
         """ draw rois """
-        ROI = np.r_['-1',0,np.array(~dc.mask_daq[daq_ch], dtype=int),0]
+        ROI = np.r_['-1',0,np.array(~dc.mask_daq[daq_ch-daq_start], dtype=int),0]
         d = np.diff(ROI)
 
         """ a change from false to true in difference is = 1 """
@@ -221,8 +227,8 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
                 else:
                     c='r'
                 t_start, t_stop = ih.start,ih.stop
-                ax[i].fill_between(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], ped_mean, step='mid',color=c, alpha=0.25,zorder=200)
-                ax[i].step(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch, t_start:t_stop+1], linewidth=1, c=c,zorder=250,where='mid')
+                ax[i].fill_between(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch-daq_start, t_start:t_stop+1], ped_mean, step='mid',color=c, alpha=0.25,zorder=200)
+                ax[i].step(np.linspace(t_start,t_stop,t_stop-t_start+1), dc.data_daq[daq_ch-daq_start, t_start:t_stop+1], linewidth=1, c=c,zorder=250,where='mid')
 
                 ax[i].axvline(t_start, ls='dashed',c=c,lw=.5,zorder=300)
                 ax[i].axvline(t_stop, ls='dotted',c=c,lw=.5,zorder=300)
@@ -338,13 +344,13 @@ def draw_data(data, ax=None, **kwargs):
     return ax
     
 
-def plot_wvf_evo(data, title="", legends=[], adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
+def plot_wvf_evo(data, title="", legends=[], colors=['k','tab:cyan'], adc_min=-1, adc_max=-1, tmin=0, tmax=cf.n_sample[cf.imod], option=None, to_be_shown=False):
 
     fig = plt.figure(figsize=(12, 3))
     ax = plt.gca()
 
     for d in range(len(data)):
-        ax = draw_data(data[d], ax=ax, label=legends[d])
+        ax = draw_data(data[d], ax=ax, c=colors[d], label=legends[d])
         
     ax.set_xlabel('Time')
     ax.set_ylabel('ADC')
