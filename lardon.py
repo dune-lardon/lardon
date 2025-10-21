@@ -30,8 +30,9 @@ parser.add_argument('-f', '--file', help="Custom input filename")
 
 parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used for charge pulsing data')
 
-parser.add_argument('-flow', type=str, default="-1", help="dataflow number (bde-only)", dest='dataflow')
-parser.add_argument('-writer', type=str, default="-1", help="datawriter number (bde-only)", dest='datawriter')
+parser.add_argument('-flow', type=str, default="-1", help="dataflow number", dest='dataflow')
+parser.add_argument('-writer', type=str, default="-1", help="datawriter number", dest='datawriter')
+parser.add_argument('-serv', type=str, default="-1", help="daq server nb", dest='daqserver')
 
 parser.add_argument('-job', dest='is_job', action='store_true', help='Flag that lardon is running on a job, no need to import the plot libraries')
 
@@ -85,6 +86,7 @@ if(is_pulse == True):
 """ some bde special case """
 dataflow = args.dataflow
 datawriter = args.datawriter
+daqserver = args.daqserver
 
 is_job = args.is_job
 
@@ -115,7 +117,8 @@ if(dataflow != "-1" or datawriter != "-1"):
       
     if(datawriter != "-1"):
         multipass_daqname += datawriter
-        
+    if(daqserver != "-1"):
+        multipass_daqname += "_s"+daqserver
 else:
     if(dataflow ==  "-1"):
         dataflow = "0"
@@ -244,20 +247,22 @@ for ievent in range(nevent):
 
     ''' Workflow for PDS '''
     if(do_pds == True):       
-        dc.reset_event_pds()
-        reader.read_containers_evt(ievent)
+        dc.reset_containers_pds()
+        reader.read_pds_evt(ievent)
 
         if(cf.n_pds_sample <=0):
             print(' EVENT HAS NO PDS SAMPLE ...')
             cf.n_pds_sample = 0
             store.store_pds_event(output)
             
-
+        print('PDS nb of sample: ', cf.n_pds_sample)
         work.pds_signal_proc()
         work.pds_reco()            
                        
 
     #fft_ps = []
+    #corr = []
+    
     """ Workflow for charge """
     if(do_charge == True):
 
@@ -285,10 +290,13 @@ for ievent in range(nevent):
                 work.charge_pulsing()
                 continue
             
-            
             work.charge_signal_proc(deb, online_mode)
-            #fft_ps.append(ps)
 
+            #ps, cnr_corr = work.charge_signal_proc(deb, online_mode)
+            #fft_ps.append(ps)
+            #corr.append(cnr_corr)
+
+            
             work.charge_reco(deb, online_mode)
                 
             """ debugging tools """
@@ -318,6 +326,7 @@ for ievent in range(nevent):
         store.store_noisestudy(output)
         store.store_hits(output)
         #store.store_fft(output, fft_ps)
+        #store.store_corr(output, corr)
 
         
         if(is_pulse==True):                      
@@ -327,9 +336,6 @@ for ievent in range(nevent):
             #store.store_avf_wvf(output)
 
         else:        
-            #if(detector == 'pdvd'):
-            #    store.store_hits_3d(output)
-            #else:
             store.store_tracks2D(output)
             store.store_tracks3D(output)
             store.store_single_hits(output)
@@ -338,7 +344,7 @@ for ievent in range(nevent):
     if(do_pds):
         store.store_pds_event(output)
         
-    if(do_pds and any(x>0 for x in cf.n_pds_sample)):
+    if(do_pds and cf.n_pds_sample > 0):
         #store.store_pds_event(output)
         store.store_pds_pedestals(output)
         store.store_pds_peak(output)
@@ -368,7 +374,6 @@ if(is_pulse==True):
 
 reader.close_file()
 output.close()
-
 print('**************')
 print('* Reco total *')
 print('**************')
