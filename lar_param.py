@@ -3,9 +3,9 @@ import config as cf
 import numpy as np
 import math
             
-def drift_velocity():
+def drift_velocity(imod = cf.imod):
     T = cf.LAr_temperature
-    E = cf.e_drift[cf.imod]
+    E = cf.e_drift[imod]
 
     T_walk = 90.371 #K
     walk = [-0.01481, -0.0075, 0.141, 12.4, 1.627, 0.317]
