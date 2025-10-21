@@ -825,6 +825,7 @@ class wib:
             
             n_frames = n_link_frames#n_event_frames
 
+            
             if(cf.n_sample[cf.imod] < 0): #first pass
                 if(n_event_frames == 0):
                     continue
@@ -833,12 +834,19 @@ class wib:
                     dc.data_daq = np.zeros((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]), dtype=np.float32) #view, vchan
                     event_begin = tstart_link[0]
                     event_end   = tstop_link[0]
+
             else:
                 delta_start = int(event_begin-tstart_link[-1])
                 delta_stop = int(tstop_link[-1]-event_end)
 
                 t_bef = delta_start if delta_start > 0 else 0
                 t_end = delta_stop if delta_stop > 0 else 0
+
+                t_bef *= cf.sampling[cf.imod]/1.953125
+                t_end *= cf.sampling[cf.imod]/1.953125
+                t_bef = int(t_bef)
+                t_end = int(t_end)
+                
 
                 
                 if(delta_start > 0): event_begin = tstart_link[-1]
@@ -847,6 +855,7 @@ class wib:
                 if(n_event_frames > cf.n_sample[cf.imod]):
                     if(t_bef > 0 or t_end > 0):
                         dc.data_daq = np.pad(dc.data_daq, ((0,0), (t_bef, t_end)), 'constant', constant_values=np.nan)
+
 
                 elif(n_event_frames < cf.n_sample[cf.imod]):
                     if(n_event_frames == 0):
@@ -861,7 +870,6 @@ class wib:
                 else:
                     if(t_bef > 0 or t_end > 0):   
                         dc.data_daq = np.pad(dc.data_daq, ((0,0), (t_bef, t_end)), 'constant', constant_values=np.nan)
-
 
                 cf.n_sample[cf.imod] = n_event_frames#int(event_end-event_begin)+64
 
@@ -909,7 +917,7 @@ class wib:
             if(l_bef > 0 or l_end > 0):
                 out = np.pad(out, ((0,0), (l_bef, l_end)), 'constant', constant_values=np.nan)
 
-
+            
             """ one wib frame is 64 ticks """
             wib_delta_ts = np.diff(wib_ts)
             if(np.all(wib_delta_ts==64) == False):
@@ -926,6 +934,9 @@ class wib:
                 for i, p in enumerate(idx):
                     out = np.insert(out, [p-1 for x in range(skipped[i])], np.nan, axis=1)
 
+            if(out.shape[1] != dc.data_daq.shape[1]):
+                
+                continue
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
         
         #self.nlinks = 0
@@ -959,17 +970,26 @@ class wib:
         
         """ Hard coded at the moment for CB BOT data """
         self.n_stream = 4
+        offset = 1
         if(self.det == 'pdhd'):
             self.n_stream = 10
 
+        if(self.det == 'pdvd'):
+            self.n_stream = 4
+            offset = 720
            
-        names = ["0x"+format(istream+1, '08x') for istream in range(self.n_stream)]
+        names = ["0x"+format(istream+offset, '08x') for istream in range(self.n_stream)]
+        #print(names)
+        
         pds_tstart = []
         for istream in range(self.n_stream):
             name = names[istream]
-            try:
-                stream_data = self.f_in.get_node("/"+self.events_list[ievt]+"/RawData", name='Detector_Readout_'+name+'_DAPHNEStream',classname='Array').read()
-            except  tab.NoSuchNodeError:
+            try:#llll
+                #stream_data = self.f_in.get_node("/"+self.events_list[ievt]+"/RawData", name='Detector_Readout_'+name+'_DAPHNEStream',classname='Array').read()
+                path = f"/{self.events_list[ievt]}/RawData/Detector_Readout_{name}_DAPHNEStream"
+                stream_data = self.f_in[path][:]
+                
+            except KeyError:
                 continue
             
             """ don't read the fragment header """
@@ -980,7 +1000,8 @@ class wib:
                 continue
             
             channels = decode_daphne_channels(daphne['channels'])
-            print('stream', name, ' channels: ', channels)
+            #print('stream', name, ' channels: ', channels)
+            #print(daphne)
             pds_tstart.append(daphne['timestamp'][0])
             
             """ remove the headers and trailers """
@@ -994,18 +1015,20 @@ class wib:
                 dc.data_pds = np.zeros((cf.n_pds_channels, cf.n_pds_sample), dtype=np.float32)
                 
             out = read_eth_evt_uint14_nb(stream_data)
+            #print('out shape=== ', out.shape)
             out = np.reshape(out, (-1,self.n_channels_per_stream)).T
+            #print('reshaped ', out.shape)
             out = out.astype(np.float32)
 
 
             for ichan in range(self.n_channels_per_stream):
                 daq = self.n_channels_per_stream*istream + ichan                
                 glob = dc.chmap_daq_pds[daq].globch
-                print(ichan, " : daq ",daq, 'glob ',glob)
+                #print(ichan, " : daq ",daq, 'glob ',glob)
                 if(glob < 0):
                     continue
                 else:
-                    print(ichan, " :: ", dc.chmap_daq_pds[daq].chan, channels[ichan], '-->', daq, glob)
+                    #print(ichan, " :: ", dc.chmap_daq_pds[daq].chan, channels[ichan], '-->', daq, glob)
                     #assert dc.chmap_daq_pds[daq].chan == channels[ichan]
                     if('M' in dc.chmap_pds[glob].det):                        
                         dc.data_pds[glob] = -1*out[ichan]
