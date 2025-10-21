@@ -17,11 +17,11 @@
 	  },
 	  
 	  "ind":{
-	      "max_dt_pos_neg":20,
+	      "max_dt_pos_neg":30,
 	      "pad_bef":10,
 	      "pad_aft":15,
 	      "pos":{
-		  "min_dt":6,
+		  "min_dt":4,
 		  "low_thr":[1.8,2.0],
 		  "high_thr":[2.2,2.5],
 		  "min_rise":2,
@@ -29,7 +29,7 @@
 	      },
 	      
 	      "neg":{
-		  "min_dt":6,
+		  "min_dt":4,
 		  "low_thr":[-1.8,-2.0],
 		  "high_thr":[-2.2,-2.5],
 		  "min_rise":1,
@@ -41,7 +41,8 @@
       "noise":{
           "coherent":{
               "groupings":[32],
-	      "per_view":1,
+	      "per_view_per_card":1,
+	      "per_view":0,
 	      "capa_weight":0,
 	      "calibrated":0
           },
@@ -53,8 +54,10 @@
 
 	  "microphonic":{
 	      "window":-1
+	  },
+	  "study":{
+	      "to_be_done":1
 	  }
-
       },
       
       "hit_finder":{
@@ -133,7 +136,7 @@
 	  "module":{
 	      "dist_thr":10.0,
 	      "align_thr":0.98,
-	      "boundary_tol":5.0,
+	      "boundary_tol":6.0,
 	  },
 	  "cathode":{
 	      "dx_thresh":20.0,
@@ -147,7 +150,7 @@
 
       
       "ghost":{
-	  "search":0,
+	  "search":1,
 	  "dmin":10.0
       },
 
@@ -162,6 +165,33 @@
       "store":{
 	  "coord":"lardon"
       },
+
+    "pds":{
+	/* for the light reconstruction */
+	"pedestal":{
+	    "raw_adc_thresh":200,
+	    "rms_thresh":3,
+	    "n_iter":3
+	},
+	"noise":{
+	    "flat_baseline_window":4000,
+	},
+	
+        "hit_finder":{
+            "amp_sig": [15, 20],
+            "dt_min": 50,
+	    "pad":{
+		"left":20,
+		"right":40
+	    },		 
+        },
+	"cluster":{
+	    "time_tol":5
+	},
+	"matching":{
+	    "time_tol":5
+	},	
+    },
       
       "plot":{
           "noise":{           

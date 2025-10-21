@@ -40,7 +40,8 @@
     "noise":{
         "coherent":{
             "groupings":[32], /*nb of channels in same card/same view*/
-	    "per_view":1,
+	    "per_view":0,
+	    "per_view_per_card":1,
 	    "capa_weight":0, /*apply a weight to the data based on the capacitance*/
 	    "calibrated":0
         },
