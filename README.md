@@ -34,12 +34,21 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 * `-det <cb1top/cb1bot/cbtop/cbbot/dp/50l/pdhd/pdvd>` which detector<br/>
 * `-run <run nb>` which run number
 * `-sub <subfile name>` which subfile (*e.g.* 1_a, 0)<br/>
+**These options may be also needed to retrieve the raw file**:<br/>
 * `-flow <flow nb> -writer <writer nb>` if used <br/>
 * `-hash <ab/cd>` the hashed sub-directory where the data is (use rucio to find out) <br/>
+* `-serv <server nb> the server nb where the data was taken <br/>
+
+**Alternatively, you can provide the whole path of the file:**<br/>
+Should be used for using files outside of cern/fermilab<br/>
+In such case you need to first get the justin/rucio authentication sorted<br/>
+and do `export LD_PRELOAD=/your/conda/env/lib/libXrdPosixPreload.so` before running lardon. The option to use is:<br/>
+* `-file root://the.full.file.path.you.got.from.rucio.the_file.h5`
+:exclamation: you still need to provide run and subfile numbers<br/>
 
 **Depending on the requested reconstruction**:<br/>
 * `-trk` if you want the **charge/TPC** reconstruction<br/>
-* `-pds` if you want the **PDS** reconstruction [DO NOT USE NOW, NEEDS DEBUGGING]<br/>
+* `-pds` if you want the **PDS** reconstruction [DOES NOT WORK FOR PDHD, okish for PDVD]<br/>
 **You can ask both!**
 
 *Optional*:<br/>
@@ -53,7 +62,7 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 
 *e.g. 1* : To run TPC reco on event 11 of PDVD file `np02vd_raw_run039229_0024_df-s05-d4_dw_0_20250829T115242.hdf5` on lxplus: 
 
-`python lardon.py -det pdvd -run 39229 -sub 24 -flow 4 -writer 0 -hash 86/ad -event 11 -out one_event -trk`
+`python lardon.py -det pdvd -run 39229 -sub 24 -flow 4 -writer 0 -serv 5 -hash 86/ad -event 11 -out one_event -trk`
 
 the output h5file will be **$store_path/pdvd_39229_24_40_one_event.h5**
 
@@ -70,6 +79,11 @@ the output h5file will be **$store_path/pdvd_39246_00_full_example.h5**
 NB: When `flow_nb` and `writer_nb` are both 0, you don't need to provide it.
 The output h5file will be **$store_path/cbbot_37040_23_few_events.h5**
 
+*e.g. 4* : To run TPC & PDS reco on events 5 and 6 VD-CD file located at root://somewhere.abc:1094directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5
+
+`python lardon.py -det cbbot -run 37041 -sub 79 -file root://somewhere.abc:1094directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5 -n 6 -skip 4 -trk -pds -out evt_5_6_both_reco`
+
+the output h5file will be **$store_path/cbbot_37041_79_evt_5_6_both_reco.h5**
 
 # LARDON Conventions
 * In lardon, electrons drift along the third / `z` axis.
