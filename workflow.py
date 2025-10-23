@@ -247,8 +247,8 @@ def charge_reco(deb, is_online):
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
 
 def charge_reco_whole(is_online):
-
-
+    if(dc.evt_list[-1].det == 'cbbot' or dc.evt_list[-1].det == '50l' ):        
+        return
     
     stitch.stitch3D_across_modules([0,1])
     stitch.stitch3D_across_modules([2,3])
