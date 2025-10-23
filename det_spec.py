@@ -30,10 +30,12 @@ def configure(detector, run, do_pds, hash_path):
         key = fname.get_data_path(locations, run, hash_path)
 
         if(key == "none"):
-            print("sorry but the data does not seem to exists in the paths provided ... bye")
-            exit()        
-        cf.domain = key
-        cf.data_path = locations[key]
+            print("the data does not seem to exists in the paths provided in path.json file")
+            print("if you have not provided the file full path (option -file), lardon will crash")
+            #exit()
+        else:
+            cf.domain = key
+            cf.data_path = locations[key]
 
         
 
