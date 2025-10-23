@@ -26,7 +26,7 @@ parser.add_argument('-out', dest='outname', help='extra name on the output', def
 parser.add_argument('-skip', dest='evt_skip', type=int, help='nb of events to skip', default=0)
 parser.add_argument('-event', dest='single_event', type=int, help='Look at a specific event in the file', default=-1)
 
-parser.add_argument('-f', '--file', help="Custom input filename")
+parser.add_argument('-file', type=str, dest="custom_file_path", help="provide the raw file entire path", default=None)
 
 parser.add_argument('-pulse', dest='is_pulse', action='store_true', help='Used for charge pulsing data')
 
@@ -87,6 +87,8 @@ if(is_pulse == True):
 dataflow = args.dataflow
 datawriter = args.datawriter
 daqserver = args.daqserver
+custom_file_path = args.custom_file_path
+
 
 is_job = args.is_job
 
@@ -124,6 +126,9 @@ else:
         dataflow = "0"
     if(datawriter == "-1"):  
         datawriter = "0"
+
+if(custom_file_path):
+    print('---> Will read file ', custom_file_path)
 
 
 """ output file """
@@ -181,7 +186,7 @@ cmap.get_mapping(detector)
 
 
 """ setup the decoder """
-reader = decoder.decoder(detector, run, str(sub), dataflow+"-"+datawriter, hash_path, args.file)
+reader = decoder.decoder(detector, run, str(sub), dataflow+"-"+datawriter, hash_path, custom_file_path)#args.file)
 reader.open_file()
 nb_evt = reader.read_run_header()
 
