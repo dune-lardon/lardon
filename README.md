@@ -7,6 +7,10 @@ You need miniconda installed :
 
 https://docs.conda.io/en/latest/miniconda.html#linux-installers
 
+:warning: at FNAL, anaconda is not allowed anymore, use miniforge instead:
+
+`wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh`
+
 and then get the librairies as stated in **lardenv.yml** :
 
 `conda env create -f lardenv.yml`
@@ -37,14 +41,16 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 **These options may be also needed to retrieve the raw file**:<br/>
 * `-flow <flow nb> -writer <writer nb>` if used <br/>
 * `-hash <ab/cd>` the hashed sub-directory where the data is (use rucio to find out) <br/>
-* `-serv <server nb> the server nb where the data was taken <br/>
+* `-serv <server nb>` the server nb where the data was taken (may be needed for some PDVD runs, you can get it in the file name under the `-s0x-` part)<br/>
 
 **Alternatively, you can provide the whole path of the file:**<br/>
 Should be used for using files outside of cern/fermilab<br/>
 In such case you need to first get the justin/rucio authentication sorted<br/>
-and do `export LD_PRELOAD=/your/conda/env/lib/libXrdPosixPreload.so` before running lardon. The option to use is:<br/>
+and do `export LD_PRELOAD=/your/conda/env/lib/libXrdPosixPreload.so` before running lardon.<br/>
+The option to use is:<br/>
 * `-file root://the.full.file.path.you.got.from.rucio.the_file.h5`
-:exclamation: you still need to provide run and subfile numbers<br/>
+
+:exclamation: you still need to provide run and subfile numbers ! <br/>
 
 **Depending on the requested reconstruction**:<br/>
 * `-trk` if you want the **charge/TPC** reconstruction<br/>
@@ -79,9 +85,9 @@ the output h5file will be **$store_path/pdvd_39246_00_full_example.h5**
 NB: When `flow_nb` and `writer_nb` are both 0, you don't need to provide it.
 The output h5file will be **$store_path/cbbot_37040_23_few_events.h5**
 
-*e.g. 4* : To run TPC & PDS reco on events 5 and 6 VD-CD file located at root://somewhere.abc:1094directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5
+*e.g. 4* : To run TPC & PDS reco on events 5 and 6 VD-CD file located at root://somewhere.abc:1094/directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5
 
-`python lardon.py -det cbbot -run 37041 -sub 79 -file root://somewhere.abc:1094directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5 -n 6 -skip 4 -trk -pds -out evt_5_6_both_reco`
+`python lardon.py -det cbbot -run 37041 -sub 79 -file root://somewhere.abc:1094/directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5 -n 6 -skip 4 -trk -pds -out evt_5_6_both_reco`
 
 the output h5file will be **$store_path/cbbot_37041_79_evt_5_6_both_reco.h5**
 
