@@ -1,5 +1,4 @@
 {
-    "mine":"/eos/user/l/lzambell/analysis/pdhd/runs",
     "cern":"/eos/experiment/neutplatform/protodune/dune/hd-protodune/",
-    "fnal":"/pnfs/dune/tape_backed/dunepro/vd-coldbox-top/raw/2022/detector/study/None"
+    "fnal":"/pnfs/dune/tape_backed/dunepro/hd-protodune/raw/2024/detector/cosmics/None/"
 }
