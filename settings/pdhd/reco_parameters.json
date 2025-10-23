@@ -40,7 +40,8 @@
 	 
       "noise":{
           "coherent":{
-              "groupings":[32],
+              "per_view_per_card":0,
+	      "groupings":[32],
 	      "per_view":1,
 	      "capa_weight":0,
 	      "calibrated":0
