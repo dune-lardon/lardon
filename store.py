@@ -57,7 +57,7 @@ class NoiseStudy(IsDescription):
     delta_mean  = Float32Col(shape=(cf.n_tot_channels))
     rms         = Float32Col(shape=(cf.n_tot_channels))
 
-
+'''
 class FFT(IsDescription):
     """ ADJUST THE NUMBERS OF THE PS SHAPE ACCORDING TO THE RUN CONFIGURATION """
     print('test: ', (cf.module_nchan[0]/2, int(cf.n_sample[0]/2)+1), ' and ', cf.module_nchan[2]/2, int(cf.n_sample[2]/2)+1)
@@ -65,13 +65,14 @@ class FFT(IsDescription):
     ps_1 = Float32Col(shape=(cf.module_nchan[1], 3937))
     ps_2 = Float32Col(shape=(cf.module_nchan[2], 4033))
     ps_3 = Float32Col(shape=(cf.module_nchan[3], 4033))
-
-
+'''
+'''
 class Corr(IsDescription):
     corr_0 = Float32Col(shape=(cf.module_nchan[0], cf.module_nchan[0]))
     corr_1 = Float32Col(shape=(cf.module_nchan[1], cf.module_nchan[1]))
     corr_2 = Float32Col(shape=(cf.module_nchan[2], cf.module_nchan[2]))
     corr_3 = Float32Col(shape=(cf.module_nchan[3], cf.module_nchan[3]))
+'''
 
 class Waveform(IsDescription):
     view        = UInt8Col()
@@ -512,6 +513,7 @@ def store_noisestudy(h5file):
     ped['rms']  = chmap.arange_in_glob_channels(list(itt.chain.from_iterable(x.ped_rms for x in dc.evt_list[-1].noise_study)))
     ped.append()
 
+'''
 def store_fft(h5file, ps):
     #print('fft shapes: ', ps[0].shape, " ", ps[1].shape, " ", ps[2].shape, " ", ps[3].shape)
     print("WARNING !!! FFT PS PLOTS TAKE A LOT OF SPACE !!!")
@@ -526,7 +528,8 @@ def store_fft(h5file, ps):
     if(ps[3].shape[1] == 4033):
         fft['ps_3']   = ps[3]
     fft.append()
-
+'''
+'''
 def store_corr(h5file, corr):
     #print('STORE corr ', len(corr))    
     print("WARNING !! CORRELATION PLOTS TAKE A LOT OF SPACE !!!")
@@ -536,7 +539,7 @@ def store_corr(h5file, corr):
     cnr['corr_2']   = corr[2]
     cnr['corr_3']   = corr[3]
     cnr.append()
-
+'''
 
 def store_hits(h5file):
     hit = h5file.root.hits.row
