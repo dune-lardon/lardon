@@ -10,7 +10,7 @@ dependencies:
   - scikit-learn
   - scipy
   - uproot
-  - numexpr=2.8.4
+  - numexpr
   - pytables
   - h5py
   - vitables
@@ -19,6 +19,7 @@ dependencies:
   - fast-histogram
   - pandas
   - psutil
+  - xrootd
   - pip
   - pip:
     - rtree
