@@ -1,39 +1,39 @@
 # Liquid Argon Reconstruction Done in PythON
 ![Logo](figs/lardon_logo_text.png)
 
+# LARDON installation
+:bangbang: ***LARDON now uses `uv` to manage its dependencies*** :bangbang:
 
-# Librairies needed to run lardon
-You need miniconda installed :
+Install `uv`:
 
-https://docs.conda.io/en/latest/miniconda.html#linux-installers
+`curl -LsSf https://astral.sh/uv/install.sh | sh`
 
-:warning: at FNAL, anaconda is not allowed anymore, use miniforge instead:
+you can learn more about `uv` here: https://github.com/astral-sh/uv
 
-`wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh`
+Go to the top lardon repository, and do:
 
-and then get the librairies as stated in **lardenv.yml** :
+`uv sync`
 
-`conda env create -f lardenv.yml`
+you can then either run lardon with:
+`uv run lardon <options>`
+or source `set_lardon.sh` where the lardon environment will be activated (type `deactivate` to disable it). This is the default method.
 
- :warning: It'll take about 2-3 GB of space!
+:warning: *if you previously added the `xrootd` package to your conda environment, you should remove it: `conda remove xrootd` as it messes up a lot of the server settings (like git, condor, ...)*
 
-(the library `pylandau` can somewhat no longer be installed recently ...)
 
-then : `conda activate lardenv`
- 
 # Before running lardon
-Check and modify `config.py` :
-* *store_path* : your directory where the output file will be stored
-* *plot_path*  : your directory where control plots will be stored
+Check and modify `set_lardon.sh` if needed:
+* *$LARDON_PATH*: where the lardon code lives
+* *$LARDON_RECO*: where the reconstructed files will be stored
 
 
-Check and modify files in `settings/the_detector/` :
+Check and modify files in `lardon/settings/the_detector/` :
 * Update the runs configuration files in `geo.json` if needed [**with caution!**]
 * Change the reconstruction parameters in `reco_parameters.json` if needed
 * Update the raw files location in `path.json` if needed. LARDON search the requested `*hdf5` file in the `/directory` and in the subdirectories `/directory/ha/sh/`, `/directory/runnumber/` and in `/directory/ru/nu/mb/er`.
   	 
 # To run lardon on data
-To launch lardon, type `python lardon.py` with the following arguments:<br/>
+To launch lardon, type `lardon` with the following arguments:<br/>
 **Mandatory**:<br/>
 * `-det <cb1top/cb1bot/cbtop/cbbot/dp/50l/pdhd/pdvd>` which detector<br/>
 * `-run <run nb>` which run number
@@ -46,7 +46,7 @@ To launch lardon, type `python lardon.py` with the following arguments:<br/>
 **Alternatively, you can provide the whole path of the file:**<br/>
 Should be used for using files outside of cern/fermilab<br/>
 In such case you need to first get the justin/rucio authentication sorted<br/>
-and do `export LD_PRELOAD=/your/conda/env/lib/libXrdPosixPreload.so` before running lardon.<br/>
+in the `set_lardon.sh` script, the `$LD_PRELOAD` is automatically set to allow `xrootd` stram<br/>
 The option to use is:<br/>
 * `-file root://the.full.file.path.you.got.from.rucio.the_file.h5`
 
@@ -68,28 +68,28 @@ The option to use is:<br/>
 
 *e.g. 1* : To run TPC reco on event 11 of PDVD file `np02vd_raw_run039229_0024_df-s05-d4_dw_0_20250829T115242.hdf5` on lxplus: 
 
-`python lardon.py -det pdvd -run 39229 -sub 24 -flow 4 -writer 0 -serv 5 -hash 86/ad -event 11 -out one_event -trk`
+`lardon -det pdvd -run 39229 -sub 24 -flow 4 -writer 0 -serv 5 -hash 86/ad -event 11 -out one_event -trk`
 
-the output h5file will be **$store_path/pdvd_39229_24_40_one_event.h5**
+the output h5file will be **$LARDON_RECO/pdvd_39229_24_40_one_event.h5**
 
 *e.g. 2* : To run TPC reco on all events of PDVD file `np02vd_raw_run039246_0006_df-s04-d0_dw_0_20250829T152837.hdf5` :
 
-`python lardon.py -det pdvd -run 39246 -sub 6 -flow 0 -writer 0 -out full_example -trk`
+`lardon -det pdvd -run 39246 -sub 6 -flow 0 -writer 0 -out full_example -trk`
 
-the output h5file will be **$store_path/pdvd_39246_00_full_example.h5**
+the output h5file will be **$LARDON_RECO/pdvd_39246_00_full_example.h5**
 
 *e.g. 3* : To run TPC on first 10 events of VD-CB file `np02vdcoldbox_raw_run037040_0023_df-s02-d0_dw_0_20250704T183417.hdf5` :
 
-`python lardon.py -det cbbot -run 37040 -sub 23 -hash 5a/a2  -n 10 -trk -out few_events`
+`lardon -det cbbot -run 37040 -sub 23 -hash 5a/a2  -n 10 -trk -out few_events`
 
 NB: When `flow_nb` and `writer_nb` are both 0, you don't need to provide it.
-The output h5file will be **$store_path/cbbot_37040_23_few_events.h5**
+The output h5file will be **$LARDON_RECO/cbbot_37040_23_few_events.h5**
 
 *e.g. 4* : To run TPC & PDS reco on events 5 and 6 VD-CD file located at root://somewhere.abc:1094/directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5
 
-`python lardon.py -det cbbot -run 37041 -sub 79 -file root://somewhere.abc:1094/directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5 -n 6 -skip 4 -trk -pds -out evt_5_6_both_reco`
+`lardon -det cbbot -run 37041 -sub 79 -file root://somewhere.abc:1094/directory/raw/data/np02vdcoldbox_raw_run037041_0079_df-s02-d0_dw_0_20250705T130324.hdf5 -n 6 -skip 4 -trk -pds -out evt_5_6_both_reco`
 
-the output h5file will be **$store_path/cbbot_37041_79_evt_5_6_both_reco.h5**
+the output h5file will be **$LARDON_RECO/cbbot_37041_79_evt_5_6_both_reco.h5**
 
 # LARDON Conventions
 * In lardon, electrons drift along the third / `z` axis.
@@ -107,7 +107,7 @@ the output h5file will be **$store_path/cbbot_37041_79_evt_5_6_both_reco.h5**
 # Control Plots
 :warning: The data is structured in `daq_channel` ordering, which can have a mix of views<br/>
 
-By default, no control plots is produced, but you can call the plotting functions in **lardon.py** anywhere in the reconstruction loop.
+By default, no control plots is produced, but you can call the plotting functions in **workflow.py** anywhere in the reconstruction loop.
 
 
 All plot functions have the two options :<br/>
