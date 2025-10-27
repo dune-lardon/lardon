@@ -1,14 +1,24 @@
-results/
+results
 __pycache__/
-reco/
-ana/
-tools/
+reco
+ana
+
+
 *~
-*.sh
 *.dat
-settings/*~
-settings/chmap/*~
-setting/calib/*~
-utils/*~
-plotting/*~
-*pyc
+
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
