@@ -15,14 +15,18 @@ Go to the top lardon repository, and do:
 `uv sync`
 
 you can then either run lardon with:
+
 `uv run lardon <options>`
-or source `set_lardon.sh` where the lardon environment will be activated (type `deactivate` to disable it). This is the default method.
+
+or source `set_lardon.sh` where the lardon environment will be activated (type `deactivate` to disable it). This is the default method where you can launch lardon with:<br/>
+
+`lardon <options>`
 
 :warning: *if you previously added the `xrootd` package to your conda environment, you should remove it: `conda remove xrootd` as it messes up a lot of the server settings (like git, condor, ...)*
 
 
 # Before running lardon
-Check and modify `set_lardon.sh` if needed:
+Check and modify the `set_lardon.sh` script, in particular:
 * *$LARDON_PATH*: where the lardon code lives
 * *$LARDON_RECO*: where the reconstructed files will be stored
 
