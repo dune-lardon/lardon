@@ -24,6 +24,8 @@ or source `set_lardon.sh` where the lardon environment will be activated (type `
 
 :warning: *if you previously added the `xrootd` package to your conda environment, you should remove it: `conda remove xrootd` as it messes up a lot of the server settings (like git, condor, ...)*
 
+*the conda yml file is still here for now, but unsupported*
+
 
 # Before running lardon
 Check and modify the `set_lardon.sh` script, in particular:
