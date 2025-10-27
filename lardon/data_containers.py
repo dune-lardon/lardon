@@ -1,5 +1,5 @@
-import numpy as np
 import config as cf
+import numpy as np
 import time
 import math
 from rtree import index

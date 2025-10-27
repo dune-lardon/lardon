@@ -1,5 +1,7 @@
 import config as cf
 import data_containers as dc
+import channel_mapping as chmap
+
 import time as time
 
 import numpy as np
@@ -9,8 +11,6 @@ from matplotlib import collections  as mc
 import itertools as itr
 import math
 import colorcet as cc
-import channel_mapping as chmap
-
 import matplotlib.patches as patches
 from .save_plot import *
 

@@ -1,10 +1,12 @@
+import os
 """ User's specific """
 
 """ Where is LARDON """
-lardon_path = "."
+lardon_path = os.environ.get("LARDON_PATH")
+#"/exp/dune/app/users/lzambell/analysis/lardon/lardon"#"."
 
 """ Where to store the reconstructed output file """
-store_path = lardon_path+"/reco"
+store_path = os.environ.get("LARDON_RECO")
 
 """ Where to store the control plots """
 plot_path  = lardon_path+"/results"
@@ -35,7 +37,7 @@ view_capa = []
 n_tot_channels = -1
 module_nchan = []
 sampling = []
-n_sample = []
+n_sample = [1000]
 e_per_ADCtick = []
 channel_calib = ''
 elec = []
