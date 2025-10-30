@@ -3,13 +3,12 @@ import os
 
 """ Where is LARDON """
 lardon_path = os.environ.get("LARDON_PATH")
-#"/exp/dune/app/users/lzambell/analysis/lardon/lardon"#"."
 
 """ Where to store the reconstructed output file """
 store_path = os.environ.get("LARDON_RECO")
 
 """ Where to store the control plots """
-plot_path  = lardon_path+"/results"
+plot_path  = os.environ.get("LARDON_PLOT")
 
 
 
