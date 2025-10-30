@@ -2,8 +2,8 @@
 name = "lardon"
 version = "0.1.0"
 description = "Liquid Argon Reconstruction Done in pythON"
-authors = [{ name = "Laura Zambelli", email = "laura.zambelli@lapp.in2p3.fr" }]
-requires-python = ">=3.12,<3.13"
+authors = [{ name = "Laura Zambelli"}]
+requires-python = ">=3.11,<3.12"
 
 dependencies = [
     "matplotlib>=3.10.3",
