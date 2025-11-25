@@ -99,7 +99,7 @@ def regular_coherent_noise():
         data_sliced = dc.data_daq.reshape((n_slices, group, n_samples))
         mask_sliced = dc.mask_daq.reshape((n_slices, group, n_samples))
 
-        print(data_sliced.shape, " and ", mask_sliced.shape)
+
         """ Compute the masked mean per group """
         mask_sum = np.sum(mask_sliced, axis=1)
         with np.errstate(divide='ignore', invalid='ignore'):
