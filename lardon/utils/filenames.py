@@ -1,6 +1,6 @@
 import os
 import config as cf
-
+import glob
 
 
 def get_data_path(paths, run, hash_path):
@@ -8,7 +8,8 @@ def get_data_path(paths, run, hash_path):
         for r in [run_directory_divided(run), run_directory_simple(run), run_directory_simple(hash_path)]:
 
             if(os.path.exists(val+'/'+r)==True):
-                return key
+                if(len(glob.glob(val+'/'+r+'/*'+run+'*'))>0):
+                    return key
     return "none"
 
 
