@@ -85,21 +85,21 @@ def regular_coherent_noise():
     groupings = dc.reco['noise']['coherent']['groupings']
 
     n_chan = cf.module_nchan[cf.imod]
-    n_sample = cf.n_sample[cf.imod]
+    n_samples = cf.n_sample[cf.imod]
 
     
     for group in groupings:
-        if( (n_chan % group_size) > 0):
+        if( (n_chan % group) > 0):
             print(f"[CNR] groups of {group} channels is not possible for {n_channels} channels! ")
             return
 
-        n_slices = n_chan // group_size
+        n_slices = n_chan // group
 
         """ reshape data into (n_slices, group, nsamples) """
         data_sliced = dc.data_daq.reshape((n_slices, group, n_samples))
         mask_sliced = dc.mask_daq.reshape((n_slices, group, n_samples))
 
-
+        print(data_sliced.shape, " and ", mask_sliced.shape)
         """ Compute the masked mean per group """
         mask_sum = np.sum(mask_sliced, axis=1)
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -112,12 +112,9 @@ def regular_coherent_noise():
         data_sliced -= group_mean[:, None, :]
 
         """ Restore shape """
-        dc.data_daq = data_sliced.reshape((n_channels, n_samples))
-        dc.mask_daq = mask_sliced.reshape((n_channels, n_samples))
+        dc.data_daq = data_sliced.reshape((n_chan, n_samples))
+        dc.mask_daq = mask_sliced.reshape((n_chan, n_samples))
 
-
-
-        import numpy as np
 
 def coherent_noise_per_view_per_card():
     capa_weight = bool(dc.reco['noise']['coherent']['capa_weight'])
