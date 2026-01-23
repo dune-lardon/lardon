@@ -577,11 +577,9 @@ class wib:
 
 
         trigger = get_trigger_type(int(head['trigger_type'][0]))
-        #print('TRIGGER IS ', trigger)
-        #print('--> ', et.TRIGGER_TYPES[trigger])
         
         self.nlinks = head['n_component'][0]
-        #print("number of links: ", self.nlinks)
+
 
         """
         self.links = []        
@@ -601,10 +599,11 @@ class wib:
         """ nb of links have to be hard-coded as the number of components is wrong """
         self.nlinks = cf.daq_nlinks
 
-        print('---> TRIGGER RECORD TIMESTAMP ', head['timestamp'])
+
         t_s, t_ns = get_unix_time_wib_2(head['timestamp'][0])
+        #print('---> TRIGGER RECORD TIMESTAMP ', head['timestamp'])
         ts = get_unix_timestamp_wib_2(head['timestamp'][0])
-        print('<->', ts)
+        #print('<->', ts)
         dc.evt_list.append( dc.event(self.det, "bot", head['run_nb'][0], sub, ievt, head['trig_num'][0], ts, t_s, t_ns, trigger) )
         
 
@@ -960,10 +959,10 @@ class wib:
             ts = get_unix_timestamp_wib_2(charge_tstart)
             #t_s, t_ns = get_unix_time_wib_2(charge_tstart)
 
-            print('min of start link ', min(tstart_link), ' --> ', min(tstart_link)*32)
-            print('<-> timestamp ', ts)
+            #print('min of start link ', min(tstart_link), ' --> ', min(tstart_link)*32)
+            #print('<-> timestamp ', ts)
             
-            dc.evt_list[-1].set_charge_timestamp(cf.imod, ts)#t_s, t_ns)
+            dc.evt_list[-1].set_charge_timestamp(cf.imod, ts)
 
     def read_pds_evt(self, ievt):
         self.pds_decode.read_pds_evt(self.events_list[ievt])

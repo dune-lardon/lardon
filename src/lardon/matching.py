@@ -138,7 +138,7 @@ def matching_trk_pds():
                 clus.point_closest.extend([r[4] for r in res])
                 """
 
-    print('\n---->>>> nb of pds-matched tracks ', n_trk)        
+    print('\n---->>>> Number of pds-matched tracks: ', n_trk)        
 
 
 def  matching_sh_pds():
@@ -281,7 +281,7 @@ def  matching_sh_pds():
 
 
 
-    print('\n---->>>> nb of pds-matched single hits ', n_sh)
+    print('\n---->>>> Number of pds-matched single hits ', n_sh)
 
 def extrapolate_trk_to_z(a0, a1, z_end):
     dx = a1[0] - a0[0]

@@ -87,7 +87,7 @@ def main():
         print('---> Will read file ', custom_file_path)
         import lardon.utils.filenames as fname
         run, sub, dataflow, datawriter, daqserver, detector = fname.extract_info_form_file(custom_file_path)
-        print('--->> ', run, sub, dataflow, datawriter, daqserver, detector)
+
         
     if(int(run) < 0 or detector == "none"):
         print('Please provide a run, subfile number and detector name to run LARDON')
@@ -264,13 +264,15 @@ def main():
         print("-*-*-*-*-*-*-*-*-*-*-")
         print(" READING EVENT ", ievent)
         print("-*-*-*-*-*-*-*-*-*-*-")
-    
+        
         reader.read_evt_header(ievent)
         dc.evt_list[-1].dump()
         dc.evt_list[-1].set_file_infos(dataflow, datawriter, daqserver)    
-
+        
+        
         ''' Workflow for PDS '''
         if(do_pds == True):       
+            print('\n## Reading PDS ##')
             dc.reset_containers_pds()
             reader.read_pds_evt(ievent)
 
@@ -279,18 +281,20 @@ def main():
                 cf.n_pds_stream_sample = 0
                 cf.n_pds_trig_sample = 0
                 store.store_pds_event(output)
-            
+
+            print('PDS streaming timestamp: ', dc.evt_list[-1].pds_stream_time)
+            print('PDS self-trigger timestamp: ', dc.evt_list[-1].pds_trig_time)
             print('PDS nb of sample: stream mode', cf.n_pds_stream_sample, 'trigger mode', cf.n_pds_trig_sample)
             work.pds_signal_proc()
             work.pds_reco()            
                        
-            
+
             #fft_ps = []
             #corr = []
     
         """ Workflow for charge """
         if(do_charge == True):
-
+            print('\n## Reading TPC ##')
             for imodule in cf.module_used:
 
                 cf.imod = imodule
@@ -321,7 +325,7 @@ def main():
                     cf.n_sample[cf.imod] = 0 #will be changed at the next event
                     #store.store_event(output)
 
-            
+                print('1st sample timestamp: ', dc.evt_list[-1].charge_time[cf.imod])
                 if(is_pulse==True):
                     work.charge_pulsing()
                     continue

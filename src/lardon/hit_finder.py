@@ -465,9 +465,6 @@ def find_pds_peak(data_type):
         delta_time_ref *= 1e6 #in mus
         
         daqch_offset = cf.pds_daqch_stream_start
-        print("PDS STREAM TIME = ", dc.evt_list[-1].pds_stream_time)
-        print("TRIGGER TIME = ", dc.evt_list[-1].event_time)
-        print("---->>>> delta_time_ref = ", delta_time_ref)
 
         
     elif(data_type == "trigger"):
@@ -478,9 +475,6 @@ def find_pds_peak(data_type):
         delta_time_ref = dc.evt_list[-1].pds_trig_time - dc.evt_list[-1].event_time
         delta_time_ref *= 1e6 #in mus
         daqch_offset = cf.pds_daqch_trig_start
-        print("PDS trig TIME = ", dc.evt_list[-1].pds_trig_time)
-        print("TRIGGER TIME = ", dc.evt_list[-1].event_time)
-        print("---->>>> delta_time_ref = ", delta_time_ref)
 
         
     pad_left     = dc.reco['pds']['hit_finder']['pad']['left']
@@ -590,7 +584,5 @@ def find_pds_peak(data_type):
             dc.evt_list[-1].n_pds_peaks[glob_chan] += len(hh)
             dc.pds_peak_list.extend(hh)
 
-    print('pds ', data_type, 'found ', dc.evt_list[-1].n_pds_peaks, ' PDS peaks')
-
-    """ set peaks an index number """
+    #print('pds ', data_type, 'found ', dc.evt_list[-1].n_pds_peaks, ' PDS peaks')
 

@@ -276,7 +276,7 @@ class event:
     def dump(self):
         print("RUN ",self.run_nb, " of ", self.elec, " EVENT ", self.evt_nb, " TRIGGER ", self.trigger_nb, ":", et.TRIGGER_TYPES[self.trig_type], '(',self.trig_type,')')
         print("Taken at ", time.ctime(self.time_s), " + ", self.time_ns, " ns ")
-
+        print("Trigger timestamp ", self.event_time)
 
 
 
@@ -1143,9 +1143,6 @@ class trk3D:
         elif(evt_list[-1].det == 'pdvd'):                
                 self.module_end = other.module_end
 
-        print('merge ', self.ini_time, 'to',self.end_time)
-        print('with ', other.ini_time, ' with', other.end_time)
-        print('idx merge ', idx_merge)
         
         if(idx_merge[0] == 1):
             self.ini_time = self.ini_time
@@ -1157,17 +1154,6 @@ class trk3D:
             self.end_time = self.end_time
             self.ini_theta = other.ini_theta
             self.ini_phi = other.ini_phi
-        print('---->>>> ', self.ini_time, 'to',self.end_time)
-        """
-        if(evt_list[-1].det == 'pdvd' and cf.drift_direction[self.module_ini] == -1):
-                self.ini_time = max(self.ini_time, other.ini_time)
-                self.end_time = min(self.end_time, other.end_time)
-            else:
-                self.ini_time = min(self.ini_time, other.ini_time)
-                self.end_time = max(self.end_time, other.end_time)
-        """
-        #self.ini_time = min(self.ini_time, other.ini_time)
-        #self.end_time = max(self.end_time, other.end_time)
         
             
         self.timestamp = min(self.timestamp, other.timestamp)

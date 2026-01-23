@@ -522,7 +522,7 @@ def stitch3D_across_modules(modules):
 
     if(n_merge>0):
         reset_track3D_list()
-    print(modules, 'merged ', n_merge, ' 3D tracks together across module !!! ')
+        print("Across modules ", modules, 'merged ', n_merge, ' 3D tracks together across module !!! ')
 
 
 
@@ -793,7 +793,7 @@ def stitch3D_across_cathode(modules):
     sparse = np.zeros((n_trks_tot, n_trks_tot))
     trk_ID_shift = dc.n_tot_trk3d
 
-    print(len(trks_bound_drift_a), ' vs ', len(trks_bound_drift_b))
+    #print(len(trks_bound_drift_a), ' vs ', len(trks_bound_drift_b))
     
     n=0
     for ti in trks_bound_drift_a:        

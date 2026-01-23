@@ -364,7 +364,7 @@ class daphne:
 
             fragment = np.frombuffer(stream_data[:self.fragment_header_size], dtype=self.fragment_header_type)
             
-            print('---> FULL STREAM FRAGMENT TIMESTAMP ', fragment['timestamp'])
+            #print('---> FULL STREAM FRAGMENT TIMESTAMP ', fragment['timestamp'])
             stream_data = stream_data[self.fragment_header_size:]
             
             if(len(stream_data) == 0):
@@ -418,8 +418,8 @@ class daphne:
         if(cf.n_pds_stream_sample > 0):
             
             ts = get_unix_timestamp_wib_2(min(pds_tstart))
-            print('PDS STREAM timestamp ', get_unix_time_wib_2(min(pds_tstart)))
-            print('TS = ', ts)
+            #print('PDS STREAM timestamp ', get_unix_time_wib_2(min(pds_tstart)))
+            #print('TS = ', ts)
             dc.evt_list[-1].set_pds_stream_timestamp(ts)
             
         
@@ -452,7 +452,7 @@ class daphne:
         
         frame_size = daq_header_size + daphne_header_size + num_adc_size + daphne_peak_size
         
-        print("number of streams in data ", nstream, " offset ", offset)
+        
 
 
         
@@ -473,8 +473,8 @@ class daphne:
                 continue
 
             
-            fragment = np.frombuffer(stream_data[:self.fragment_header_size], dtype=self.fragment_header_type)
-            print('---> TRIGGER FRAGMENT TIMESTAMP ', fragment['timestamp'])
+            #fragment = np.frombuffer(stream_data[:self.fragment_header_size], dtype=self.fragment_header_type)
+            #print('---> TRIGGER FRAGMENT TIMESTAMP ', fragment['timestamp'])
 
             stream_data = stream_data[self.fragment_header_size:].reshape(-1)
 
@@ -525,8 +525,8 @@ class daphne:
         ts = get_unix_timestamp_wib_2(min_t)
         dc.evt_list[-1].set_pds_trig_timestamp(ts)
 
-        print('PDS TRIGGER timestamp ', get_unix_time_wib_2(min_t))
-        print('TS = ', ts)
+        #print('PDS TRIGGER timestamp ', get_unix_time_wib_2(min_t))
+        #print('TS = ', ts)
 
 
         times = times-min_t

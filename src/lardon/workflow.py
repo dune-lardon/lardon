@@ -40,31 +40,14 @@ def pds_reco():
     
 
     hf.find_all_pds_peak()
-    #hf.find_pds_peak("stream")
-    #hf.find_pds_peak("trigger")
-
-
     
-    plot.draw_pds_ED(data_type='stream', to_be_shown=True, draw_roi=True, draw_peak=True)
-    plot.draw_pds_ED(data_type='trigger', to_be_shown=True, draw_roi=True, draw_peak=True)
+    #plot.draw_pds_ED(data_type='stream', to_be_shown=True, draw_roi=True, draw_peak=True)
+    #plot.draw_pds_ED(data_type='trigger', to_be_shown=True, draw_roi=True, draw_peak=True)
 
     
     clu.light_clustering()
-
-
-    #plot.draw_pds_ED(to_be_shown=True, draw_cluster=True, draw_peak=True)#, draw_peak=False, draw_cluster=False, draw_roi=False)
-    print('--> Found ', dc.evt_list[-1].n_pds_clusters, ' clusters ')
-
-    
-    #plot.draw_pds_ED(to_be_shown=True, draw_peak=True, draw_cluster=True, draw_roi=False)
-
-    """
-    c_size = [c.size for c in dc.pds_cluster_list]
-    from collections import Counter
-    print(Counter(c_size))
-    
-    [c.dump() for c in dc.pds_cluster_list if c.size>16]
-    """
+    print('-- Found ', dc.evt_list[-1].n_pds_peaks, ' PDS peaks')            
+    print('- Found ', dc.evt_list[-1].n_pds_clusters, ' clusters ')
 
 def charge_pulsing():
     if(cf.n_sample[cf.imod] <= 0):
@@ -116,17 +99,11 @@ def charge_signal_proc(deb, is_online):
         
     deb.ped_1[cf.imod] = time.time()-t1
 
-    #
-
 
     if(is_online):
         plot.event_display_per_view([-100, 100],[-50, 300], option='raw', to_be_shown=False)
 
-    """
-    if(cf.imod == 2):
-        plot.event_display_per_view([-50, 50],[-50, 450], option='raw', to_be_shown=True)
-    """
-
+        
     t1 = time.time()
     """ low pass FFT cut """    
     #ps = noise.FFT_low_pass(True)
@@ -173,10 +150,6 @@ def charge_signal_proc(deb, is_online):
     deb.cnr[cf.imod] = time.time()-t1
 
     
-
-    #corr = plot.plot_correlation_globch()#to_be_shown=True)
-
-    
     """ microphonic noise removal """
     noise.median_filter()
             
@@ -187,14 +160,9 @@ def charge_signal_proc(deb, is_online):
     ped.compute_pedestal(noise_type='filt')
     deb.ped_3[cf.imod] = time.time()-t1
 
-
-    """
-    if(cf.imod >= 2):
-        plot.event_display_per_view([-100, 100],[-10, 150], option='cnr', to_be_shown=True)    
-    """
     
     #plot.plot_2dview_hits([cf.imod], to_be_shown=True)
-    
+
     #return ps, corr
 
 def charge_reco_pdvd(deb):
@@ -260,6 +228,7 @@ def charge_reco(deb, is_online):
     #ghost.ghost_trajectory()
 
     #vtx.vertexing()
+
     """ search for single hits in free hits """
     t1 = time.time()
     
@@ -267,21 +236,10 @@ def charge_reco(deb, is_online):
     deb.single[cf.imod] = time.time()-t1
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
 
-    #plot.event_display_per_view_hits_found([-50, 50],[-20, 150], option='raw', to_be_shown=True)   
-    
+    #plot.event_display_per_view_hits_found([-50, 50],[-20, 150], option='raw', to_be_shown=True)       
     #plot.plot_2dview_hits_3dtracks([cf.imod], option=None, to_be_shown=True)
     
-
-    """
-    if(cf.imod == 2):
-        plot.event_display_per_view_hits_found([-50, 50],[-20, 150], option='raw', to_be_shown=True)
-    """
-    
 def charge_reco_whole(is_online):
-    #[t.dump() for t in dc.tracks3D_list]
-    #plot.plot_noise_all_crps(to_be_shown=True)
-    #[s.dump() for s in dc.single_hits_list]
-    #plot.plot_3d(to_be_shown=True)    
 
 
     if(dc.evt_list[-1].det == 'cbbot' or dc.evt_list[-1].det == '50l' ):        
@@ -306,11 +264,12 @@ def charge_reco_whole(is_online):
     
 def match_charge_and_pds():
     #plot.plot_timeline(option=None, to_be_shown=True)
-    #[t.dump() for t in dc.tracks3D_list] 
+
     if(cf.n_sample[cf.imod] <= 0 or (cf.n_pds_stream_sample <=0 and cf.n_pds_trig_sample <= 0)):
         return
     
     mat.matching_trk_pds()
+
     """
     for t in dc.tracks3D_list:
         if(t.match_pds_cluster >= 0):
