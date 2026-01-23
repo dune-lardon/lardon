@@ -4,11 +4,14 @@ reco
 ana
 tools
 tmp
-
+plots
+gallery_plots
 
 *~
 *.dat
-
+*.def
+*.sif
+*.sh
 # Virtual environment
 .venv/
 
@@ -23,4 +26,6 @@ dist/
 
 # OS files
 .DS_Store
-Thumbs.db
+Thumbs.db# pixi environments
+.pixi/*
+!.pixi/config.toml

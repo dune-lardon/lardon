@@ -1,0 +1,188 @@
+{
+  "default":{
+      "pedestal":{
+	  "raw_rms_thr":3,
+          "n_iter":2 
+      },
+	 
+      "mask":{
+	  "coll":{
+	      "min_dt":5,
+	      "low_thr":[2.0,2.5],
+	      "high_thr":[3.0,3.0],
+	      "min_rise":2,
+	      "min_fall":3,
+	      "pad_bef":10,
+	      "pad_aft":15
+	  },
+	  
+	  "ind":{
+	      "max_dt_pos_neg":15,
+	      "pad_bef":10,
+	      "pad_aft":15,
+	      "pos":{
+		  "min_dt":4,
+		  "low_thr":[2.0,2.0],
+		  "high_thr":[3.0,3.0],
+		  "min_rise":2,
+		  "min_fall":2
+	      },
+	      
+	      "neg":{
+		  "min_dt":4,
+		  "low_thr":[-2.0,-1.8],
+		  "high_thr":[-3.0,-2.5],
+		  "min_rise":2,
+		  "min_fall":2
+	      }
+	  }
+      },
+	 
+      "noise":{
+          "coherent":{
+              "groupings":[32],
+	      "per_view":1,
+	      "capa_weight":0,
+	      "calibrated":0
+          },
+
+          "fft":{
+              "freq":-1,
+              "low_cut":0.6
+          },
+	  "microphonic":{
+	      "window":300
+	  },
+	  "study":{
+	      "to_be_done":1
+	  }
+      },
+      
+      "hit_finder":{
+	  "dt_min":5,
+	  "min_thr":0.5,
+          "coll":{
+              "amp_sig": [2.5,5.5],
+          },
+          "ind":{
+              "amp_sig": 2.0,
+	      "merge_tdc_thr":10
+          },
+          "pad":{
+              "left": 12,
+              "right": 20
+          }
+      },
+
+      "track_2d":{
+	  "min_nb_hits": 5,
+	  "rcut": 6.0,
+	  "chi2cut": 8.0,
+	  "y_error": 0.5,
+	  "slope_error": 1.0,
+	  "pbeta":3.0,
+	  "slope_max":50,
+	  "hough_win_X":10.0,
+	  "hough_win_Z":20.0,
+	  "hough_n_min":5,
+	  "hough_theta_res":1.0,
+	  "hough_rho_res":0.25,
+	  "hough_min_score":4,
+	  "max_gap":2.0,
+	  "dray_thr":2.0,
+	  "dray_dmax":6.0,
+      },
+
+      "stitching_2d":{
+	  "in_module":{
+	      "align_thr":0.97,
+	      "dma_thr":4.0,
+	      "dist_thr":15.0	
+	  },
+	  "from_3d":{
+	      "align_thr":0.96,
+	      "dma_thr":8.0,
+	      "dist_thr":50.0
+	  },  
+      },
+
+      
+      "track_3d":{
+	  "trk_ztol":3.0,
+	  "hit_ztol":2.0,	  
+	  "len_min":2.0,
+	  "d_thresh":0.5,
+	  "min_z_overlap":8.0,
+	  "trk_min_dz":3.0,
+	  "trk_min_dx":1.5,
+	  "timing":{
+	      "dx_tol": [[3.0,3.0]],
+	      "dy_tol": [[3.0,3.0]],
+	      "dz_tol": 2.0,
+	  },
+	  "goodness":{
+	      "eps":10,
+	      "min_samp":1,
+	      "n_min":10,
+	      "n_slices":10,
+	      "d_slice_max":20
+	  }	  
+
+      },
+
+      "ghost":{
+	  "search":0,
+	  "dmin":10.0
+      },
+
+      "single_hit":{
+	  "max_per_view":3,
+	  "outlier_dmax":2.5,
+	  "cluster_eps":2.0,
+	  "dist_veto":5.0,
+	  "max_bary":20.0
+
+      },
+
+      "pds":{
+	  "pedestal":{
+	      "raw_adc_thresh":90,
+	      "rms_thresh":3,
+	      "n_iter":3
+	  },
+          "hit_finder":{
+              "amp_sig": [3.5, 200],
+              "dt_min": 40,
+	      "pad":{
+		  "left":20,
+		  "right":40
+	      },
+          },
+	  "cluster":{
+	      "time_tol":5
+	  },
+	  "matching":{
+	      "time_tol":5
+	  },
+      },
+      
+      "store":{
+	  "coord":"lardon"
+      },
+      
+      "plot":{
+          "noise":{
+              "zrange": [0,15]
+          },
+          "evt_display":{
+              "daqch":{
+                  "zrange":[-200,200]
+              },
+              "viewch":{
+                  "ind_zrange":[-100,100],
+                  "col_zrange":[-10,300]
+              }
+          }
+      }
+  }
+}

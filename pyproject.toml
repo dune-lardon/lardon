@@ -20,5 +20,8 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/dune-lardon/lardon"
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [project.scripts]
-lardon = "lardon:main"
+lardon = "lardon.lardon:main"
