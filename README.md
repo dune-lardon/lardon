@@ -2,27 +2,40 @@
 ![Logo](figs/lardon_logo_text.png)
 
 # LARDON installation
-:bangbang: ***LARDON now uses `uv` to manage its dependencies*** :bangbang:
+:bangbang: ***LARDON now uses `pixi` to manage its dependencies*** :bangbang:
 
-Install `uv`:
+Install `pixi`:
 
-`curl -LsSf https://astral.sh/uv/install.sh | sh`
+`curl -fsSL https://pixi.sh/install.sh | sh`
 
-you can learn more about `uv` here: https://github.com/astral-sh/uv
+you can learn more about `pixi` here: https://pixi.prefix.dev/latest/
 
 Go to the top lardon repository, and do:
 
-`uv sync`
+`pixi install -a`
 
 you can then either run lardon with:
 
-`uv run lardon <options>`
+`pixi run lardon <options>`
 
-or source `set_lardon.sh` where the lardon environment will be activated (type `deactivate` to disable it). This is the default method where you can launch lardon with:<br/>
+or "activate" the environment with:
+
+`eval "$(pixi shell-hook)"`
+
+you will then be able to run lardon as:
 
 `lardon <options>`
 
-:warning: *if you previously added the `xrootd` package to your conda environment, you should remove it: `conda remove xrootd` as it messes up a lot of the server settings (like git, condor, ...)*
+The pixi setup comes as 3 environments defined in `pixi.toml`:<br/>
+* `prod`: contains only the libraries needed to run lardon
+* `test`: `prod` + debugging tools
+* `default`: `test` + extra libraries useful for data-analysis
+
+As it name suggest, the default environment is `default`. The `prod` environment should be used for submitting jobs (see the cookbook for more details).
+
+
+:warning: *if you previously added the `xrootd` package to your conda environment, you should remove it: `conda remove xrootd` as it messes up a lot of the server settings (like git,
+ condor, ...)*
 
 *the conda yml file is still here for now, but unsupported*
 
@@ -31,15 +44,17 @@ or source `set_lardon.sh` where the lardon environment will be activated (type `
 Check and modify the `set_lardon.sh` script, in particular:
 * *$LARDON_PATH*: where the lardon code lives
 * *$LARDON_RECO*: where the reconstructed files will be stored
-
+* *$LARDON_PLOT*: where the control plots are stored
 
 Check and modify files in `lardon/settings/the_detector/` :
 * Update the runs configuration files in `geo.json` if needed [**with caution!**]
 * Change the reconstruction parameters in `reco_parameters.json` if needed
-* Update the raw files location in `path.json` if needed. LARDON search the requested `*hdf5` file in the `/directory` and in the subdirectories `/directory/ha/sh/`, `/directory/runnumber/` and in `/directory/ru/nu/mb/er`.
+* Update the raw files location in `path.json` if needed. LARDON searches the requested `*hdf5` file in the `/directory` and in the subdirectories `/directory/ha/sh/`, `/directory/runn
+umber/` and in `/directory/ru/nu/mb/er`.
   	 
 # To run lardon on data
 To launch lardon, type `lardon` with the following arguments:<br/>
+
 **Mandatory**:<br/>
 * `-det <cb1top/cb1bot/cbtop/cbbot/dp/50l/pdhd/pdvd>` which detector<br/>
 * `-run <run nb>` which run number
@@ -50,17 +65,16 @@ To launch lardon, type `lardon` with the following arguments:<br/>
 * `-serv <server nb>` the server nb where the data was taken (may be needed for some PDVD runs, you can get it in the file name under the `-s0x-` part)<br/>
 
 **Alternatively, you can provide the whole path of the file:**<br/>
-Should be used for using files outside of cern/fermilab<br/>
-In such case you need to first get the justin/rucio authentication sorted<br/>
-in the `set_lardon.sh` script, the `$LD_PRELOAD` is automatically set to allow `xrootd` stram<br/>
-The option to use is:<br/>
-* `-file root://the.full.file.path.you.got.from.rucio.the_file.h5`
+In such case parameters like detector, run, subfile, ... are retrieved by lardon.<br/>
+This method should be used for running on files outside of cern/fermilab, in such case you need to first get your justin/rucio authentication sorted<br/>
+In the `set_lardon.sh` script, uncomment the two lines related to `xroot`<br/>
 
-:exclamation: you still need to provide run and subfile numbers ! <br/>
+The option to use is:<br/>
+`-file root://the/full/file/path/you/got/from/rucio/the_file.h5`
 
 **Depending on the requested reconstruction**:<br/>
 * `-trk` if you want the **charge/TPC** reconstruction<br/>
-* `-pds` if you want the **PDS** reconstruction [DOES NOT WORK FOR PDHD, okish for PDVD]<br/>
+* `-pds` if you want the **PDS** reconstruction [DOES NOT WORK FOR PDHD, ok for PDVD]<br/>
 **You can ask both!**
 
 *Optional*:<br/>
@@ -71,7 +85,17 @@ The option to use is:<br/>
 * `-pulse` To analyse charge pulsing (calibration) data
 * `-online` If running as online monitoring (produces ED and control plots)
 
+**Gallery mode**<br/>
+:exclamation: only for PDVD data<br/>
+This is a special mode that only shows the data in an effective channel mapping such that tracks don't appear broken.
+There are 4 option for the gallery mode:<br/>
+`-gallery <beam/top/bottom/both>`<br/>
 
+The mode `both` will produce two separate images of the top and bottom volume. The mode `beam` will only shown channels relevant to the beam track, zoomed around the expected time of the beam track.<br/>
+
+In the file `src/lardon/gallery/pdvd.py` you can set the parameter `self.conference_style` to `True` if you want images without tick and channel numbers.
+
+**Examples to run lardon**
 *e.g. 1* : To run TPC reco on event 11 of PDVD file `np02vd_raw_run039229_0024_df-s05-d4_dw_0_20250829T115242.hdf5` on lxplus: 
 
 `lardon -det pdvd -run 39229 -sub 24 -flow 4 -writer 0 -serv 5 -hash 86/ad -event 11 -out one_event -trk`
