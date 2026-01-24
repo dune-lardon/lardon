@@ -37,7 +37,7 @@ def extract_info_form_file(file_path):
     slash = file_path.rfind('/')+1
     filename = file_path[slash:]
         
-    run, sub, flow, writer, server, detector = -1, "-1","-1", "-1", "-1", "none"
+    run, sub, flow, writer, server, detector = "-1", "-1","-1", "-1", "-1", "none"
     if(filename[:2] == "np"):
         first_under = filename.find('_')
         det = filename[4:first_under]
@@ -52,7 +52,7 @@ def extract_info_form_file(file_path):
             exit()
             
         run_pos = filename.find('_run')+4
-        run = int(filename[run_pos:run_pos+6])
+        run = str(int(filename[run_pos:run_pos+6]))
         sub_pos = run_pos + 7
         sub    = str(int(filename[sub_pos:sub_pos+4]))
         
@@ -76,7 +76,9 @@ def extract_info_form_file(file_path):
                 writer_pos += 4
                 writer_len = 4
 
-        server_pos = filename.find('-s')+2
+        server_pos = filename.find('-s')
+        if(server_pos>0):
+            server_pos+=2
         ts_pos = len(filename) - 20
 
         if(flow_pos>0):
