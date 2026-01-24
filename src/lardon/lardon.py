@@ -88,8 +88,8 @@ def main():
         import lardon.utils.filenames as fname
         run, sub, dataflow, datawriter, daqserver, detector = fname.extract_info_form_file(custom_file_path)
 
-        
-    if(int(run) < 0 or detector == "none"):
+
+    if(run=="-1" or detector == "none"):
         print('Please provide a run, subfile number and detector name to run LARDON')
         parser.print_help()
         exit()
