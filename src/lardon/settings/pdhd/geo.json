@@ -50,6 +50,9 @@
 	"daq_nlinks":["40","40","40","40"],
 	"daq_links_offset":["100","200","300","400"],
 
+	"n_drift_volumes":"2",
+	"LAr_temperature":["89", "89","89","89"],
+	
 	"n_pds_channels":40,
 	"pds_sampling":62.5,
 	"n_pds_sample":262144,
