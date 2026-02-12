@@ -282,7 +282,6 @@ def find_tracks_hough(modules = [cf.imod]):
         n_hits = len(hits)
         if(n_hits==0): continue
     
-    
         points = np.array([[h.X, h.Z] for h in hits])
 
         seeded = False
@@ -346,6 +345,9 @@ def find_tracks_hough(modules = [cf.imod]):
                 continue
 
             x0, y0, t0 = the_hit.X, the_hit.Z, the_hit.start #
+            if(cf.drift_direction[cf.imod] < 0):
+                t0 = the_hit.stop
+                
             if(direction == 1):
                 x0, y0 = y0, x0
 
@@ -446,6 +448,10 @@ def find_tracks_hough(modules = [cf.imod]):
                         nn_idx = j
                         nn_hit = dc.hits_list[nn_idx-ID_shift]
                         x1, y1, t1 = nn_hit.X, nn_hit.Z, nn_hit.stop #t
+
+                        if(cf.drift_direction[cf.imod] < 0):
+                            t1 = nn_hit.start
+
                         if(direction==1):
                             x1, y1 = y1, x1
 
@@ -489,6 +495,7 @@ def find_tracks_hough(modules = [cf.imod]):
                         dc.tracks2D_list.append(track)
                         [dc.hits_list[i].set_match_2D(trackID) for i in idx_list]
 
+                        
                         refilter_and_find_drays(trackID)
                         
                         if(np.fabs(track.ini_slope) < slope_max and np.fabs(track.end_slope) < slope_max):
