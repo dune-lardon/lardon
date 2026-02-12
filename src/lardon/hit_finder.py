@@ -461,8 +461,8 @@ def find_pds_peak(data_type):
         mask_pds = dc.mask_stream_pds
         n_pds_channels = cf.n_pds_stream_channels
         n_pds_sample = cf.n_pds_stream_sample
-        delta_time_ref = dc.evt_list[-1].pds_stream_time - dc.evt_list[-1].event_time
-        delta_time_ref *= 1e6 #in mus
+        delta_time_ref = dc.evt_list[-1].delay_pds_stream_time
+        
         
         daqch_offset = cf.pds_daqch_stream_start
 
@@ -472,8 +472,7 @@ def find_pds_peak(data_type):
         mask_pds = dc.mask_trig_pds
         n_pds_channels = cf.n_pds_trig_channels
         n_pds_sample = cf.n_pds_trig_sample
-        delta_time_ref = dc.evt_list[-1].pds_trig_time - dc.evt_list[-1].event_time
-        delta_time_ref *= 1e6 #in mus
+        delta_time_ref = dc.evt_list[-1].delay_pds_trig_time        
         daqch_offset = cf.pds_daqch_trig_start
 
         
