@@ -22,7 +22,7 @@ from matplotlib.cbook import flatten
 import matplotlib.patches as patches
 from matplotlib.patches import Circle
 import mpl_toolkits.mplot3d.art3d as art3d
-
+from matplotlib.lines import Line2D
 
 color = ['#FBA120', '#435497', '#df5286']
 
@@ -36,8 +36,12 @@ def plot_timeline(option=None, to_be_shown=True):
     start = min(time_starts)
     stop = max([s+d for s,d in zip(time_starts,durations)])
 
+    """
+    for t in dc.tracks3D_list:
+        print(t.ID_3D, ": anode", t.is_anode_crosser, ' cathode ', t.is_cathode_crosser, 'T0:', t.t0_corr, ' TS : ', t.timestamp, ' - ', t.timestamp_r)
+    """
 
-
+    
     pds_clusters_time = [p.timestamp for p in dc.pds_cluster_list]
 
     pds_clusters_size = [p.size for p in dc.pds_cluster_list]
@@ -52,7 +56,7 @@ def plot_timeline(option=None, to_be_shown=True):
     sh_time = [t.timestamp for t in dc.single_hits_list]
 
 
-    fig = plt.figure(figsize=(12,4))
+    fig = plt.figure(figsize=(14,4))
     ax = fig.add_subplot(111)
 
     for i in range(len(pds_clusters_time)):
@@ -81,8 +85,18 @@ def plot_timeline(option=None, to_be_shown=True):
     
     axt.scatter(sh_time, [0.5 for x in range(len(dc.single_hits_list))], marker='*', color='yellow', label='Single Hits')
 
-    ax.legend(frameon=False)
+    #llll
+    #ax.legend(frameon=False)
+    legend_elements = [Line2D([0], [0], color='k', lw=2, alpha=0.6, label='PDS clusters'),
+                       Line2D([0], [0], marker='o', color='tab:cyan', label='Anode crossers', markerfacecolor='tab:cyan', markersize=15),
+                       Line2D([0], [0], marker='x', color='tab:cyan', label='Cathode crossers', markerfacecolor='tab:cyan', markersize=15),                    
+                       patches.Patch(facecolor='tab:cyan', edgecolor='tab:cyan', alpha=0.5, label='Unresolved T0'),
+                       Line2D([0], [0], marker='*', color='w', label='Blips', markerfacecolor='yellow', markersize=15)]
 
+    
+    ax.legend(handles=legend_elements, loc=(0.02, 1.02), ncols=5, frameon=False)
+    ax.set_xlabel('Time wrt to trigger [mus]')
+    
     plt.tight_layout()
 
     save_with_details(fig, option, 'Timeline')
@@ -92,9 +106,6 @@ def plot_timeline(option=None, to_be_shown=True):
 
     plt.close()
     
-
-
-#def plot_trk_pds_matched(t, option=None, to_be_shown=True):
 
 
 
@@ -112,32 +123,34 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
     #ID_trk_shift =dc.n_tot_trk3d
     #print('shift is ', ID_trk_shift)
     #trk = dc.tracks3D_list[trackID-ID_trk_shift]
-    trk.dump()
+
 
     clusID = trk.match_pds_cluster
     ID_clus_shift = dc.n_tot_pds_clusters
     clus = dc.pds_cluster_list[clusID-ID_clus_shift]
     
-    clus.dump()
-
+    trk.dump()
+    #clus.dump()
+    
+    
     clus_ch = clus.glob_chans
     
-    
-    
+       
     
     xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
     ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
-    zmin, zmax = min(cf.anode_z), max(cf.anode_z)#-500, 500#min(cf.anode_z) - v*max(cf.n_sample)/cf.sampling[0], max(cf.anode_z)
+    zmin, zmax = min(cf.anode_z), max(cf.anode_z)
     
     xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
 
     #corr = list(flatten(get_3dtracks_corr(iv),'t.ID_3D=='+str(trackID)))
 
 
-    fig = plt.figure(figsize=(6, 6))
-    gs = gridspec.GridSpec(nrows = 2, ncols = 1, height_ratios=[1, 20])
+    fig = plt.figure(figsize=(6, 8))
+    gs = gridspec.GridSpec(nrows = 3, ncols = 1, height_ratios=[1, 20, 5])
     ax  = fig.add_subplot(gs[1,0], projection='3d')
     ax_infos = fig.add_subplot(gs[0,0])
+    ax_dist =  fig.add_subplot(gs[2,0])
     
     """ cathode plane """
     rect = patches.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, alpha=.2, facecolor='gray')
@@ -149,7 +162,7 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
     ax.plot([0,0],[ymin,ymax], zs=0., zdir="z", c='k',ls='dashed')
     ax.plot([0,0],[ymin,ymax], zs=zmin, zdir="z", c='k',ls='dashed')
     
-    z0_corr = trk.z0_corr
+    z0_corr = trk.z0_light #trk.z0_corr
     if(z0_corr >= 9999):
         z0_corr = 0.0
 
@@ -163,11 +176,33 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
     
         ax.scatter(x, y, z, c=color[iv], s=4)
 
+    dist_charge = []
+
+    trk_vol = int(trk.module_ini/cf.n_drift_volumes)
+    
+    for pt_trk, pt_pds, is_extr, dist, adc in zip(clus.point_closest[trk_vol], clus.point_impact[trk_vol], clus.point_closest_is_extrapolated[trk_vol], clus.dist_closest[trk_vol], clus.max_adcs):
+
+        tx, ty, tz = pt_trk
+        if(is_extr == False):
+            col, col_l='r', 'k'
+        else:
+            col, col_l='gray', 'gray'
+        ax.scatter(tx, ty, tz, c=col, s=3)
+        px, py, pz = pt_pds
+        ax.scatter(px, py, pz, c=col_l, s=3)
+
+        ax.plot([tx,px], [ty,py],[tz,pz], c='k',lw=0.5, ls='dashed')
+        
+        ax_dist.scatter(dist, adc*1e-3, color=col)
+
+    ax_dist.set_xlabel('Track-PDS distance [cm]')
+    ax_dist.set_ylabel('Peak max [kADC]')
+    ax_dist.set_xlim(0, 1000)
 
     if(trk.cathode_crosser_ID >=0):
         trk_id_shift = dc.n_tot_trk3d
         other_trk = dc.tracks3D_list[trk.cathode_crosser_ID-trk_id_shift]
-        other_z0_corr = other_trk.z0_corr
+        other_z0_corr = other_trk.z0_light #other_trk.z0_corr
         for iv in range(3):
             pts = [p for p in other_trk.path[iv]]
             #print(pts)
@@ -176,17 +211,20 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
             z = [i+other_z0_corr for i in z]
             
             ax.scatter(x, y, z, c='gray', s=4, alpha=0.5)
+
+
     if(trk.is_anode_crosser and trk.exit_trk_end >=0):
         truth_from = [trk.ini_x, trk.ini_y, trk.ini_z+z0_corr] if trk.exit_trk_end == 1 else [trk.end_x, trk.end_y, trk.end_z+z0_corr]
         truth_to = trk.exit_point
         ax.plot([truth_from[0], truth_to[0]], [truth_from[1], truth_to[1]],[truth_from[2], truth_to[2]], c='r', ls='dotted')
 
+        
     pds_max = np.argmax(clus.charges)
-    print(pds_max)
+    #print(pds_max)
     pds_q_max = clus.charges[pds_max] #max(clus.charges)
     pds_ch_max = clus.glob_chans[pds_max]
-    print('MAX PDS chan ', pds_ch_max, ' with ', pds_q_max)
-    print(dc.chmap_pds[pds_ch_max])
+    #print('MAX PDS chan ', pds_ch_max, ' with ', pds_q_max)
+    #print(dc.chmap_pds[pds_ch_max])
     
     size_max = 20
     for pds_ch,pds_q in zip(clus.glob_chans, clus.charges):
@@ -211,42 +249,37 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
             p = Circle((x_center, y_center), size_max*(pds_q/pds_q_max), color="tab:purple",alpha=0.5)
             ax.add_patch(p)
             art3d.pathpatch_2d_to_3d(p, z=z_center, zdir="z")
+
+
+    for mod in range(cf.pds_n_modules):
+        if(cf.pds_x_length[mod] == 0):
+            a_low = cf.pds_y_center[mod]-cf.pds_y_length[mod]/2.
+            b_low = cf.pds_z_center[mod]-cf.pds_z_length[mod]/2.
+            a_width = cf.pds_y_length[mod]
+            b_width = cf.pds_z_length[mod]
+            center  = cf.pds_x_center[mod]
+            zdir = "x"
+        elif(cf.pds_y_length[mod] == 0):
+            a_low = cf.pds_x_center[mod]-cf.pds_x_length[mod]/2.
+            b_low = cf.pds_z_center[mod]-cf.pds_z_length[mod]/2.
+            a_width = cf.pds_x_length[mod]
+            b_width = cf.pds_z_length[mod]
+            center  = cf.pds_y_center[mod]
+            zdir = "y"
+
+        elif(cf.pds_z_length[mod] == 0):
+            a_low = cf.pds_x_center[mod]-cf.pds_x_length[mod]/2.
+            b_low = cf.pds_y_center[mod]-cf.pds_y_length[mod]/2.
+            a_width = cf.pds_x_length[mod]
+            b_width = cf.pds_y_length[mod]
+            center  = cf.pds_z_center[mod]
+            zdir = "z"
+
+        rect = patches.Rectangle((a_low, b_low), a_width, b_width, edgecolor='k', facecolor='none')
         
+        ax.add_patch(rect)
+        art3d.patch_2d_to_3d(rect, z=center, zdir=zdir)  # place in z=0 plane
         
-    """
-    for ic in range(0, clus.size,2):
-
-        glob_ch = clus.glob_chans[ic]
-        charge = clus.charges[ic]
-        color = cmap(norm(charge))
-
-        ip = dc.chmap_pds[glob_ch].module
-        print(ic, '=', glob_ch, ' charge ', charge, ' module ', ip)                    
-        x0,y0,z0 = cf.pds_x_centers[ip], cf.pds_y_centers[ip], cf.pds_z_centers[ip]
-        L = cf.pds_length
-        h = L/2
-        square = [
-            [x0 - h, y0 - h, z0],
-            [x0 + h, y0 - h, z0],
-            [x0 + h, y0 + h, z0],
-            [x0 - h, y0 + h, z0]]
-
-        ax.add_collection3d(Poly3DCollection([square], color=color, alpha=0.5))
-
-
-    for ip in range(cf.pds_n_modules):
-        x0,y0,z0 = cf.pds_x_centers[ip], cf.pds_y_centers[ip], cf.pds_z_centers[ip]
-        L = cf.pds_length
-        h = L/2
-        square = [
-            [x0 - h, y0 - h, z0],
-            [x0 + h, y0 - h, z0],
-            [x0 + h, y0 + h, z0],
-            [x0 - h, y0 + h, z0]]
-        print(ip, square)
-        ax.add_collection3d(Poly3DCollection([square], color='k', edgecolors='k', linewidths=1.5, alpha=0.001))
-    """
-
 
 
     ax.set_xlim3d(xmin, xmax)
