@@ -17,7 +17,7 @@ class effective_chan:
         self.is_tde = False if (gallery == "bottom" or gallery == "both") else True
         self.is_beam = gallery == "beam"
         
-        self.conference_style = True#False
+        self.conference_style = False
         self.no_data = False        
         self.nsamp = -1
     
@@ -45,6 +45,8 @@ class effective_chan:
     def add_data(self):
         print("module ", cf.imod, self.nsamp, " and ", cf.n_sample[cf.imod])
         chmap.arange_in_view_channels()
+        if(cf.n_sample[cf.imod] < 0):
+            return
         if(self.nsamp < 0 and cf.n_sample[cf.imod] < 0):#
             return
         if(self.nsamp < 0 and cf.n_sample[cf.imod] > 0):#
@@ -248,7 +250,7 @@ def show_all_event(data_eff_ind, data_eff_coll,conf_style, is_top, tmin, tmax):
     dc.evt_list[-1].det = "pdvd"
     
 
-    #plt.show()
+    plt.show()
 
     plt.close()
 
