@@ -123,6 +123,7 @@
 	    "dx_tol": [3.0,0.5],
 	    "dy_tol": [3.0,3.0],
 	    "dz_tol": 2.0,
+	    "drift_tol":10,
 	},
 	
 	"goodness":{
@@ -199,26 +200,33 @@
         },
 	
 	"cluster":{
+	    "max_lag":50, //to align waveform, in PDS tick nb
 	    "time_tol":5 //in mus
 	},
 
-	"tpc_matching":{ //all time in mus
+	"tpc_matching":{//all times in mus
+	    "min_cluster_size":2,
 	    "trigger":{
-		"time_tol":5
+		"time_tol_bef":[5],
+		"time_tol_aft":[5]
 	    },
-	    "anode_crosser":{
-		"time_tol":5
+	    "anode_crosser":{//per volume 0: bde, 1: tde
+		"time_tol_bef":[5], 
+		"time_tol_aft":[5]
 	    },
 	    "cathode_crosser":{
-		"time_tol":10
+		"time_tol_bef":[5, 5],
+		"time_tol_aft":[5, 5]
 	    },
-	    "unknown":{
-		"time_tol":5
+	    "unknown":{		
+		"time_tol_bef":[5,5],
+		"time_tol_aft":[5,5]
 	    },
+	    
 	    "single_hits":{
 		"time_tol":5
-	    },
-	},
+	    },	    
+	},	
     },
       
     

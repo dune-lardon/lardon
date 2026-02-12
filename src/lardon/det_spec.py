@@ -172,7 +172,6 @@ def configure(detector, run, do_pds, hash_path):
             cf.pds_daq_link_nstream = [int(x) for x in data['pds_daq_link_nstream']]
             cf.pds_daqch_stream_start = int(data['pds_daqch_stream_start'])
             cf.pds_daqch_trig_start = int(data['pds_daqch_trig_start'])
-            
 
             
                   
