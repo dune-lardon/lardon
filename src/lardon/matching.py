@@ -1,6 +1,8 @@
 import lardon.config as cf
 import lardon.data_containers as dc
 import lardon.lar_param as lar
+import lardon.track_timing as tmg
+
 
 import numpy as np
 from rtree import index
@@ -26,10 +28,20 @@ def matching_trk_pds():
 
     n_trk = 0
 
-    anode_time_tol = dc.reco['pds']['tpc_matching']['anode_crosser']['time_tol'] #in mus
-    cathode_time_tol = dc.reco['pds']['tpc_matching']['cathode_crosser']['time_tol'] #in mus
-    unknown_time_tol = dc.reco['pds']['tpc_matching']['unknown']['time_tol'] #in mus
+    anode_time_tol_bef = dc.reco['pds']['tpc_matching']['anode_crosser']['time_tol_bef'] #in mus
+    anode_time_tol_aft = dc.reco['pds']['tpc_matching']['anode_crosser']['time_tol_aft'] #in mus
+    
+    cathode_time_tol_bef = dc.reco['pds']['tpc_matching']['cathode_crosser']['time_tol_bef'] #in mus
+    
+    cathode_time_tol_aft = dc.reco['pds']['tpc_matching']['cathode_crosser']['time_tol_aft'] #in mus
 
+    
+    unknown_time_tol_aft = dc.reco['pds']['tpc_matching']['unknown']['time_tol_aft'] #in mus
+    unknown_time_tol_bef = dc.reco['pds']['tpc_matching']['unknown']['time_tol_bef'] #in mus
+
+    min_cluster_size = dc.reco['pds']['tpc_matching']['min_cluster_size']
+    v_drift = [lar.drift_velocity(m) for m in range(cf.n_module)]
+    
     """
     print('LIGHT - TRK MATCHING time tolerances: ')
     print('anode crossers:', anode_time_tol)
@@ -48,7 +60,8 @@ def matching_trk_pds():
     for c in dc.pds_cluster_list:
         if(np.any(np.array(c.match_trk3D)>=0) or c.match_single >=0 ):
             continue
- 
+        if(c.size < min_cluster_size):
+            continue
         start = c.timestamp
         idx   = c.ID
         rtree.insert(idx, (start, 0, start, 0))
@@ -65,13 +78,18 @@ def matching_trk_pds():
         is_anode_crosser = t.is_anode_crosser
         is_cathode_crosser = t.is_cathode_crosser
 
-        """ to add later: is track trigger """
-        if(is_anode_crosser):
+        """ to add later: is track trigger trk_type = 0"""        
+        if(is_anode_crosser and is_anode_crosser):
             trk_type = 1
-        elif(is_cathode_crosser):
+        elif(is_anode_crosser and not is_anode_crosser):
             trk_type = 2
-        else:
+        elif(not is_anode_crosser and is_cathode_crosser):
             trk_type = 3
+        else: #unresolved case
+            trk_type = 4
+
+
+
         rtree.insert(idx, (start, trk_type, stop, trk_type))
     
     
@@ -80,11 +98,23 @@ def matching_trk_pds():
 
     
     """ search for the 3D track - light clusters """
-    anode_tracks = [t for t in dc.tracks3D_list if t.is_anode_crosser]
-    cathode_tracks = [t for t in dc.tracks3D_list if t.is_cathode_crosser and not t.is_anode_crosser]
+    anode_cathode_tracks = [t for t in dc.tracks3D_list if t.is_anode_crosser and t.is_cathode_crosser]
+    anode_tracks = [t for t in dc.tracks3D_list if t.is_anode_crosser and not t.is_cathode_crosser]
+    cathode_tracks = [t for t in dc.tracks3D_list if not t.is_anode_crosser and t.is_cathode_crosser]
     unknown_tracks = [t for t in dc.tracks3D_list if not t.is_cathode_crosser and not t.is_anode_crosser]
 
-    for trk_sel, time_tol, name in zip([anode_tracks, cathode_tracks, unknown_tracks], [anode_time_tol, cathode_time_tol, unknown_time_tol], ['anode', 'cathode','unknown']):
+
+    """
+    print('Nb of anode-cathode Xs', len(anode_cathode_tracks))
+    print('Nb of anode Xs', len(anode_tracks))
+    print('Nb of cathode Xs', len(cathode_tracks))
+    print('Nb of unknowns ', len(unknown_tracks))
+    """
+
+    
+    
+    for trk_sel, time_tol_before, time_tol_after, name in zip([anode_cathode_tracks, anode_tracks, cathode_tracks, unknown_tracks], [anode_time_tol_bef, anode_time_tol_bef, cathode_time_tol_bef, unknown_time_tol_bef], [anode_time_tol_aft, anode_time_tol_aft, cathode_time_tol_aft, unknown_time_tol_aft], ['anode-cathode', 'anode', 'cathode','unknown']):
+        #print("\n=======\ntesting ", name)
         for trk in trk_sel:
             if(trk.match_pds_cluster >= 0):
                 continue
@@ -93,14 +123,16 @@ def matching_trk_pds():
             trk_stop  = trk.timestamp_r
             trk_vol   = int(trk.module_ini/cf.n_drift_volumes)
             
-            overlaps = list(rtree.intersection((trk_start - time_tol, 0, trk_stop + time_tol, 0)))
-            overlaps = [ov for ov in overlaps if dc.pds_cluster_list[ov-id_cluster_shift].match_trk3D[trk_vol] < 0]
-            
+            pds_overlaps = list(rtree.intersection((trk_start - time_tol_before[trk_vol], 0, trk_stop + time_tol_after[trk_vol], 0)))
+            pds_overlaps = [ov for ov in pds_overlaps if all(x < 0 for x in dc.pds_cluster_list[ov-id_cluster_shift].match_trk3D)]
+
+            #print(trk.ID_3D, " at ", trk_start, "has ", len(pds_overlaps))
             """ only one match possible """
-            if(len(overlaps) != 1):
+            if(len(pds_overlaps) != 1):
                 continue
 
-            clus = dc.pds_cluster_list[overlaps[0]-id_cluster_shift]
+            clus = dc.pds_cluster_list[pds_overlaps[0]-id_cluster_shift]
+            
             if(clus.match_trk3D[trk_vol] >= 0 or clus.match_single >=0 ):
                 continue
             set_track_pds_matching(trk, clus, id_trk3d_shift)
@@ -108,35 +140,33 @@ def matching_trk_pds():
             delay = clus.timestamp - trk_start
             
             """ debug """
-            """
-            print('[',name,'] Potential Track-light match')
-            trk.dump()
-            print('---> with delay ', delay)
-            clus.dump()
-            """
+            
+            #print('[',name,'] Potential Track-light match ! track ID ', trk.ID_3D)
+            #print('---> with delay ', delay)
+
+            
             n_trk += 1
 
-            #for pds_ch in clus.glob_chans:
-            for pds_ch, pds_q in zip(clus.glob_chans, clus.charges):
-                pds_module = dc.chmap_pds[pds_ch].module
+            tracks = [trk]
+            if(trk.is_cathode_crosser == True and trk.cathode_crosser_ID >=0 ):
+                tracks.append(dc.tracks3D_list[trk.cathode_crosser_ID-id_trk3d_shift])
                 
-                dist, pt_track, pt_pds = dist_trk_to_pds(trk, pds_module)
+                
 
-                """
-                print('---- pds channel: ', pds_ch, '= module', pds_module)
-                print('closest distance: ', dist, ' charge ', pds_q)
-                print('closest on track ', pt_track)
-                print('closest on pds ', pt_pds)
-                """
+            for t in tracks:
+                vol = int(t.module_ini/cf.n_drift_volumes)
+                t.set_times_from_light(clus.timestamp, v_drift[t.module_ini])
+
+                for pds_ch, pds_q in zip(clus.glob_chans, clus.charges):
+                    pds_module = dc.chmap_pds[pds_ch].module
                 
-                """
-                return         
-                clus.dist_closest_strip.extend([r[0] for r in res])
-                clus.id_closest_strip.extend([r[1] for r in res])
-                clus.point_impact.extend([r[2] for r in res])
-                clus.point_closest_above.extend([r[3] for r in res])
-                clus.point_closest.extend([r[4] for r in res])
-                """
+                    dist, pt_track, pt_pds, belongToTrack = dist_trk_to_pds(t, pds_module)
+                    
+                    clus.dist_closest[vol].append(dist)
+                    clus.point_closest[vol].append(pt_track)
+                    clus.point_impact[vol].append(pt_pds)
+                    clus.point_closest_is_extrapolated[vol].append(~belongToTrack)
+         
 
     print('\n---->>>> Number of pds-matched tracks: ', n_trk)        
 
@@ -283,48 +313,10 @@ def  matching_sh_pds():
 
     print('\n---->>>> Number of pds-matched single hits ', n_sh)
 
-def extrapolate_trk_to_z(a0, a1, z_end):
-    dx = a1[0] - a0[0]
-    dy = a1[1] - a0[1]
-    dz = a1[2] - a0[2]
-    
-    dzprime = z_end - a0[2]
-
-    x = a0[0] + dx*dzprime/dz
-    y = a0[1] + dy*dzprime/dz
-    z = a0[2] + dz*dzprime/dz
-
-    return np.array([x, y, z])
-
-
-def above_xarapuca(ch, b):
-    l_arap = cf.pds_length    
-
-    x0, y0, z0 = cf.pds_x_centers[ch], cf.pds_y_centers[ch], cf.pds_z_centers[ch]
-
-    if(cf.pds_modules_type[ch] == "Cathode"):
-        if(b[0] < x0-l_arap or b[0] > x0+l_arap): return False
-        elif(b[1] < y0-l_arap or b[1] > y0+l_arap): return False
-        else: return True
-        
-def xarapucas_siPM_strips(ch):
-    l_arap = cf.pds_length    
-
-    x0, y0, z0 = cf.pds_x_centers[ch], cf.pds_y_centers[ch], cf.pds_z_centers[ch]
-
-    if(cf.pds_modules_type[ch] == "Cathode"):
-        xx = [x0-l_arap/2, x0-l_arap/2, x0-l_arap/2, x0, x0+l_arap/2, x0+l_arap/2, x0+l_arap/2, x0, x0-l_arap/2]
-        yy = [y0+l_arap/2, y0, y0-l_arap/2, y0-l_arap/2, y0-l_arap/2, y0, y0+l_arap/2, y0+l_arap/2, y0+l_arap/2]
-        zz = [z0 for x in range(len(xx))]
-    
-        b0 = [ [xx[i], yy[i], zz[i]] for i in range(8)]
-        b1 = [ [xx[i+1], yy[i+1], zz[i+1]] for i in range(8)]
-        
-        return b0, b1
 
 def dist_trk_to_pds(trk, pds_mod):
-    t0 = np.array([trk.ini_x, trk.ini_y, trk.ini_z+trk.z0_corr])
-    t1 = np.array([trk.end_x, trk.end_y, trk.end_z+trk.z0_corr])
+    t0 = np.array([trk.ini_x, trk.ini_y, trk.ini_z+trk.z0_light])
+    t1 = np.array([trk.end_x, trk.end_y, trk.end_z+trk.z0_light])
     tdir = t1-t0
     
     x_center = cf.pds_x_center[pds_mod]
@@ -338,192 +330,239 @@ def dist_trk_to_pds(trk, pds_mod):
                   y_center-y_length, y_center+y_length,
                   z_center-z_length, z_center+z_length)
 
-    dist, pt_track, pt_pds = closest_line_to_pds(t0, tdir, pds_bounds)
-    return dist, pt_track, pt_pds
+    tpc_bounds = (min([cf.x_boundaries[i][0] for i in range(cf.n_module)]), max([cf.x_boundaries[i][1] for i in range(cf.n_module)]),
+                 min([cf.y_boundaries[i][0] for i in range(cf.n_module)]), max([cf.y_boundaries[i][1] for i in range(cf.n_module)]),
+                 min(cf.anode_z), max(cf.anode_z))
     
-def closest_line_to_pds(p0, d, bounds):
+    dist, pt_track, pt_pds, is_extrap = closest_line_to_pds(t0, tdir, pds_bounds, tpc_bounds)
+    return dist, pt_track, pt_pds, is_extrap
+
+def closest_point_on_line(p0, d, point):
+    t = np.dot(point - p0, d) / np.dot(d, d)
+    return p0 + t * d, t
+
+def closest_distance_line_segment(p0, d, a, b):
+    ab = b - a
+    dab = np.dot(d, ab)
+    dda = np.dot(d, d)
+    aba = np.dot(ab, ab)
+    ap = a - p0
+
+    denom = dda * aba - dab * dab
+
+    # Near-parallel case: check endpoints
+    if abs(denom) < 1e-12:
+        P1, t1 = closest_point_on_line(p0, d, a)
+        d1 = np.linalg.norm(P1 - a)
+        P2, t2 = closest_point_on_line(p0, d, b)
+        d2 = np.linalg.norm(P2 - b)
+        if d1 < d2:
+            return d1, P1, a, t1
+        else:
+            return d2, P2, b, t2
+
+    # General case
+    t = (dab*np.dot(ap,ab) - aba*np.dot(ap,d)) / denom
+    u = (dab*t + np.dot(ap,ab)) / aba
+
+    if u < 0:
+        P_seg = a
+        P_line, t = closest_point_on_line(p0, d, a)
+    elif u > 1:
+        P_seg = b
+        P_line, t = closest_point_on_line(p0, d, b)
+    else:
+        P_seg = a + u * ab
+        P_line = p0 + t * d
+
+    dist = np.linalg.norm(P_line - P_seg)
+    return dist, P_line, P_seg, t
+
+def clip_line_to_box(p0, d, box):
+    xmin, xmax, ymin, ymax, zmin, zmax = box
+    bounds = [(xmin,xmax), (ymin,ymax), (zmin,zmax)]
+    tmin = -np.inf
+    tmax = np.inf
+
+    for coord in range(3):
+        p = p0[coord]
+        di = d[coord]
+        mn, mx = bounds[coord]
+
+        if abs(di) < 1e-12:
+            # parallel: must be inside slab
+            if p < mn or p > mx:
+                return None, None
+            continue
+
+        # compute intersection parameters
+        t1 = (mn - p) / di
+        t2 = (mx - p) / di
+        t_low, t_high = min(t1, t2), max(t1, t2)
+
+        tmin = max(tmin, t_low)
+        tmax = max(min(tmax, t_high), tmin)
+
+        if tmin > tmax:
+            return None, None
+
+    return tmin, tmax
+
+
+def closest_line_to_pds(p0, d, rect_bounds, volume_bounds):
     """
-    p0: 3-vector, track origin
-    d:  3-vector, track direction
-    bounds: (xmin, xmax, ymin, ymax, zmin, zmax)
-            Two ranges must have finite size, one must collapse to zero.
+    p0, d: line origin and direction
+    rect_bounds = PDS: (xmin, xmax, ymin, ymax, zmin, zmax) rectangle with one collapsed axis
+    volume_bounds = TPC: 3D bounding box inside which the closest point must lie
+
+    Returns:
+        distance
+        closest point on line (restricted to volume)
+        closest point on rectangle
+        whether the closest point lies on the track segment (t in [0,1])
     """
 
-    #P0 = np.array(P0, float)
-    #d  = np.array(d, float)
+    t0, t1 = clip_line_to_box(p0, d, volume_bounds)
+    if t0 is None:
+        return None, None, None, False  # line never enters volume
 
-    xmin, xmax, ymin, ymax, zmin, zmax = bounds
-    
-    # Determine which axis is collapsed
+    xmin, xmax, ymin, ymax, zmin, zmax = rect_bounds
     flat_x = xmin == xmax
     flat_y = ymin == ymax
     flat_z = zmin == zmax
 
-    # Intersection with the plane containing the panel
-    t = None
+
+    # Check intersection with rectangle interior
+    def check_plane_intersection(coord_idx, coord_val, lo1, hi1, lo2, hi2):
+        di = d[coord_idx]
+        if abs(di) < 1e-12:
+            return None
+        t = (coord_val - p0[coord_idx]) / di
+        I = p0 + t * d
+        if lo1 <= I[(coord_idx+1)%3] <= hi1 and lo2 <= I[(coord_idx+2)%3] <= hi2:
+            return t, I
+        return None
+
+    intersect = None
+
     if flat_x:
-        # panel lies on plane x = xmin
-        if abs(d[0]) > 1e-12:
-            t = (xmin - p0[0]) / d[0]
-            I = p0 + t * d
-            if ymin <= I[1] <= ymax and zmin <= I[2] <= zmax:
-                return 0.0, I, I
+        intersect = check_plane_intersection(0, xmin, ymin, ymax, zmin, zmax)
     elif flat_y:
-        if abs(d[1]) > 1e-12:
-            t = (ymin - p0[1]) / d[1]
-            I = p0 + t * d
-            if xmin <= I[0] <= xmax and zmin <= I[2] <= zmax:
-                return 0.0, I, I
-    elif flat_z:
-        if abs(d[2]) > 1e-12:
-            t = (zmin - p0[2]) / d[2]
-            I = p0 + t * d
-            if xmin <= I[0] <= xmax and ymin <= I[1] <= ymax:
-                return 0.0, I, I
+        intersect = check_plane_intersection(1, ymin, xmin, xmax, zmin, zmax)
+    else:
+        intersect = check_plane_intersection(2, zmin, xmin, xmax, ymin, ymax)
 
-    # No intersection --> closest distance to rectangle
-    # Compute the closest point on the rectangle to the infinite line.
-    # Strategy: find the point Q on the panel rectangle that minimizes distance to line.
-    
-    # First clamp p0 to the rectangle projection
-    Q = np.array([p0[0], p0[1], p0[2]])
-    
-    # Clamp depending on collapsed axis
+    if intersect:
+        t_hit, I = intersect
+        # enforce volume bounds
+        if t_hit < t0:
+            I = p0 + t0*d
+        elif t_hit > t1:
+            I = p0 + t1*d
+        return 0.0, I, I, (0 <= t_hit <= 1)
+
+
+    # Build rectangle corners and normal
     if flat_x:
-        Q[0] = xmin
-        Q[1] = np.clip(Q[1], ymin, ymax)
-        Q[2] = np.clip(Q[2], zmin, zmax)
+        x = xmin
+        corners = [
+            np.array([x, ymin, zmin]),
+            np.array([x, ymin, zmax]),
+            np.array([x, ymax, zmin]),
+            np.array([x, ymax, zmax]),
+        ]
+        normal = np.array([1,0,0])
+        plane_val = x
+
     elif flat_y:
-        Q[1] = ymin
-        Q[0] = np.clip(Q[0], xmin, xmax)
-        Q[2] = np.clip(Q[2], zmin, zmax)
-    elif flat_z:
-        Q[2] = zmin
-        Q[0] = np.clip(Q[0], xmin, xmax)
-        Q[1] = np.clip(Q[1], ymin, ymax)
+        y = ymin
+        corners = [
+            np.array([xmin, y, zmin]),
+            np.array([xmax, y, zmin]),
+            np.array([xmin, y, zmax]),
+            np.array([xmax, y, zmax]),
+        ]
+        normal = np.array([0,1,0])
+        plane_val = y
 
-    # closest point on line to Q
-    t_line = np.dot(Q - p0, d) / np.dot(d, d)
-    P_line = p0 + t_line * d
+    else:
+        z = zmin
+        corners = [
+            np.array([xmin, ymin, z]),
+            np.array([xmax, ymin, z]),
+            np.array([xmin, ymax, z]),
+            np.array([xmax, ymax, z]),
+        ]
+        normal = np.array([0,0,1])
+        plane_val = z
 
-    dist = np.linalg.norm(P_line - Q)
-
-    return dist, P_line, Q
-
-    
-def prev_dist_trk_to_pds(trk, pds_chan):
-    a0 = np.array([trk.ini_x, trk.ini_y, trk.ini_z+trk.z0_corr])
-    a1 = np.array([trk.end_x, trk.end_y, trk.end_z+trk.z0_corr])
-    
-    adir = a1-a0
-    if(cf.pds_modules_type[pds_chan] == "Cathode"):
-        a1_extrap = extrapolate_trk_to_z(a0, a1, cf.pds_z_centers[pds_chan])
-        
-    all_b0, all_b1 = xarapucas_siPM_strips(pds_chan)
-
-    res = []
-    for idx, (b0, b1) in enumerate(zip(all_b0, all_b1)):
-            
-        c, p, dist = closest_distance_between_lines(a0,a1,np.asarray(b0),np.asarray(b1))
-        c = c.tolist() #closest point on the track
-        p = p.tolist() #closest point on the xarapuca side
-        res.append((dist, idx+10*(pds_chan+1), p, above_xarapuca(pds_chan, c),c))
-
-    sort_res = sorted(res, key=lambda tup: tup[0])
-                
-    return sort_res[:2]
+    edges = [(0,1),(0,2),(3,1),(3,2)]
 
 
-def closest_distance_between_lines(a0,a1,b0,b1):
+    # Project line to plane (interior projection test)
+    denom = np.dot(d, normal)
+    if abs(denom) > 1e-12:
+        t_plane = (plane_val - np.dot(normal, p0)) / denom
+        P_plane = p0 + t_plane*d
 
-    ''' Given two lines defined by numpy.array pairs (a0,a1,b0,b1)
-        Return the closest points on each segment and their distance
-        from : https://stackoverflow.com/questions/2824478/shortest-distance-between-two-line-segments
-    '''
+        inside = False
+        if flat_x:
+            inside = (ymin <= P_plane[1] <= ymax and zmin <= P_plane[2] <= zmax)
+        elif flat_y:
+            inside = (xmin <= P_plane[0] <= xmax and zmin <= P_plane[2] <= zmax)
+        else:
+            inside = (xmin <= P_plane[0] <= xmax and ymin <= P_plane[1] <= ymax)
 
-
-    # Calculate denomitator
-    A = a1 - a0
-    B = b1 - b0
-    magA = np.linalg.norm(A)
-    magB = np.linalg.norm(B)
-    
-    _A = A / magA
-    _B = B / magB
-    
-    cross = np.cross(_A, _B);
-    denom = np.linalg.norm(cross)**2
-    
-    
-    # If lines are parallel (denom=0) test if lines overlap.
-    # If they don't overlap then there is a closest point solution.
-    # If they do overlap, there are infinite closest positions, but there is a closest distance
-    if not denom:
-        d0 = np.dot(_A,(b0-a0))
-        
-        d1 = np.dot(_A,(b1-a0))
-            
-        # Is segment B before A?
-        if d0 <= 0 >= d1:        
-            if np.absolute(d0) < np.absolute(d1):
-                return a0,b0,np.linalg.norm(a0-b0)
-            return a0,b1,np.linalg.norm(a0-b1)
-                
-                
-        # Is segment B after A?
-        elif d0 >= magA <= d1:            
-            if np.absolute(d0) < np.absolute(d1):
-                return a1,b0,np.linalg.norm(a1-b0)
-            return a1,b1,np.linalg.norm(a1-b1)
-                
-                
-        # Segments overlap, return distance between parallel segments
-        # NB : to be improved
-        return np.asarray([-9999, -9999, -9999]),B/2.,np.linalg.norm(((d0*_A)+a0)-b0)
-            
-    # Lines criss-cross: Calculate the projected closest points
-    t = (b0 - a0);
-    detA = np.linalg.det([t, _B, cross])
-    detB = np.linalg.det([t, _A, cross])
-
-    t0 = detA/denom;
-    t1 = detB/denom;
-
-    pA = a0 + (_A * t0) # Projected closest point on segment A
-    pB = b0 + (_B * t1) # Projected closest point on segment B
+        if inside:
+            # Clamp t to volume
+            t_clamp = min(max(t_plane, t0), t1)
+            P_line = p0 + t_clamp*d
+            P_rect = P_plane
+            dist = np.linalg.norm(P_line - P_rect)
+            return dist, P_line, P_rect, (0 <= t_clamp <= 1)
 
 
-    # Projections
-    if t0 < 0:
-        pA = a0
-    elif t0 > magA:
-        pA = a1
-        
-    if  t1 < 0:
-        pB = b0
-    elif t1 > magB:
-        pB = b1
-            
-    # Clamp projection A
-        if (t0 < 0) or ( t0 > magA):
-            dot = np.dot(_B,(pA-b0))
-            if dot < 0:
-                dot = 0
-            elif dot > magB:
-                dot = magB
-            pB = b0 + (_B * dot)
-    
-        # Clamp projection B
-        if ( t1 < 0) or ( t1 > magB):
-            dot = np.dot(_A,(pB-a0))
-            if  dot < 0:
-                dot = 0
-            elif dot > magA:
-                dot = magA
-            pA = a0 + (_A * dot)
+    # Edge distances
+    best = (float('inf'), None, None, None)
 
-    
-    return pA,pB,np.linalg.norm(pA-pB)
+    for i, j in edges:
+        a, b = corners[i], corners[j]
+        dist, Pl, Pr, t = closest_distance_line_segment(p0, d, a, b)
+
+        # clamp line point to volume
+        if t < t0:
+            Pl = p0 + t0*d
+            dist = np.linalg.norm(Pl - Pr)
+            t = t0
+        elif t > t1:
+            Pl = p0 + t1*d
+            dist = np.linalg.norm(Pl - Pr)
+            t = t1
+
+        if dist < best[0]:
+            best = (dist, Pl, Pr, t)
+
+
+    # Corner distances
+    for c in corners:
+        Pl, t = closest_point_on_line(p0, d, c)
+        # clamp
+        if t < t0:
+            Pl = p0 + t0*d
+            dist = np.linalg.norm(Pl - c)
+            t = t0
+        elif t > t1:
+            Pl = p0 + t1*d
+            dist = np.linalg.norm(Pl - c)
+            t = t1
+        else:
+            dist = np.linalg.norm(Pl - c)
+
+        if dist < best[0]:
+            best = (dist, Pl, c, t)
+
+    dist, Pl, Pr, t = best
+    return dist, Pl, Pr, (0 <= t <= 1)
 
 
 def sh_pds_dist(sh, cluster_idx):
