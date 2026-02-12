@@ -115,7 +115,7 @@ class PDSEvent(IsDescription):
     n_sample      = UInt32Col()
     n_peak        = UInt32Col(shape=(cf.n_pds_tot_channels))
     n_cluster     = UInt32Col()
-    
+    chan_time_offset = Float64Col(shape=(cf.n_pds_tot_channels))
 
 class Hits(IsDescription):
     event   = UInt32Col()
@@ -228,6 +228,10 @@ class Tracks3D(IsDescription):
     z0_corr = Float64Col()
     t0_corr = Float32Col()
 
+    z0_light = Float64Col()
+    t0_light = Float32Col()
+    timestamp_light = Float32Col()
+    
     d_match = Float32Col()
     timestamp  = Float64Col()
     cluster_ID = Int32Col()
@@ -340,7 +344,7 @@ class PDS_Peak(IsDescription):
     max_adc = Float64Col()
 
     cluster_ID = Int32Col()
-    
+    timestamp = Float64Col()
     
 class PDS_Cluster(IsDescription):
     event   = UInt32Col()
@@ -432,7 +436,9 @@ def create_tables_pds(h5file):
     table = h5file.create_table("/", "pds_clusters", PDS_Cluster, "PDSCluster")
 
     t = h5file.create_vlarray("/", 'pds_peakID_clusters', Float32Atom(shape=(1)), "Peak IDs")
-    t = h5file.create_vlarray("/", 'charge_pds_match', Float32Atom(shape=(9)), "(distance, SiPM strip nb, x_impact, y_impact, z_impact, isInside, x_closest, y_closest, z_closest)")
+
+    for v in range(cf.n_drift_volumes):
+        t = h5file.create_vlarray("/", 'charge_pds_match_vol'+str(v), Float32Atom(shape=(12)), "(PeakID, PDSglobchan, distance, charge, max_adc, x_impact, y_impact, z_impact, x_closest, y_closest, z_closest, closestIsExtrapolated)")
     
     
 def store_run_infos(h5file, run, sub, nevent, time):
@@ -712,11 +718,14 @@ def store_tracks3D(h5file):
        t3d['z0_corr']   = it.z0_corr
        t3d['t0_corr']   = it.t0_corr
 
+       t3d['z0_light']   = it.z0_light
+       t3d['t0_light']   = it.t0_light
+       
        t3d['d_match']  = it.d_match
 
        t3d['timestamp'] = it.timestamp
        t3d['cluster_ID'] = it.match_pds_cluster
-
+       t3d['timestamp_light'] = it.timestamp_light
 
        
        t3d['is_cathode_crosser'] = it.is_cathode_crosser
@@ -868,7 +877,7 @@ def store_pds_event(h5file):
     evt['n_sample']    = max([cf.n_pds_stream_sample, cf.n_pds_trig_sample])
     evt['n_peak']      = dc.evt_list[-1].n_pds_peaks
     evt['n_cluster']   = dc.evt_list[-1].n_pds_clusters
-
+    evt['chan_time_offset'] = dc.evt_list[-1].pds_time_offset
     evt.append()
 
 def store_pds_peak(h5file):
@@ -890,6 +899,7 @@ def store_pds_peak(h5file):
         pds['max_adc'] = p.max_adc
         
         pds['cluster_ID'] = p.cluster_ID
+        pds['timestamp']  = p.timestamp
         pds.append()
 
 
@@ -897,7 +907,7 @@ def store_pds_cluster(h5file):
     clu = h5file.root.pds_clusters.row
 
     vl_ids = h5file.get_node('/pds_peakID_clusters')
-    vl_match = h5file.get_node('/charge_pds_match')
+    vl_match = [h5file.get_node('/charge_pds_match_vol'+str(n)) for n in range(cf.n_drift_volumes)]
 
     
     for c in dc.pds_cluster_list:
@@ -913,9 +923,10 @@ def store_pds_cluster(h5file):
         clu['match_single'] = c.match_single
 
         vl_ids.append([[i] for i in c.peak_IDs])
-
-        pts = [[d, idx, p[0], p[1], p[2], tf, h[0], h[1], h[2]] for d, idx, p, tf,h in zip(c.dist_closest_strip, c.id_closest_strip, c.point_impact, c.point_closest_above, c.point_closest)]
-        vl_match.append(pts)
+    
+        for vol in range(cf.n_drift_volumes):
+            pts = [[i, g, d, q, adc, p[0], p[1], p[2], h[0], h[1], h[2], e] for  i, g, d, q, adc,  p, e, h in zip(c.peak_IDs, c.glob_chans, c.dist_closest[vol], c.charges, c.max_adcs, c.point_impact[vol], c.point_closest_is_extrapolated[vol], c.point_closest[vol])]
+            vl_match[vol].append(pts)
         clu.append()
 
 def store_debug(h5file, debug):
