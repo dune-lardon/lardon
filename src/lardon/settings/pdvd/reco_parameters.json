@@ -117,9 +117,10 @@
 	  "trk_min_dz":15.0,
 	  "trk_min_dx":8.0,
 	  "timing":{
-	      "dx_tol": [[5.0,25.0], [25.0, 5.0], [25.0,5.0], [5.0, 25.0]],//[[25.0,5.0], [5.0, 25.0], [25.0,25.0], [25.0, 25.0]],
+	      "dx_tol": [[25.0,2.0], [2.0, 25.0], [25.0,2.0], [2.0, 25.0]],
 	      "dy_tol": [[25.0,25.0], [25.0, 25.0], [25.0,25.0], [25.0, 25.0]],
-	      "dz_tol": 2.0,
+	      "dz_tol": 5.0,
+	      "drift_tol":10,
 	  },
 
 	  "goodness":{
@@ -155,7 +156,7 @@
       },
 
       "single_hit":{
-	"max_per_view":3,
+	"max_per_view":8,
 	"outlier_dmax":4.0,
 	"cluster_eps":2.0,
 	"dist_veto":5.0,
@@ -185,23 +186,31 @@
 		"right":60
 	    },		 
         },
+	
 	"cluster":{
-	    "time_tol":2
+	    "max_lag":100, //to align waveform, in PDS tick nb
+	    "time_tol":0.2,
 	},
 
 	"tpc_matching":{//all times in mus
+	    "min_cluster_size":6,
 	    "trigger":{
-		"time_tol":5
+		"time_tol_bef":[5,5],
+		"time_tol_aft":[5,5]
 	    },
-	    "anode_crosser":{
-		"time_tol":5
+	    "anode_crosser":{//per volume 0: bde, 1: tde
+		"time_tol_bef":[5.0, 5.0],
+		"time_tol_aft":[0.5, 0.5]
 	    },
 	    "cathode_crosser":{
-		"time_tol":10
+		"time_tol_bef":[80, 80],
+		"time_tol_aft":[5, 5]
 	    },
-	    "unknown":{
-		"time_tol":5
+	    "unknown":{		
+		"time_tol_bef":[5,5],
+		"time_tol_aft":[5,5]
 	    },
+	    
 	    "single_hits":{
 		"time_tol":5
 	    },	    
