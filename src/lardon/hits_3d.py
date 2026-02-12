@@ -29,7 +29,8 @@ def is_inside_volume(module, x,y):
     module_xlow, module_xhigh = cf.x_boundaries[module][0], cf.x_boundaries[module][1] 
 
     module_ylow, module_yhigh = cf.y_boundaries[module][0], cf.y_boundaries[module][1]
-        
+
+    
     if(x < module_xlow or x > module_xhigh):
         return False
     if(y< module_ylow or y > module_yhigh):
@@ -53,7 +54,7 @@ def check_combination(comb):
     
 
 @njit(nopython=True, fastmath=True, cache=True)
-def xy_leastsq_nb(ha, hb, hc, angle_v0, angle_v1, angle_v2):
+def xy_leastsq_nb_prev(ha, hb, hc, angle_v0, angle_v1, angle_v2):
 
     # Convert inputs to float64 explicitly
     angle_rad = np.radians(np.asarray([angle_v0, angle_v1, angle_v2], dtype=np.float64))
@@ -115,141 +116,91 @@ def xy_leastsq_nb(ha, hb, hc, angle_v0, angle_v1, angle_v2):
             max_R = R
     
     return X, max_R
-        
-@njit(nopython=True)
-def xy_leastsq_nb_better(ha, hb, hc, angle_v0, angle_v1, angle_v2):
-    #print(hh)
-    hh = np.asarray([ha, hb, hc], dtype=np.float64)
-    angle = np.asarray([angle_v0, angle_v1, angle_v2], dtype=np.float64)
-    n = 3  # Fixed size based on your implementation
-    d = 2  # Fixed output dimension
-    
-    # Pre-compute trigonometric functions
-    angle_rad = np.radians(angle)
-    sin_ang = np.sin(angle_rad)
-    cos_ang = np.cos(angle_rad)
-    
-    # Initialize transformation matrices directly
-    ang_mtx_mult = np.empty((n, d), dtype=np.float64)
-    ang_mtx_sum = np.empty((n, d), dtype=np.float64)
-    
-    for iv in range(n):
-        ang_mtx_mult[iv, 0] = sin_ang[iv]
-        ang_mtx_mult[iv, 1] = -cos_ang[iv]
-        ang_mtx_sum[iv, 0] = -cos_ang[iv]
-        ang_mtx_sum[iv, 1] = -sin_ang[iv]
-    
-    # Create diagonal matrix - handle both scalar and array cases for hh
-    pos = np.zeros((n, n), dtype=np.float64)
 
-    pos[0,0] = ha
-    pos[1,1] = hb
-    pos[2,2] = hc
     
-    # Matrix multiplication
-    A = np.dot(pos, ang_mtx_mult)
-    V = ang_mtx_sum
-    
-    # Compute T matrix
-    T = np.zeros((n, d, d), dtype=np.float64)
-    eye = np.eye(d, dtype=np.float64)
-    for i in range(n):
-        vi = V[i]
-        for j in range(d):
-            for k in range(d):
-                T[i, j, k] = vi[j] * vi[k]
-        T[i] -= eye
-    
-    # Compute S matrix
-    S = np.zeros((d, d), dtype=np.float64)
-    for i in range(n):
-        for j in range(d):
-            for k in range(d):
-                S[j, k] += T[i, j, k]
-    
-    # Compute C vector
-    C = np.zeros(d, dtype=np.float64)
-    for i in range(n):
-        for j in range(d):
-            for k in range(d):
-                C[j] += T[i, j, k] * A[i, k]
-    
-    # Solve linear system
+@njit(nopython=True, cache=True)
+def xy_leastsq_nb(ha, hb, hc, angle_v0, angle_v1, angle_v2):
+    # work if there is one missing view (position= NaN in that case)
+    hh = np.empty(3, dtype=np.float64)
+    hh[0] = ha
+    hh[1] = hb
+    hh[2] = hc
+
+    # Convert angles to radians
+    ang = np.radians(np.array([angle_v0, angle_v1, angle_v2], dtype=np.float64))
+    sin_ang = np.sin(ang)
+    cos_ang = np.cos(ang)
+
+    # Count valid planes
+    valid = np.zeros(3, dtype=np.int64)
+    n_valid = 0
+    for i in range(3):
+        if hh[i] == hh[i]: #not np.isnan(hh[i]):
+            valid[n_valid] = i
+            n_valid += 1
+
+    # Need at least 2 planes
+    if n_valid < 2:
+        # return invalid result
+        return np.array([np.nan, np.nan]), 99999
+
+    # Prepare matrices with max size 3
+    A = np.zeros((3,2), dtype=np.float64)
+    V = np.zeros((3,2), dtype=np.float64)
+    used = 0
+
+    # Build A and V only for valid planes
+    for idx in range(n_valid):
+        i = valid[idx]
+
+        # Line direction matrices
+        A[used,0] = hh[i] * sin_ang[i]
+        A[used,1] = -hh[i] * cos_ang[i]
+
+        V[used,0] = -cos_ang[i]
+        V[used,1] = -sin_ang[i]
+
+        used += 1
+
+    # Build T, S, C using only "used" rows
+    S = np.zeros((2,2), dtype=np.float64)
+    C = np.zeros(2, dtype=np.float64)
+
+    for i in range(used):
+        v0 = V[i,0]
+        v1 = V[i,1]
+
+        # Compute T_i = v v^T − I
+        # Manually unrolled for speed
+        T00 = v0*v0 - 1.0
+        T01 = v0*v1
+        T10 = T01
+        T11 = v1*v1 - 1.0
+
+        # Accumulate S = Σ T_i
+        S[0,0] += T00
+        S[0,1] += T01
+        S[1,0] += T10
+        S[1,1] += T11
+
+        # C += T_i * A_i
+        C[0] += T00*A[i,0] + T01*A[i,1]
+        C[1] += T10*A[i,0] + T11*A[i,1]
+
+    # Solve S X = C
     X = np.linalg.solve(S, C)
-    
-    # Compute U, P, R
-    U = np.zeros(n, dtype=np.float64)
-    P = np.empty((n, d), dtype=np.float64)
-    R = np.empty(n, dtype=np.float64)
-    
-    for i in range(n):
-        U[i] = 0.0
-        for j in range(d):
-            U[i] += (X[j] - A[i, j]) * V[i, j]
-        
-        for j in range(d):
-            P[i, j] = A[i, j] + U[i] * V[i, j]
-        
-        diff0 = X[0] - P[i, 0]
-        diff1 = X[1] - P[i, 1]
-        R[i] = np.sqrt(diff0**2 + diff1**2)
-    
-    return X, np.max(R)
 
+    # Compute max R using only valid planes
+    max_R = 0.0
+    for i in range(used):
+        U = (X[0] - A[i,0])*V[i,0] + (X[1] - A[i,1])*V[i,1]
+        dx = X[0] - (A[i,0] + U*V[i,0])
+        dy = X[1] - (A[i,1] + U*V[i,1])
+        R = np.sqrt(dx*dx + dy*dy)
+        if R > max_R:
+            max_R = R
 
-@njit(nopython=True)
-def xy_leastsq_nb_p(hh, angle):
-
-    angle = np.asarray(angle, dtype=np.float64)
-    # Matrices de transformation
-    ang_mtx_mult = np.zeros((3, 2), dtype=np.float64)
-    ang_mtx_sum = np.zeros((3, 2), dtype=np.float64)
-
-    for iv in range(3):
-        angle_rad = np.radians(angle[iv])
-        ang_mtx_mult[iv, 0] = np.sin(angle_rad)
-        ang_mtx_mult[iv, 1] = -np.cos(angle_rad)
-        ang_mtx_sum[iv, 0] = -np.cos(angle_rad)
-        ang_mtx_sum[iv, 1] = -np.sin(angle_rad)
-
-    
-    pos = np.zeros((3,3), dtype=np.float64)
-    np.fill_diagonal(pos, hh)
-    
-    A = np.dot(pos, ang_mtx_mult) #pos @ ang_mtx_mult
-    B = A + ang_mtx_sum
-    V = ang_mtx_sum
-    
-    N, D = A.shape
-
-    #T = np.einsum('ij,ik->ijk', V, V) - np.eye(D)[np.newaxis, :, :]
-    # Remplacement de np.einsum par une boucle explicite
-    T = np.zeros((N, D, D), dtype=np.float64)
-    for i in range(N):
-        T[i] = np.outer(V[i], V[i])  # Produit extérieur
-    T -= np.eye(D, dtype=np.float64)     
-
-    S = np.sum(T, axis=0)
-
-    #C = np.sum(np.einsum('ijk,ij->ik', T, A), axis=0)
-    # Remplacement de np.einsum('ijk,ij->ik', T, A)
-    C = np.zeros((D,), dtype=np.float64)
-    for i in range(N):
-        C += np.dot(T[i], A[i])    
-
-
-
-    X = np.linalg.solve(S, C)
-    
-    U = np.sum((X - A) * V, axis=1)
-    P = A + U[:, np.newaxis] * V
-    R = np.sqrt(np.sum((X - P) ** 2, axis=1))
-    
-    return X, np.max(R)
-
-
-
-
+    return X, max_R
 
 
 def xy_leastsq(hits, unwrap=[0., 0., 0.]):
@@ -291,14 +242,14 @@ def xy_leastsq(hits, unwrap=[0., 0., 0.]):
     return X, max(R)
 
 
-def compute_xy(ov, h, d_thresh, unwrap):
+def compute_xy(ov, h, d_thresh, unwrap, debug=False):
     nmatch = [len(x) for x in ov]
 
-    
+    '''
     """ ditch 2-view only matches atm """
     if(any([x == 0 for x in nmatch])):
         return -11111, [], None
-
+    '''
     
     combinations = list(product(*ov))
     #n_comb = np.prod(nmatch)
@@ -309,7 +260,12 @@ def compute_xy(ov, h, d_thresh, unwrap):
     result = []
     ncomp = 0
 
-    result = [(*xy_leastsq_nb(*[h.X+u for h,u in zip(c,unwrap)], *angle),c) for c in combinations]
+    if(debug):
+        print('nb of combination: ', len(combinations), "nmatch", nmatch)
+        print('results:')
+        print([xy_leastsq_nb(*[h.X+u if h is not None else np.nan for h,u in zip(c,unwrap)], *angle) for c in combinations])
+        
+    result = [(*xy_leastsq_nb(*[h.X+u if h is not None else np.nan for h,u in zip(c,unwrap)], *angle),c) for c in combinations]
     result = [r for r in result if is_inside_volume(module, r[0][0],r[0][1])]
     
     if(len(result)==0):        
