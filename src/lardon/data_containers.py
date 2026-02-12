@@ -239,7 +239,7 @@ class event:
         self.noise_pds_filt = None
         self.n_pds_peaks = np.zeros((cf.n_pds_tot_channels), dtype=int)
         self.n_pds_clusters = 0
-
+        self.pds_time_offset = [0 for x in range(cf.n_pds_tot_channels)]
 
     def set_file_infos(self, dataflow, datawriter, daqserver):
         self.dataflow = dataflow
@@ -340,9 +340,9 @@ class hits:
         
     def __lt__(self,other):
         """ sort hits by decreasing Z and increasing channel """
-        #return (self.view,  self.X, self.Z) < (other.view, other.X, other.Z)
         return (self.view < other.view) or (self.view==other.view and self.Z > other.Z) or (self.view==other.view and self.Z == other.Z and self.X < other.X)
 
+        
     def set_index(self, idx):
         self.ID = idx + n_tot_hits
 
@@ -635,6 +635,8 @@ class trk2D:
         self.len_straight = math.sqrt( pow(self.path[0][0]-self.path[-1][0], 2) + pow(self.path[0][1]-self.path[-1][1], 2) )
         self.end_time = t
 
+
+        
     def update_forward(self, chi2, slope, slope_err):
         self.chi2_fwd = chi2
         self.end_slope = slope
@@ -844,12 +846,8 @@ class trk2D:
         self.label3D = ID
 
     def mini_dump(self):
-        print("2D track", self.trackID,"mod", self.module_ini, " to ", self.module_end, "view:", self.view, "from (%.1f,%.1f)"%(self.path[0][0], self.path[0][1]), "to (%.1f, %.1f)"%(self.path[-1][0], self.path[-1][1]), "N =", self.n_hits, "L= %.1f/%.1f"%(self.len_straight, self.len_path), "Q = %.1f"%(self.tot_charge), "Dray N=", self.n_hits_dray, "Qdray = %.1f"%(self.dray_charge), "3D MATCH :", self.match_3D, '/', self.label3D,'slopes: (%.2f, %.2f)'%(self.ini_slope, self.end_slope), 'err: (%.2f, %.2f)'%(self.ini_slope_err, self.end_slope_err), 'times ', self.ini_time, ' to ', self.end_time)#, 'NIDs', len(self.hits_ID), 'NdrIDs', len(self.drays_ID), 'p', len(self.path))
-        #print('track hits ID ', self.hits_ID)
-        #print('test', [hits_list[x-n_tot_hits].match_2D for x in self.hits_ID])
-        #print('matches : ', self.matched)
-        #print('3D match : ', self.match_3D)
-        
+        print("2D track", self.trackID,"mod", self.module_ini, " to ", self.module_end, "view:", self.view, "from (%.1f,%.1f)"%(self.path[0][0], self.path[0][1]), "to (%.1f, %.1f)"%(self.path[-1][0], self.path[-1][1]), "N =", self.n_hits, "L= %.1f/%.1f"%(self.len_straight, self.len_path), "Q = %.1f"%(self.tot_charge), "Dray N=", self.n_hits_dray, "Qdray = %.1f"%(self.dray_charge), "3D MATCH :", self.match_3D, '/', self.label3D,'slopes: (%.2f, %.2f)'%(self.ini_slope, self.end_slope), 'err: (%.2f, %.2f)'%(self.ini_slope_err, self.end_slope_err), 'times ', self.ini_time, ' to ', self.end_time)
+        print('CHANNELS from', hits_list[self.hits_ID[0]-n_tot_hits].channel, ' to ', hits_list[self.hits_ID[-1]-n_tot_hits].channel)
 
 class trk3D:
     def __init__(self):
@@ -865,7 +863,7 @@ class trk3D:
 
         self.d_match = -1
 
-        self.n_hits   = [-1]*cf.n_view #t.n_hits for t in trks]
+        self.n_hits   = [-1]*cf.n_view 
 
         self.len_straight = [-1]*cf.n_view
         self.len_path = [-1]*cf.n_view
@@ -880,11 +878,15 @@ class trk3D:
         self.ini_phi = -1
         self.end_phi = -1
 
+        
         self.t0_corr = 9999.
         self.z0_corr = 9999.
-        
 
-        self.ini_time = -1#cf.n_sample[cf.imod]+1
+        self.timestamp_light = 0.
+        self.t0_light = 9999.
+        self.z0_light = 9999.
+
+        self.ini_time = -1
         self.end_time = -1
 
 
@@ -904,7 +906,7 @@ class trk3D:
         self.cathode_crosser_ID = -1
         self.is_module_crosser  = False
         self.is_anode_crosser = False
-        self.exit_point = [-1, -1, -1]
+        self.exit_point = [-9999, -9999, -9999]
         self.exit_trk_end = -1
         self.cathode_crossing_trk_end = -1
 
@@ -966,8 +968,8 @@ class trk3D:
         else:
             self.n_hits[view] = len(path)
             self.chi2[view] = trk.chi2_fwd
-            self.match_ID[trk.module_ini][view] = trk.trackID#llll
-            self.match_ID[trk.module_end][view] = trk.trackID#llll
+            self.match_ID[trk.module_ini][view] = trk.trackID
+            self.match_ID[trk.module_end][view] = trk.trackID
 
             self.len_straight[view] = math.sqrt( sum([pow(path[0][i]-path[-1][i], 2) for i in range(3)]))
             self.len_path[view] = 0.
@@ -1040,7 +1042,6 @@ class trk3D:
     def check_views(self):
         n_fake = 0
         for i in range(cf.n_view):
-            #if(np.all(self.match_ID[:][i] == -1)):
             if(sum([self.match_ID[k][i] for k in range(cf.n_module)]) == -cf.n_module):
                 tfake = trk2D(-1, i, -1, -1, -9999., -9999., -9999., 0, -1,0)
 
@@ -1054,6 +1055,7 @@ class trk3D:
         self.module_ini = ini
         self.module_end = end
 
+        
     def boundaries(self):
         sum_match = [sum([self.match_ID[k][i] for k in range(cf.n_module)]) for i in range(cf.n_view)]
 
@@ -1085,21 +1087,49 @@ class trk3D:
         #max([self.path[i][-1][2] if k >= 0 else -9999. for i,k in zip(range(cf.n_view),self.match_ID)])
         
         self.dz = self.end_z - self.ini_z
+
+    def set_times_from_light(self, ts, v):
+        self.timestamp_light = ts
+
+        delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
+        delta_time_ref *= 1e6 #in mus
+
+        self.t0_light = ts - delta_time_ref
+        self.z0_light = cf.drift_direction[self.module_ini]*self.t0_light*v
+
+    def set_t0_z0_from_timestamp(self, ts, v):
+        self.timestamp   = ts
+        self.timestamp_r = ts
         
+        delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
+        delta_time_ref *= 1e6 #in mus
+
+        self.t0_corr = ts - delta_time_ref
+        self.z0_corr = cf.drift_direction[self.module_ini]*self.t0_corr*v
+
+    
     def set_t0_z0(self, t0, z0):
 
         self.t0_corr = t0
         self.z0_corr = z0
 
 
-    def set_timestamp(self, tini, tend):
-        
+    def compute_timestamp(self, tini, tend):
+        if(tini > tend):
+            tini, tend = tend, tini
+            
         delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
         delta_time_ref *= 1e6 #in mus
-
             
-        self.timestamp = delta_time_ref + tini #ref_trk_time/cf.sampling[self.module_ini]
+        self.timestamp = delta_time_ref + tini
         self.timestamp_r = delta_time_ref + tend
+
+    def set_timestamp(self, ts_a, ts_b):
+        if(ts_a > ts_b):
+            ts_a, ts_b = ts_b, ts_a
+
+        self.timestamp = ts_a
+        self.timestamp_r = ts_b
 
         
     def set_angles(self, theta_ini, phi_ini, theta_end, phi_end):
@@ -1186,11 +1216,20 @@ class trk3D:
         self.check_views()
         
         for iv in range(cf.n_view):
-            self.len_straight[iv] = math.sqrt( sum([pow(self.path[iv][0][i]-self.path[iv][-1][i], 2) for i in range(3)]))
+            if(self.n_matched == cf.n_view):
+                self.len_straight[iv] = math.sqrt( sum([pow(self.path[iv][0][i]-self.path[iv][-1][i], 2) for i in range(3)]))
                 
-            for i in range(len(self.path[iv])-1):
-                self.len_path[iv] +=  math.sqrt( pow(self.path[iv][i][0]-self.path[iv][i+1][0], 2) + pow(self.path[iv][i][1]-self.path[iv][i+1][1],2)+ pow(self.path[iv][i][2]-self.path[iv][i+1][2],2) )
                 
+                for i in range(len(self.path[iv])-1):
+                    self.len_path[iv] +=  math.sqrt( pow(self.path[iv][i][0]-self.path[iv][i+1][0], 2) + pow(self.path[iv][i][1]-self.path[iv][i+1][1],2)+ pow(self.path[iv][i][2]-self.path[iv][i+1][2],2) )
+            else:                                
+                if(sum([self.match_ID[k][iv] for k in range(cf.n_module)]) > -cf.n_module):
+                    self.len_straight[iv] = math.sqrt( sum([pow(self.path[iv][0][i]-self.path[iv][-1][i], 2) for i in range(3)]))
+                    self.len_straight[iv] = math.sqrt( sum([pow(self.path[iv][0][i]-self.path[iv][-1][i], 2) for i in range(3)]))
+                else:
+                    self.len_straight[iv] = 0.
+                    self.len_straight[iv] = 0.
+                                        
         
 
         self.boundaries()
@@ -1207,6 +1246,7 @@ class trk3D:
         print(" Time start ", self.ini_time, ' stop ', self.end_time)
         print(" Timestamp", self.timestamp, "us possibly up to ", self.timestamp_r,"us")
         print(' z-overlap ', self.ini_z_overlap, ' to ', self.end_z_overlap)
+        print(' Delta Z: ', np.fabs(self.end_z-self.ini_z))
         print(" N Hits ", self.n_hits)
         print(" theta, phi: [ini] %.2f ; %.2f"%(self.ini_theta, self.ini_phi), " -> [end] %.2f ; %.2f "%( self.end_theta, self.end_phi))
         print(" Straight Lengths :  ", self.len_straight)
@@ -1216,10 +1256,11 @@ class trk3D:
         print(" MATCHING DISTANCE SCORE : ", self.d_match)
         #print(" timestamp ", self.timestamp, ' mus')
         print(" matched with light cluster ", self.match_pds_cluster)
+        print(" From light: z0 ", self.z0_light, " t0 ", self.t0_light)
         print("Cathode?", self.is_cathode_crosser, " with ", self.cathode_crosser_ID)
         print("Anode? ", self.is_anode_crosser, " exit ", self.exit_point)
         print('----\n')
-
+        
 class ghost:
     def __init__(self, ghost_id, t2d_id, min_dist, ghost_charge, trk_charge, nhits, mod):#, t3d_id, min_dist, xstart, ystart, zstart):
         self.ghost_ID = ghost_id
@@ -1323,11 +1364,17 @@ class pds_cluster:
         self.match_trk3D  = [-1 for x in range(cf.n_drift_volumes)] #for double-sided PDS
         self.match_single = -1
 
-        self.dist_closest_strip  = []
-        self.id_closest_strip    = []
-        self.point_closest = []
-        self.point_impact = []
-        self.point_closest_above = []
+        self.dist_closest = [[] for x in range(cf.n_drift_volumes)]
+        self.point_closest = [[] for x in range(cf.n_drift_volumes)]
+        self.point_closest_is_extrapolated = [[] for x in range(cf.n_drift_volumes)]
+        #self.vol_point_closest = []
+        self.point_impact = [[] for x in range(cf.n_drift_volumes)]
+        
+        #self.dist_closest_strip  = []
+        #self.id_closest_strip    = []
+        #self.point_closest = []
+        #self.point_impact = []
+        #self.point_closest_above = []
 
     def set_ID(self, idx):
         self.ID = idx
@@ -1361,11 +1408,9 @@ class pds_cluster:
         print('Max ADC ', self.max_adcs)
         print('Timestamp = ', self.timestamp, 'mus')
         print('matched with trk ',self.match_trk3D, ' or single hit ', self.match_single)
-        print('closest dist. : ', self.dist_closest_strip)
-        print('closest SiPM strip. : ', self.id_closest_strip)
+        print('closest dist. : ', self.dist_closest)
         print('closest point : ', self.point_closest)
-        print('closest point inside ?', self.point_closest_above)
-
+        print('impact point', self.point_impact)
 
 class debug:
     def __init__(self):
