@@ -29,7 +29,7 @@ def draw_pds_ED( glob_chans, option=None, to_be_shown=False, draw_peak=False, dr
         delta_t = (ts - dc.evt_list[-1].event_time)*1e6 # + dc.evt_list[-1].pds_time_offset[chan]
         delta_t_off = (ts - dc.evt_list[-1].event_time)*1e6  + dc.evt_list[-1].pds_time_offset[chan]
         
-        print('channel has delay ', dc.evt_list[-1].pds_time_offset[chan], " == ", delta_t)
+
         n_sample = cf.n_pds_stream_sample if data_type == "stream" else cf.n_pds_trig_sample
 
         xx = np.linspace(delta_t, delta_t+(n_sample-1)/cf.pds_sampling, n_sample)
@@ -38,33 +38,29 @@ def draw_pds_ED( glob_chans, option=None, to_be_shown=False, draw_peak=False, dr
         data = dc.data_stream_pds if data_type == "stream" else dc.data_trig_pds
 
         label = dc.chmap_pds[chan].det+' Ch. '+str(dc.chmap_pds[chan].chan)
-        
-        print(dc.chmap_pds[chan])
-        print(n_sample)
-        print(delta_t, " to ",  delta_t+(n_sample-1)/cf.pds_sampling)
-        print(data[daqch-daq_offset].shape)
-        
+                
         
         l = ax.plot(xx, data[daqch-daq_offset], label=label)
         ax.plot(xx_off, data[daqch-daq_offset], c=l[0].get_color(), ls="dashed")
         ax.set_xlabel('Time wrt to trigger [mus]')
+        ax.set_ylabel('ADC')
 
+    nchans = len(glob_chans)
 
-        """
-        starts = []
-        for p in dc.pds_peak_list:
+    if(nchans>4):
+        ax.legend(ncols=2)
+    else:
+        ax.legend()
 
-            start = p.timestamp
-            channel  = p.glob_ch
-            if(channel == chan):
-                starts.append(start)
-
-        [ax.axvline(s) for s in starts]
-        """
         
-    ax.legend()
     plt.tight_layout()
-    plt.show()
+
+    save_with_details(fig, option, 'ED_pds_'+data_type)
+
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
         
 def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
 
@@ -97,8 +93,6 @@ def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_pe
         
     gs = gridspec.GridSpec(nrows=nrows, ncols=ncols)
 
-    #axs = []
-    #axs_pds = []
     axs_pds = []
     [axs_pds.append(fig.add_subplot(gs[irow, icol]) )  for icol in range(ncols) for irow in range(nrows)]
     for ax in axs_pds[1:]:
@@ -108,29 +102,6 @@ def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_pe
     k = 0
 
     xx = np.linspace(0,n_sample-1,n_sample)
-
-    """
-    for irow in range(nrows):
-        for icol in range(ncols):
-        
-            module = ncols*irow + icol
-
-            if(cf.pds_modules_type[module] == 'Cathode' or cf.pds_modules_type[module] == 'Membrane'):
-
-                axs.append( fig.add_subplot(gs[irow, icol]) )
-                gsgs = gridspec.GridSpecFromSubplotSpec(2, 1, hspace=0, subplot_spec=gs[irow, icol])
-
-                axs_pds.append(fig.add_subplot(gsgs[0,0]))
-                axs_pds.append(fig.add_subplot(gsgs[1,0]))
-                axs_pds[-1].sharex(axs_pds[-2])
-                #axs_pds[-2].get_shared_x_axes().join(axs_pds[-2], axs_pds[-1])
-
-                axs[-1].set_xticks([])
-                axs[-1].set_yticks([])
-
-            else:
-                axs_pds.append(fig.add_subplot(gs[irow, icol]) )
-    """
 
     k = 0
     for ipds in range(n_tot_chan):
@@ -143,10 +114,9 @@ def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_pe
         
         label = dc.chmap_pds[ipds].det+' Ch. '+str(dc.chmap_pds[ipds].chan)
         daq_ipds = dc.chmap_pds[ipds].daqch - daq_offset
-        axs_pds[k].step(xx, data[daq_ipds], where='mid',c="k")#, label=label)
-        #axs_pds[k].legend(frameon=False, loc='upper right')
+        axs_pds[k].step(xx, data[daq_ipds], where='mid',c="k")
         axs_pds[k].text(0.98, 0.96, label, ha='right', va='bottom', transform=axs_pds[k].transAxes)
-        #axs_pds[k].set_ylabel('ADC')
+
 
         rms = dc.evt_list[-1].noise_pds_filt.ped_rms[daq_ipds+daq_offset]
 
@@ -181,20 +151,6 @@ def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_pe
                 if(p.glob_ch == ipds):
                     axs_pds[k].axvline(p.max_t, c='coral', lw=0.4)
 
-
-        '''
-        col_size=['#c1e7ff', '#9dc6e0', '#7aa6c2', '#5886a5', '#346888' , '#004c6d']
-        if(draw_cluster==True):
-            for cl in dc.pds_cluster_list:
-                for icl in range(cl.size):
-                    if(cl.glob_chans[icl] == ipds):                        
-                        axs_pds[ipds].axvline(cl.t_maxs[icl], lw=4, color=col_size[int(cl.size/2)-1], alpha=0.8, zorder=-100)
-        '''
-
-        #axs_pds[k].set_xlabel('Time tick')
-        #for j in range(2):
-        #ymin, ymax = axs_pds[ipds].get_ylim()
-        #axs_pds[ipds].set_ylim(-100, ymax)
         k = k+1
 
     for irow in range(nrows):
