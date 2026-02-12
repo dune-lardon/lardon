@@ -114,7 +114,7 @@ def light_clustering():
         start = p.timestamp + dc.evt_list[-1].pds_time_offset[chan]
         ID    = p.ID
         mod   = p.module        
-        rtree_idx.insert(ID, (chan, start+t_corr, chan, start+t_corr))        
+        rtree_idx.insert(ID, (chan, start, chan, start))        
 
     
     ''' Now searching for overlaps in other PDS channels'''
@@ -127,7 +127,7 @@ def light_clustering():
         i_ID    = pi.ID 
         i_mod   = pi.module
             
-        overlaps = list(rtree_idx.intersection((0, i_start+i_t_corr - time_tol, 9999, i_start+i_t_corr + time_tol)))        
+        overlaps = list(rtree_idx.intersection((0, i_start - time_tol, 9999, i_start + time_tol)))        
             
         if(len(overlaps) > 0):
             peaks = [pi]
