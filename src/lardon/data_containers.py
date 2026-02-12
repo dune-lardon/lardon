@@ -218,14 +218,19 @@ class event:
         self.evt_nb  = evt
         self.trigger_nb = trigger
         self.trig_type = trig_type #as number, see utils/enum_type for words
+
         """ time of the event, as written in the TriggerRecordHeader"""
         self.event_time = timestamp    #in unix timestamp (s)
         self.time_s = t_s
         self.time_ns = t_ns
         self.charge_time = [0 for x in range(cf.n_module)]#earliest wib unix timestamp (s)
+        self.delay_charge_time = [0 for x in range(cf.n_module)]
         self.pds_stream_time = 0
+        self.delay_pds_stream_time = 0
         self.pds_trig_time = 0
-
+        self.delay_pds_trig_time = 0
+        
+        
         self.n_hits = np.zeros((cf.n_view, cf.n_module), dtype=int)
         self.n_tracks2D = np.zeros((cf.n_view), dtype=int)
         self.n_tracks3D = 0
@@ -265,13 +270,15 @@ class event:
 
     def set_pds_stream_timestamp(self, time):
         self.pds_stream_time = time
-
+        self.delay_pds_stream_time = (self.pds_stream_time - self.event_time)*1e6 #in mus
+        
     def set_pds_trig_timestamp(self, time):
         self.pds_trig_time = time
-                
+        self.delay_pds_trig_time = (self.pds_trig_time - self.event_time)*1e6 #in mus
+
     def set_charge_timestamp(self, module, time):
         self.charge_time[module] = time
-
+        self.delay_charge_time[module] = (self.charge_time[module] - self.event_time)*1e6 #in mus
         
     def dump(self):
         print("RUN ",self.run_nb, " of ", self.elec, " EVENT ", self.evt_nb, " TRIGGER ", self.trigger_nb, ":", et.TRIGGER_TYPES[self.trig_type], '(',self.trig_type,')')
@@ -516,10 +523,8 @@ class singleHits:
         self.min_t[view] = min_t
 
     def set_timestamp(self):
-        delta_time_ref = evt_list[-1].charge_time[self.module] - evt_list[-1].event_time
-        delta_time_ref *= 1e6 #in mus
-        self.timestamp =  delta_time_ref+ min(self.start)/cf.sampling[self.module]
-
+        delta_time_ref = evt_list[-1].delay_charge_time[self.module]
+        self.timestamp =  delta_time_ref + min(self.start)/cf.sampling[self.module]
 
 
     def dump(self):
@@ -1091,20 +1096,20 @@ class trk3D:
     def set_times_from_light(self, ts, v):
         self.timestamp_light = ts
 
-        delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
-        delta_time_ref *= 1e6 #in mus
+        #delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
+        #delta_time_ref *= 1e6 #in mus
 
-        self.t0_light = ts - delta_time_ref
+        self.t0_light = ts - evt_list[-1].delay_charge_time[self.module_ini]
         self.z0_light = cf.drift_direction[self.module_ini]*self.t0_light*v
 
     def set_t0_z0_from_timestamp(self, ts, v):
         self.timestamp   = ts
         self.timestamp_r = ts
         
-        delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
-        delta_time_ref *= 1e6 #in mus
+        #delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
+        #delta_time_ref *= 1e6 #in mus
 
-        self.t0_corr = ts - delta_time_ref
+        self.t0_corr = ts - evt_list[-1].delay_charge_time[self.module_ini] #delta_time_ref
         self.z0_corr = cf.drift_direction[self.module_ini]*self.t0_corr*v
 
     
@@ -1118,11 +1123,11 @@ class trk3D:
         if(tini > tend):
             tini, tend = tend, tini
             
-        delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
-        delta_time_ref *= 1e6 #in mus
+        #delta_time_ref = evt_list[-1].charge_time[self.module_ini] - evt_list[-1].event_time
+        #delta_time_ref *= 1e6 #in mus
             
-        self.timestamp = delta_time_ref + tini
-        self.timestamp_r = delta_time_ref + tend
+        self.timestamp = evt_list[-1].delay_charge_time[self.module_ini] + tini #delta_time_ref + tini
+        self.timestamp_r = evt_list[-1].delay_charge_time[self.module_ini] + tend #delta_time_ref + tend
 
     def set_timestamp(self, ts_a, ts_b):
         if(ts_a > ts_b):
