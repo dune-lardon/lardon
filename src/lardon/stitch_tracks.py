@@ -469,13 +469,11 @@ def merge_3D(trks, is_module_crosser=False):
     
     isok = trk3d.finalize_3d_track(ta)
 
-    trk3d.correct_timing(ta, dx_tol, dy_tol, dz_tol)
+    #trk3d.correct_timing(ta, dx_tol, dy_tol, dz_tol)
 
     return ta
 
 def stitch3D_across_modules(modules):
-
-
 
     """ stitch together 3D tracks in adjacent modules """
     debug=False
@@ -522,7 +520,7 @@ def stitch3D_across_modules(modules):
 
     if(n_merge>0):
         reset_track3D_list()
-        print("Across modules ", modules, 'merged ', n_merge, ' 3D tracks together across module !!! ')
+        print("Across modules ", modules, 'merged ', n_merge, ' 3D tracks together! ')
 
 
 
@@ -617,13 +615,11 @@ def set_cathode_crossing_tracks(ta, tb, dz_thresh):
     if(dc.evt_list[-1].det == 'pdhd'):
         if(ta.ini_x < tb.ini_x):
             ta, tb = tb, ta
+            is_horizontal = True
     elif(dc.evt_list[-1].det == 'pdvd'):
         if(ta.module_ini < tb.module_ini):
             ta, tb = tb, ta
-
-    ta.reset_anode_crosser()
-    tb.reset_anode_crosser()
-
+            is_horizontal = False
 
     
     if(debug):
@@ -644,134 +640,7 @@ def set_cathode_crossing_tracks(ta, tb, dz_thresh):
     ta.set_cathode_crosser(crossing_point, tb.ID_3D, 1)
     tb.set_cathode_crosser(crossing_point, ta.ID_3D, 0)
 
-    vdrift = lar.drift_velocity()
-    max_drifts = np.asarray([cf.anode_z[ta.module_end] - cf.n_sample[ta.module_end]*cf.drift_direction[ta.module_end] * vdrift /cf.sampling[ta.module_end], cf.anode_z[tb.module_ini] - cf.n_sample[tb.module_ini]*cf.drift_direction[tb.module_ini] * vdrift /cf.sampling[tb.module_ini]])
-
-    z_cathodes = [cf.anode_z[ta.module_end] - cf.drift_direction[ta.module_end]*cf.drift_length[ta.module_end], cf.anode_z[tb.module_ini] - cf.drift_direction[tb.module_ini]*cf.drift_length[tb.module_ini]]
-    z_anodes = [cf.anode_z[ta.module_end], cf.anode_z[tb.module_ini]]
-
-    drift_times = [ cf.drift_length[ta.module_end]/vdrift, cf.drift_length[tb.module_ini]/vdrift]
-
-    inside_a_x = cf.x_boundaries[ta.module_ini][0]+xtol[ta.module_ini][0] <= ta.ini_x <= cf.x_boundaries[ta.module_ini][1]-xtol[ta.module_ini][1]
-    inside_a_y = cf.y_boundaries[ta.module_ini][0]+ytol[ta.module_ini][0] <= ta.ini_y <= cf.y_boundaries[ta.module_ini][1]-ytol[ta.module_ini][1]
-    through_wall_a = np.any([not inside_a_x, not inside_a_y])
-
-
-
-    inside_b_x = cf.x_boundaries[tb.module_end][0]+xtol[tb.module_end][0] <= tb.end_x <= cf.x_boundaries[tb.module_end][1]-xtol[tb.module_end][1]
-    inside_b_y = cf.y_boundaries[tb.module_end][0]+ytol[tb.module_end][0] <= tb.end_y <= cf.y_boundaries[tb.module_end][1]-ytol[tb.module_end][1]
-    through_wall_b = np.any([not inside_b_x, not inside_b_y])
-
-
-    z_ends = np.asarray([ta.ini_z, tb.end_z])
-
-
-
-    borders_a = np.fabs(z_ends-z_anodes)<dz_thresh
-    z_cross = np.asarray([ta.end_z, tb.ini_z])
-
-    is_max_drift = np.fabs(z_cross-max_drifts) < dz_thresh
-
-
-    """
-                zref = z_cathodes[idx_o]
-                tref = trk_times[idx_o] - drift_times[idx_o]
-    """
     
-    """ Fix the z0/t0 """
-    if(np.all(is_max_drift)):
-        #print('SUPER LATE CATHODE CROSSERS !')
-        """ very late track """
-        dx = np.fabs(a2[0]-b1[0])
-        dz_a = np.fabs(-dx*np.sin(np.radians(ta.end_phi))*np.tan(np.radians(ta.end_theta)))
-        dz_b = np.fabs(-dx*np.sin(np.radians(tb.ini_phi))*np.tan(np.radians(tb.ini_theta)))
-
-        
-        z0 = z_cathodes[0] - ta.end_z + cf.drift_direction[ta.module_end]*dz_a/2.
-        tref = ta.end_time/cf.sampling[ta.module_end] - drift_times[0] + cf.drift_direction[ta.module_end]*dz_a/2./vdrift
-        t0 = tref#z0/vdrift
-        #if(t0 < 0):
-        #    t0 *= -1
-        ta.set_t0_z0(t0, z0)
-        ta.set_timestamp(tref, tref)
-        """
-        print('DZ :: a ', dz_a)
-        print('t0 was a: ', z0/vdrift)
-        ta.dump()
-        """
-        z0 = z_cathodes[1] - tb.ini_z + cf.drift_direction[tb.module_ini]*dz_b/2.
-        #t0 = z0/vdrift
-        tref = tb.ini_time/cf.sampling[tb.module_ini] - drift_times[1] + cf.drift_direction[tb.module_ini]*dz_b/2./vdrift
-        t0 = tref
-        #if(t0 < 0):
-        #    t0 *= -1
-        tb.set_t0_z0(t0, z0)
-        tb.set_timestamp(tref, tref)
-        """
-        print('DZ :: b ', dz_a)
-        print('t0 was b: ', z0/vdrift)
-        tb.dump()
-        """
-        #dy_data = ta.end_y - tb.ini_y
-        #dy_th_a = dz_a/np.tan(np.radians(ta.end_phi))
-        #dy_th_b = dz_b/np.tan(np.radians(tb.ini_phi))
-        
-
-    elif(np.any(borders_a)):        
-        """ early tracks, fix t0 """
-        #print('NOT SO LATE CATHODE CROSSERS -- one track through walls')
-
-        z0 = z_cathodes[0] - a2[2]
-        tref = ta.end_time/cf.sampling[ta.module_end] - drift_times[0]
-        t0 = tref#z0/vdrift        
-        #if(t0 > 0):
-        #    t0 *= -1
-
-        ta.set_t0_z0(t0, z0)
-        ta.set_timestamp(tref, tref)
-        """
-        print('t0 was a: ', z0/vdrift)
-        ta.dump()
-        """
-        
-        z0 = z_cathodes[1] - b1[2]
-        tref = tb.ini_time/cf.sampling[tb.module_ini] - drift_times[1]#z0/vdrift
-        t0 = tref
-        #if(t0 > 0):
-        #    t0 *= -1
-        tb.set_t0_z0(t0, z0)
-        tb.set_timestamp(tref, tref)
-        #print('t0 was b: ', z0/vdrift)
-        #tb.dump()
-
-    else:
-        """ on time track/slightly delayed ! """
-        #print(' ON TIME ? CATHODE CROSSERS')
-        
-        z0 = z_cathodes[0] - a2[2]
-        tref = ta.end_time/cf.sampling[ta.module_end] - drift_times[0]
-        t0 = tref#z0/vdrift        
-        #if(t0 > 0):
-        #    t0 *= -1
-
-        ta.set_t0_z0(t0, z0)
-        ta.set_timestamp(tref, tref)
-        """
-        print('t0 was a: ', z0/vdrift)
-        ta.dump()
-        """
-
-        z0 = z_cathodes[1] - b1[2]
-        tref = tb.ini_time/cf.sampling[tb.module_ini] - drift_times[1]#z0/vdrift
-        t0 = tref
-        #if(t0 > 0):
-        #    t0 *= -1
-        tb.set_t0_z0(t0, z0)
-        tb.set_timestamp(tref, tref)
-        """
-        print('t0 was b: ', z0/vdrift)
-        tb.dump()
-        """
         
 def stitch3D_across_cathode(modules):
     
@@ -824,9 +693,7 @@ def stitch3D_across_cathode(modules):
         else:
             print('WHAAAAT ? too many possibility for cathode stitcher, do not do anything ')
 
-    print('Found ', n_cross, ' cathode crossing tracks ')
-
-
+    print('--> Found ', n_cross, ' cathode crossing tracks ')
     
 def reset_track3D_list():
     idx = dc.n_tot_trk3d
