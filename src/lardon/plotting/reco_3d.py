@@ -16,7 +16,8 @@ import math
 import colorcet as cc
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.cbook import flatten
-
+import matplotlib.patches as patches
+import mpl_toolkits.mplot3d.art3d as art3d
 color = ['#FBA120', '#435497', '#df5286']
 
 def correct_path_orientation(path):
@@ -46,7 +47,7 @@ def plot_3d(option=None, to_be_shown=True):
         amin, amax = xmin, xmax
         
         xlabel, ylabel, zlabel = 'x','y','Drift/z'
-        alabel, blabel, clabel = xlabel, ylabel, ylabel
+        alabel, blabel, clabel = xlabel, ylabel, zlabel
 
 
 
@@ -65,10 +66,15 @@ def plot_3d(option=None, to_be_shown=True):
         
         xlabel, ylabel, zlabel = 'x','y','Drift/z'
         alabel, blabel, clabel = zlabel, ylabel, xlabel
+
+
         
     fig = plt.figure(figsize=(12, 6))
     gs = gridspec.GridSpec(nrows = 2, ncols = 2)
-    ax  = fig.add_subplot(gs[:,0], projection='3d')
+
+    ax  = fig.add_subplot(gs[0,0], projection='3d')
+    ax_xy = fig.add_subplot(gs[1, 0])
+    
     ax_xz = fig.add_subplot(gs[0, 1])
     if(cf.tpc_orientation == 'Vertical'):
         ax_yz = fig.add_subplot(gs[1,1], sharey=ax_xz)
@@ -117,18 +123,24 @@ def plot_3d(option=None, to_be_shown=True):
                 ax.scatter(zend, yend, xend, marker="*", c='k', s=20)    
 
         if(cf.tpc_orientation == 'Vertical'):
+            ax_xy.scatter(x, y, c=corr_color, s=4)  
             ax_xz.scatter(x, z, c=corr_color, s=4)  
             ax_yz.scatter(y, z, c=corr_color, s=4)  
-            ax_xz.axvline(0,ls='dotted',c='k',lw=1)
 
+            ax_xz.axvline(0,ls='dotted',c='k',lw=1)
+            ax_xy.axvline(0,ls='dotted',c='k',lw=1)
+
+            ax_xy.scatter(xini, yini, c=[color_module[m] for m in mod_ini], marker='*', s=20)
+            ax_xy.scatter(xend, yend, c=[color_module[m] for m in mod_end], marker='p', s=20)     
             ax_xz.scatter(xini, zini, c=[color_module[m] for m in mod_ini], marker='*', s=20)
-            ax_xz.scatter(xend, zend, c=[color_module[m] for m in mod_ini], marker='p', s=20)  
+            ax_xz.scatter(xend, zend, c=[color_module[m] for m in mod_end], marker='p', s=20)  
             ax_yz.scatter(yini, zini, c=[color_module[m] for m in mod_ini], marker='*', s=20)
-            ax_yz.scatter(yend, zend, c=[color_module[m] for m in mod_ini], marker='p', s=20)  
+            ax_yz.scatter(yend, zend, c=[color_module[m] for m in mod_end], marker='p', s=20)  
 
             
             for xi,yi,zi,xe,ye,ze,m  in zip(xini, yini, zini, xend, yend, zend, mod_ini):
                 col = 'b' if m < 2 else 'k'
+                ax_xy.plot([xi,xe],[yi,ye],c=col,ls='dashed',lw=1)
                 ax_xz.plot([xi,xe],[zi,ze],c=col,ls='dashed',lw=1)
                 ax_yz.plot([yi,ye],[zi,ze],c=col,ls='dashed',lw=1)
                 #ax_xz.plot([xini, xend], [zini, zend], c=['tab:olive' if m < 2 else 'tab:pink' for m in mod_ini], ls='dashed', lw=1)
@@ -138,6 +150,7 @@ def plot_3d(option=None, to_be_shown=True):
 
             
             for zi, xi, yi, ti in zip(zini, xini, yini, t_ID):
+                ax_xy.text(xi, yi, str(ti))
                 ax_xz.text(xi, zi, str(ti))
                 ax_yz.text(yi, zi, str(ti))
 
@@ -170,14 +183,15 @@ def plot_3d(option=None, to_be_shown=True):
     
     if(len(sh)>0):
         if(cf.tpc_orientation == 'Vertical'):
-            ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=6)
-            ax_xz.scatter([x[0] for x in sh], [x[2] for x in sh], c='k', s=6)
-            ax_yz.scatter([x[1] for x in sh], [x[2] for x in sh], c='k', s=6)
+            ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=1)
+            ax_xy.scatter([x[0] for x in sh], [x[1] for x in sh], c='k', s=3)
+            ax_xz.scatter([x[0] for x in sh], [x[2] for x in sh], c='k', s=3)
+            ax_yz.scatter([x[1] for x in sh], [x[2] for x in sh], c='k', s=3)
         
         elif(cf.tpc_orientation == 'Horizontal'):
-            ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=6)
-            ax_xz.scatter([x[2] for x in sh], [x[0] for x in sh], c='k', s=6)
-            ax_yz.scatter([x[2] for x in sh], [x[1] for x in sh], c='k', s=6)
+            ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=1)
+            ax_xz.scatter([x[2] for x in sh], [x[0] for x in sh], c='k', s=3)
+            ax_yz.scatter([x[2] for x in sh], [x[1] for x in sh], c='k', s=3)
         
     """ghosts"""
     ghost = correct_path_orientation(get_3dghost())
@@ -195,15 +209,21 @@ def plot_3d(option=None, to_be_shown=True):
 
 
 
-
-
     if(cf.tpc_orientation == 'Vertical'):
+        ax_xy.set_ylim(ymin, ymax)
+        ax_xy.set_xlim(xmin, xmax)
+        
         ax_xz.set_ylim(zmin, zmax)
         ax_yz.set_ylim(zmin, zmax)
         ax_xz.set_xlim(xmin, xmax)
         ax_yz.set_xlim(ymin, ymax)
 
     
+
+        ax_xy.set_ylabel(ylabel+' [cm]')
+        ax_xy.set_xlabel(xlabel+' [cm]')
+
+        
         ax_xz.set_ylabel(zlabel+' [cm]')
         ax_yz.set_ylabel(zlabel+' [cm]')
         ax_xz.set_xlabel(xlabel+' [cm]')
@@ -249,10 +269,10 @@ def plot_3d(option=None, to_be_shown=True):
 
     plt.subplots_adjust(top=0.99,
                         bottom=0.1,
-                        left=0.05,
-                        right=0.95,
+                        left=0.07,
+                        right=0.98,
                         hspace=0.235,
-                        wspace=0.2)
+                        wspace=0.24)
 
 
 
@@ -332,3 +352,98 @@ def  show_shadows():
                c="#f2f2f2", s=4)
     
 
+
+
+
+
+def plot_one_track_3D(trk, option=None, to_be_shown=True):
+    if(cf.tpc_orientation == 'Horizontal'):
+        return
+    
+    v = lar.drift_velocity()
+
+    trk.dump()
+    
+    xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
+    ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
+    zmin, zmax = min(cf.anode_z), max(cf.anode_z)
+    
+    xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
+
+
+    fig = plt.figure(figsize=(6, 8))
+    gs = gridspec.GridSpec(nrows = 3, ncols = 1, height_ratios=[1, 20, 5])
+    ax  = fig.add_subplot(gs[1,0], projection='3d')
+    ax_infos = fig.add_subplot(gs[0,0])
+    ax_dist =  fig.add_subplot(gs[2,0])
+    
+    """ cathode plane """
+    rect = patches.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, alpha=.2, facecolor='gray')
+    ax.add_patch(rect)
+    art3d.pathpatch_2d_to_3d(rect, z=0, zdir="z")
+
+    """ crp separation """
+    ax.plot([0,0],[ymin,ymax], zs=zmax, zdir="z", c='k',ls='dashed')
+    ax.plot([0,0],[ymin,ymax], zs=0., zdir="z", c='k',ls='dashed')
+    ax.plot([0,0],[ymin,ymax], zs=zmin, zdir="z", c='k',ls='dashed')
+    
+    z0_corr = trk.z0_corr #trk.z0_corr
+    if(z0_corr >= 9999):
+        z0_corr = 0.0
+
+    color = ['#FBA120', '#435497', '#df5286']
+    for iv in range(3):
+        pts = [p for p in trk.path[iv]]
+
+        
+        x,y,z = zip(*pts)
+        z = [i+z0_corr for i in z]
+    
+        ax.scatter(x, y, z, c=color[iv], s=4)
+
+
+    if(trk.cathode_crosser_ID >=0):
+        trk_id_shift = dc.n_tot_trk3d
+        other_trk = dc.tracks3D_list[trk.cathode_crosser_ID-trk_id_shift]
+        other_z0_corr = other_trk.z0_corr #other_trk.z0_corr
+        print('Other cathode crossing track ')
+        other_trk.dump()
+        for iv in range(3):
+            pts = [p for p in other_trk.path[iv]]
+
+            x,y,z = zip(*pts)
+            z = [i+other_z0_corr for i in z]
+            
+            ax.scatter(x, y, z, c='gray', s=4, alpha=0.5)
+    
+
+
+    if(trk.is_anode_crosser and trk.exit_trk_end >=0):
+        truth_from = [trk.ini_x, trk.ini_y, trk.ini_z+z0_corr] if trk.exit_trk_end == 1 else [trk.end_x, trk.end_y, trk.end_z+z0_corr]
+        truth_to = trk.exit_point
+        ax.plot([truth_from[0], truth_to[0]], [truth_from[1], truth_to[1]],[truth_from[2], truth_to[2]], c='r', ls='dotted')
+
+
+        
+    ax.set_xlim3d(xmin, xmax)
+    ax.set_ylim3d(ymin, ymax)
+    ax.set_zlim3d(zmin, zmax)
+
+    ax.set_xlabel(xlabel+' [cm]')
+    ax.set_ylabel(ylabel+' [cm]')
+    ax.set_zlabel(zlabel+' [cm]')
+
+    
+    ax.grid(False)
+    ax.xaxis.pane.set_edgecolor('black')
+    ax.yaxis.pane.set_edgecolor('black')
+    ax.zaxis.pane.set_edgecolor('black')
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+    ax.view_init(elev=10, azim=-45)
+
+    ax_infos.set_axis_off()
+    ax_infos.text(0., 2., f'Track {trk.ID_3D} length {max(trk.len_straight):.1f} cm at {trk.timestamp:.3f} mus', ha='left')
+        
+    plt.show()
