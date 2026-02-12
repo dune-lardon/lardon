@@ -22,22 +22,91 @@ def build_pds_cluster(peaks, idx):
     t_stops = [p.stop for p in peaks]
     max_adcs = [p.max_adc for p in peaks]
     charges = [p.charge for p in peaks]
-    timestamp = min([p.timestamp for p in peaks])
-    
+    timestamps = [p.timestamp for p in peaks]
+    t_corr = [cf.pds_delay_correction[p.module] for p in peaks]
+    corr_timestamps = [t+c for t,c in zip(timestamps, t_corr)]
+    timestamp = min(corr_timestamps)
+
     cluster = dc.pds_cluster(cluster_ID, IDs, glob_chans, channels, t_starts, t_maxs, t_stops, max_adcs, charges, timestamp)    
     [p.set_cluster_ID(idx) for p in peaks]
 
     return cluster
 
 
-def light_clustering():
 
+def sparse_crosscorr(peaks_ref, peaks_ch, max_lag):
+    """
+    peaks_ref and peaks_ch are sorted lists/arrays of integer time bins.
+    max_lag is the search window (in bins).
+    Returns: best lag (in bins)
+    """
+    #peaks_ref = np.asarray(peaks_ref)
+    #peaks_ch  = set(peaks_ch)  # O(1) membership lookup
+
+    lag_scores = np.zeros(2 * max_lag + 1, dtype=int)
+    lag_range = np.arange(-max_lag, max_lag + 1)
+
+    
+    # For each lag, count overlaps
+    for i, lag in enumerate(lag_range):
+        shifted = peaks_ch + lag/cf.pds_sampling
+
+        lag_scores[i] = np.sum(np.isin(shifted, peaks_ref))
+        #print(i, lag, "->", lag/cf.pds_sampling, "---> ", lag_scores[i])
+    best_lag = lag_range[np.argmax(lag_scores)]
+    return best_lag, max(lag_scores)
+
+
+
+def align_waveforms():
+
+    peaks_time = [[] for x in range(cf.n_pds_tot_channels)]
+
+    
+    for p in dc.pds_peak_list:
+        start = int(round(p.timestamp*cf.pds_sampling))/cf.pds_sampling
+        chan  = p.glob_ch
+        peaks_time[chan].append(start)
+
+    #print('Nb of peaks per channels')
+    #print([(ch, len(peaks_time[ch])) for ch in range(cf.n_pds_tot_channels)])
+
+
+    [peaks_time[ch].sort() for ch in range(cf.n_pds_tot_channels)]
+
+    """
+    print(peaks_time[0])
+    print('\n\n')
+    print(peaks_time[16])
+
+    """
+
+
+    reference = peaks_time[0]
+    dc.evt_list[-1].pds_time_offset[0] = 0.
+    max_lag = 100
+    
+    delays = [0 for x in range(cf.n_pds_tot_channels)]
+    for ch in range(cf.n_pds_tot_channels):
+        if ch == 0:
+            delays[ch] = 0
+            continue
+        #print("testing channel ", ch, "with ", len(peaks_time[ch]), "peaks")
+        lag, score = sparse_crosscorr(reference, peaks_time[ch], max_lag)
+        delays[ch] = lag
+        #print(f"------>>>>>>>> Channel {ch}: lag = {lag} bins, score = {score}")
+        if(score > 0):
+            dc.evt_list[-1].pds_time_offset[ch] = lag/cf.pds_sampling
+    
+def light_clustering():
+    align_waveforms()
+    
     cluster_list = []
     
     if(len(dc.pds_peak_list) <2 ):
         return
 
-    time_tol = dc.reco['pds']['cluster']['time_tol'] #in ticks
+    time_tol = dc.reco['pds']['cluster']['time_tol'] #in mus
     
     
     id_peak_shift = dc.n_tot_pds_peaks
@@ -55,12 +124,14 @@ def light_clustering():
     ''' filling the R-tree '''
     for p in dc.pds_peak_list:
 
-        start = p.timestamp
         chan  = p.glob_ch
+        start = p.timestamp + dc.evt_list[-1].pds_time_offset[chan]
         ID    = p.ID
+        mod   = p.module
+        t_corr = cf.pds_delay_correction[mod]
         #all_starts.append((start, chan))
         
-        rtree_idx.insert(ID, (chan, start, chan, start))        
+        rtree_idx.insert(ID, (chan, start+t_corr, chan, start+t_corr))        
 
     #sorted_starts = sorted(all_starts, key=lambda tup: tup[0])
     #print(len(sorted_starts),"\n\n")
@@ -74,8 +145,10 @@ def light_clustering():
         i_start = pi.timestamp#start
         i_chan  = pi.glob_ch
         i_ID    = pi.ID 
+        i_mod   = pi.module
+        i_t_corr = cf.pds_delay_correction[i_mod]
             
-        overlaps = list(rtree_idx.intersection((0, i_start - time_tol, 9999, i_start + time_tol)))        
+        overlaps = list(rtree_idx.intersection((0, i_start+i_t_corr - time_tol, 9999, i_start+i_t_corr + time_tol)))        
             
         if(len(overlaps) > 0):
             peaks = [pi]
