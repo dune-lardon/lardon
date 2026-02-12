@@ -36,11 +36,6 @@ def plot_timeline(option=None, to_be_shown=True):
     start = min(time_starts)
     stop = max([s+d for s,d in zip(time_starts,durations)])
 
-    """
-    for t in dc.tracks3D_list:
-        print(t.ID_3D, ": anode", t.is_anode_crosser, ' cathode ', t.is_cathode_crosser, 'T0:', t.t0_corr, ' TS : ', t.timestamp, ' - ', t.timestamp_r)
-    """
-
     
     pds_clusters_time = [p.timestamp for p in dc.pds_cluster_list]
 
@@ -85,8 +80,6 @@ def plot_timeline(option=None, to_be_shown=True):
     
     axt.scatter(sh_time, [0.5 for x in range(len(dc.single_hits_list))], marker='*', color='yellow', label='Single Hits')
 
-    #llll
-    #ax.legend(frameon=False)
     legend_elements = [Line2D([0], [0], color='k', lw=2, alpha=0.6, label='PDS clusters'),
                        Line2D([0], [0], marker='o', color='tab:cyan', label='Anode crossers', markerfacecolor='tab:cyan', markersize=15),
                        Line2D([0], [0], marker='x', color='tab:cyan', label='Cathode crossers', markerfacecolor='tab:cyan', markersize=15),                    
@@ -120,9 +113,6 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
     cmap = cc.cm.linear_tritanopic_krw_5_95_c46_r
     vmin, vmax = 0, 1e6
     norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    #ID_trk_shift =dc.n_tot_trk3d
-    #print('shift is ', ID_trk_shift)
-    #trk = dc.tracks3D_list[trackID-ID_trk_shift]
 
 
     clusID = trk.match_pds_cluster
@@ -143,8 +133,6 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
     
     xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
 
-    #corr = list(flatten(get_3dtracks_corr(iv),'t.ID_3D=='+str(trackID)))
-
 
     fig = plt.figure(figsize=(6, 8))
     gs = gridspec.GridSpec(nrows = 3, ncols = 1, height_ratios=[1, 20, 5])
@@ -162,14 +150,14 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
     ax.plot([0,0],[ymin,ymax], zs=0., zdir="z", c='k',ls='dashed')
     ax.plot([0,0],[ymin,ymax], zs=zmin, zdir="z", c='k',ls='dashed')
     
-    z0_corr = trk.z0_light #trk.z0_corr
+    z0_corr = trk.z0_light
     if(z0_corr >= 9999):
         z0_corr = 0.0
 
     color = ['#FBA120', '#435497', '#df5286']
     for iv in range(3):
         pts = [p for p in trk.path[iv]]
-        #print(pts)
+
         
         x,y,z = zip(*pts)
         z = [i+z0_corr for i in z]
@@ -180,20 +168,29 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
 
     trk_vol = int(trk.module_ini/cf.n_drift_volumes)
     
-    for pt_trk, pt_pds, is_extr, dist, adc in zip(clus.point_closest[trk_vol], clus.point_impact[trk_vol], clus.point_closest_is_extrapolated[trk_vol], clus.dist_closest[trk_vol], clus.max_adcs):
+    for pt_trk, pt_pds, is_extr, dist, adc, gchan in zip(clus.point_closest[trk_vol], clus.point_impact[trk_vol], clus.point_closest_is_extrapolated[trk_vol], clus.dist_closest[trk_vol], clus.max_adcs, clus.glob_chans):
 
         tx, ty, tz = pt_trk
+
+        pds_type = dc.chmap_pds[gchan].data_type
+        
         if(is_extr == False):
             col, col_l='r', 'k'
         else:
             col, col_l='gray', 'gray'
+
+        if(pds_type == "stream"):
+            fc_col = col
+        else:
+            fc_col="none"
+            
         ax.scatter(tx, ty, tz, c=col, s=3)
         px, py, pz = pt_pds
         ax.scatter(px, py, pz, c=col_l, s=3)
 
         ax.plot([tx,px], [ty,py],[tz,pz], c='k',lw=0.5, ls='dashed')
         
-        ax_dist.scatter(dist, adc*1e-3, color=col)
+        ax_dist.scatter(dist, adc*1e-3, fc=fc_col, ec=col)
 
     ax_dist.set_xlabel('Track-PDS distance [cm]')
     ax_dist.set_ylabel('Peak max [kADC]')
@@ -205,7 +202,7 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
         other_z0_corr = other_trk.z0_light #other_trk.z0_corr
         for iv in range(3):
             pts = [p for p in other_trk.path[iv]]
-            #print(pts)
+
             
             x,y,z = zip(*pts)
             z = [i+other_z0_corr for i in z]
@@ -220,11 +217,9 @@ def plot_track_pds_matched(trk, option=None, to_be_shown=True):
 
         
     pds_max = np.argmax(clus.charges)
-    #print(pds_max)
-    pds_q_max = clus.charges[pds_max] #max(clus.charges)
+
+    pds_q_max = clus.charges[pds_max] 
     pds_ch_max = clus.glob_chans[pds_max]
-    #print('MAX PDS chan ', pds_ch_max, ' with ', pds_q_max)
-    #print(dc.chmap_pds[pds_ch_max])
     
     size_max = 20
     for pds_ch,pds_q in zip(clus.glob_chans, clus.charges):

@@ -371,11 +371,11 @@ def plot_one_track_3D(trk, option=None, to_be_shown=True):
     xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
 
 
-    fig = plt.figure(figsize=(6, 8))
-    gs = gridspec.GridSpec(nrows = 3, ncols = 1, height_ratios=[1, 20, 5])
+    fig = plt.figure(figsize=(6, 6))
+    gs = gridspec.GridSpec(nrows = 2, ncols = 1, height_ratios=[1, 20])
     ax  = fig.add_subplot(gs[1,0], projection='3d')
     ax_infos = fig.add_subplot(gs[0,0])
-    ax_dist =  fig.add_subplot(gs[2,0])
+
     
     """ cathode plane """
     rect = patches.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, alpha=.2, facecolor='gray')
@@ -387,7 +387,7 @@ def plot_one_track_3D(trk, option=None, to_be_shown=True):
     ax.plot([0,0],[ymin,ymax], zs=0., zdir="z", c='k',ls='dashed')
     ax.plot([0,0],[ymin,ymax], zs=zmin, zdir="z", c='k',ls='dashed')
     
-    z0_corr = trk.z0_corr #trk.z0_corr
+    z0_corr = trk.z0_corr
     if(z0_corr >= 9999):
         z0_corr = 0.0
 
@@ -446,4 +446,8 @@ def plot_one_track_3D(trk, option=None, to_be_shown=True):
     ax_infos.set_axis_off()
     ax_infos.text(0., 2., f'Track {trk.ID_3D} length {max(trk.len_straight):.1f} cm at {trk.timestamp:.3f} mus', ha='left')
         
-    plt.show()
+    save_with_details(fig, option, 'track_'+str(trk.ID_3D), is3D=False)
+
+    if(to_be_shown):
+        plt.show()
+    plt.close()
