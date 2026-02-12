@@ -57,7 +57,9 @@ def pds_reco():
     print('-- Found ', dc.evt_list[-1].n_pds_peaks, ' PDS peaks')            
     print('- Found ', dc.evt_list[-1].n_pds_clusters, ' clusters ')
 
+    
     from collections import Counter
+    print('Cluster sizes')
     print(Counter([c.size for c in dc.pds_cluster_list]))
     
     
@@ -88,8 +90,6 @@ def charge_signal_proc(deb, is_online):
         ped.set_dummy_pedestals()
         print("setting dummy pedestals")
         return
-
-
 
 
 
@@ -192,7 +192,7 @@ def charge_reco(deb, is_online):
     t1 = time.time()
     hf.find_hits()    
     deb.hit_f[cf.imod] = time.time()-t1
-    print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits[:,cf.imod])
+    print("----- Number of Hits found per view: ", dc.evt_list[-1].n_hits[:,cf.imod])
 
     """
     if(cf.imod < 2):
@@ -218,13 +218,13 @@ def charge_reco(deb, is_online):
     
     deb.stitch2D[cf.imod] = time.time()-t1            
 
-    print("---- Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
+    print("---- Number of 2D tracks found per view: ", dc.evt_list[-1].n_tracks2D)
 
 
     """ tag potential ghosts """
     #ghost.ghost_finder()
     
-
+    ntrk3D_prev = len(dc.tracks3D_list)
     """ build 3D tracks from 3 views"""
     t1 = time.time()
     trk3d.find_track_3D_rtree_new([cf.imod])
@@ -236,7 +236,7 @@ def charge_reco(deb, is_online):
     """ build 3D tracks if a view is missing """
     trk3d.find_3D_tracks_with_missing_view([cf.imod])
     
-    print("--- Number of 3D tracks found : ", len(dc.tracks3D_list))
+    print("--- Number of 3D tracks found: ", len(dc.tracks3D_list)-ntrk3D_prev, " total: ", len(dc.tracks3D_list))
     
         
     """ reconstruct the ghosts """
@@ -246,18 +246,19 @@ def charge_reco(deb, is_online):
 
     """ search for single hits in free hits """
     t1 = time.time()
-    
+
+    nSH_prev = len(dc.single_hits_list)
     sh.single_hit_finder([cf.imod])
     deb.single[cf.imod] = time.time()-t1
-    print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
+    print('-- Number of blips found: ', len(dc.single_hits_list)-nSH_prev, " total: ", len(dc.single_hits_list))
 
 
     #plot.event_display_per_view_hits_found([-50, 50],[-10, 150], option='reco', to_be_shown=True)       
     #plot.plot_2dview_hits_3dtracks([cf.imod], option=None, to_be_shown=True)
 
 def charge_reco_whole(is_online):
+    print('\n## All Detector ##')
     
-           
     if(dc.evt_list[-1].det == 'pdhd'):
         stitch.stitch3D_across_modules([0,1])
         stitch.stitch3D_across_modules([2,3])
@@ -271,19 +272,14 @@ def charge_reco_whole(is_online):
 
     tmg.compute_all_track_timing()
     #[t.dump() for t in dc.tracks3D_list]
-
-    """
-    for t in dc.tracks3D_list:
-        if(t.is_cathode_crosser and 170 < t.timestamp < 220):
-            plot.plot_one_track_3D(dc.tracks3D_list[t.ID_3D-dc.n_tot_trk3d], option=None, to_be_shown=True)    
-    """
-
     
     if(is_online):
         plot.plot_3d(to_be_shown=True)
         plot.plot_noise_all_crps(to_be_shown=True)
 
     #plot.plot_3d(to_be_shown=True)    
+    #plot.plot_one_track_3D(dc.tracks3D_list[0], option=None, to_be_shown=True)
+
     
 def match_charge_and_pds():
     #[t.dump() for t in dc.tracks3D_list]
@@ -293,12 +289,12 @@ def match_charge_and_pds():
         return
     
     mat.matching_trk_pds()
-    #plot.plot_timeline(option=None, to_be_shown=True)
+
     
     """
-
     for t in dc.tracks3D_list:
         if(t.match_pds_cluster >= 0):
             plot.plot_track_pds_matched(t, option=None, to_be_shown=True)
     """
+    #NOT READY YET ! 
     #mat.matching_sh_pds()               

@@ -42,12 +42,6 @@ def matching_trk_pds():
     min_cluster_size = dc.reco['pds']['tpc_matching']['min_cluster_size']
     v_drift = [lar.drift_velocity(m) for m in range(cf.n_module)]
     
-    """
-    print('LIGHT - TRK MATCHING time tolerances: ')
-    print('anode crossers:', anode_time_tol)
-    print('cathode crossers:', cathode_time_tol)
-    print('unknown:', unknown_time_tol)
-    """
     
     """ create  Rtree, now filled with the found clusters """
     pties = index.Property()
@@ -55,7 +49,7 @@ def matching_trk_pds():
 
     rtree = index.Index(properties=pties)
         
-    #debug = []
+
     ''' filling the R-tree with the light clusters on y axis = 0'''
     for c in dc.pds_cluster_list:
         if(np.any(np.array(c.match_trk3D)>=0) or c.match_single >=0 ):
@@ -139,8 +133,7 @@ def matching_trk_pds():
 
             delay = clus.timestamp - trk_start
             
-            """ debug """
-            
+            """ debug """            
             #print('[',name,'] Potential Track-light match ! track ID ', trk.ID_3D)
             #print('---> with delay ', delay)
 
@@ -168,7 +161,7 @@ def matching_trk_pds():
                     clus.point_closest_is_extrapolated[vol].append(~belongToTrack)
          
 
-    print('\n---->>>> Number of pds-matched tracks: ', n_trk)        
+    print('Number of pds-matched tracks: ', n_trk)        
 
 
 def  matching_sh_pds():

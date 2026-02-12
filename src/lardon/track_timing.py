@@ -84,7 +84,7 @@ def compute_exit_point(trk, idx_anode, zcorr):
 
     exit_point = origin + t_exit * direction
     if(debug):
-        print('!!!!!!!!!!!!====>>>>> exit point ', exit_point)
+        print('====> exit point ', exit_point)
         
     return  exit_point    
 
@@ -151,13 +151,15 @@ def compute_missing_time_for_late_cathode_crosser(trk, debug):
         if(np.cos(np.radians(ta.end_phi)) != 0.):
             dz_a = np.fabs(-dx/np.tan(np.radians(ta.end_theta))/np.cos(np.radians(ta.end_phi)))
         else:
-            dz_a = np.fabs(-dx/np.tan(np.radians(ta.end_theta)))
-        print('Dz a= ', dz_a)
-        
+            dz_a = np.fabs(-dx/np.tan(np.radians(ta.end_theta)))        
         if(np.cos(np.radians(tb.ini_phi)) != 0):                           
             dz_b = np.fabs(-dx/np.tan(np.radians(tb.ini_theta))/np.cos(np.radians(tb.ini_phi)))
         else:
             dz_b = np.fabs(-dx/np.tan(np.radians(tb.ini_theta)))
+
+
+    if(debug):
+        print("Missing z track ", ta.ID_3D, ":", dz_a, " track ", tb.ID_3D, ":", dz_b)
 
     if(ta.ID_3D == trk.ID_3D):
         return dz_a
@@ -268,14 +270,6 @@ def adjust_timestamp_range(trk):
     
     trk.set_timestamp(trk_timestamp, other_timestamp)
     other.set_timestamp(trk_timestamp, other_timestamp)
-
-    """
-    trk.dump()
-    print('WITH')
-    other.dump()
-
-    print('--->>>> TIMESTAMP RANGE ', trk_timestamp, other_timestamp, " === ", trk_timestamp - other_timestamp)
-    """
     
 def compute_all_track_timing():
     [compute_timing(t) for t in dc.tracks3D_list]

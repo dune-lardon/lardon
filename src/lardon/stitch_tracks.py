@@ -520,9 +520,9 @@ def stitch3D_across_modules(modules):
 
     if(n_merge>0):
         reset_track3D_list()
-        print("Across modules ", modules, 'merged ', n_merge, ' 3D tracks together! ')
-
-
+        print("Across modules ", modules, 'merged ', n_merge, ' 3D tracks together ')
+    else:
+        print("Across modules ", modules, 'no tracks were merged ')
 
 def tracks3D_cathode_crossing_test(ta, tb, dx_thresh, dy_thresh, dz_thresh, aligned_thresh):
     debug = False
@@ -693,7 +693,7 @@ def stitch3D_across_cathode(modules):
         else:
             print('WHAAAAT ? too many possibility for cathode stitcher, do not do anything ')
 
-    print('--> Found ', n_cross, ' cathode crossing tracks ')
+    print('Across cathode found ', n_cross, ' crossing tracks ')
     
 def reset_track3D_list():
     idx = dc.n_tot_trk3d

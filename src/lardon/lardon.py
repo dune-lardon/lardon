@@ -282,12 +282,13 @@ def main():
                 cf.n_pds_trig_sample = 0
                 store.store_pds_event(output)
 
-            print(f'PDS streaming timestamp: {dc.evt_list[-1].pds_stream_time} , nb of samples:{cf.n_pds_stream_sample}')
-            print(f'PDS stream time goes from {1e6*(dc.evt_list[-1].pds_stream_time - dc.evt_list[-1].event_time)} mus to {1e6*(dc.evt_list[-1].pds_stream_time - dc.evt_list[-1].event_time)+cf.n_pds_stream_sample/cf.pds_sampling} wrt the trigger')
-            print('test: ', cf.n_pds_stream_sample/64)
+            else:
+                print(f'PDS streaming timestamp: {dc.evt_list[-1].pds_stream_time}, nb of samples:{cf.n_pds_stream_sample}')
+                print(f'PDS stream time goes from {dc.evt_list[-1].delay_pds_stream_time:.4f} mus to {dc.evt_list[-1].delay_pds_stream_time + cf.n_pds_stream_sample/cf.pds_sampling:.4f} wrt the trigger')
             
-            print(f'\nPDS self-trigger timestamp: {dc.evt_list[-1].pds_trig_time}, nb of samples: {cf.n_pds_trig_sample}')
-            print(f'PDS self-trigger time goes from {1e6*(dc.evt_list[-1].pds_trig_time - dc.evt_list[-1].event_time)} mus to {1e6*(dc.evt_list[-1].pds_trig_time - dc.evt_list[-1].event_time)+cf.n_pds_trig_sample/cf.pds_sampling} mus wrt the trigger')
+                print(f'\nPDS self-trigger timestamp: {dc.evt_list[-1].pds_trig_time}, nb of samples: {cf.n_pds_trig_sample}')
+                print(f'PDS self-trigger time goes from {dc.evt_list[-1].delay_pds_trig_time:.4f} mus to {dc.evt_list[-1].delay_pds_trig_time + cf.n_pds_trig_sample/cf.pds_sampling:.4f} mus wrt the trigger\n')
+                
 
             
             work.pds_signal_proc()
@@ -296,7 +297,9 @@ def main():
 
             #fft_ps = []
             #corr = []
-    
+
+
+            
         """ Workflow for charge """
         if(do_charge == True):
             print('\n## Reading TPC ##')
@@ -330,8 +333,10 @@ def main():
                     cf.n_sample[cf.imod] = 0 #will be changed at the next event
                     #store.store_event(output)
 
-                print(f'TPC 1st sample timestamp: {dc.evt_list[-1].charge_time[cf.imod]}, nb of sample: {cf.n_sample[cf.imod]}')
-                print(f'TPC time goes from {1e6*(dc.evt_list[-1].charge_time[cf.imod] - dc.evt_list[-1].event_time)} mus to {1e6*(dc.evt_list[-1].charge_time[cf.imod] - dc.evt_list[-1].event_time)+cf.n_sample[cf.imod]/cf.sampling[cf.imod]} mus wrt the trigger')
+                else:
+                    print(f'TPC 1st sample timestamp: {dc.evt_list[-1].charge_time[cf.imod]}, nb of sample: {cf.n_sample[cf.imod]}')
+                print(f'TPC time goes from {dc.evt_list[-1].delay_charge_time[cf.imod]:.4f} mus to {dc.evt_list[-1].delay_charge_time[cf.imod] + cf.n_sample[cf.imod]/cf.sampling[cf.imod]:.4f} mus wrt the trigger\n')
+
                 if(is_pulse==True):
                     work.charge_pulsing()
                     continue
