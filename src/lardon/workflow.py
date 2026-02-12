@@ -14,8 +14,10 @@ import lardon.single_hits as sh
 import lardon.ghost as ghost
 import lardon.clusters as clu
 import lardon.matching as mat
-import lardon.hits_3d as h3d
-import lardon.vertexing as vtx
+import lardon.track_timing as tmg
+
+#import lardon.hits_3d as h3d
+#import lardon.vertexing as vtx
 
 import time
 from psutil import Process
@@ -41,14 +43,24 @@ def pds_reco():
 
     hf.find_all_pds_peak()
     
-    #plot.draw_pds_ED(data_type='stream', to_be_shown=True, draw_roi=True, draw_peak=True)
-    #plot.draw_pds_ED(data_type='trigger', to_be_shown=True, draw_roi=True, draw_peak=True)
+    #plot.draw_all_pds_ED(data_type='stream', to_be_shown=True, draw_roi=True, draw_peak=True)
+    #plot.draw_all_pds_ED(data_type='trigger', to_be_shown=True, draw_roi=True, draw_peak=True)
 
-    
+    #plot.draw_pds_ED([12, 22])
+    #plot.draw_pds_ED([0, 2, 4, 6, 8, 10, 12, 14])
+    #plot.draw_pds_ED([0, 2, 4, 6, 24, 26, 28, 30])
+    #plot.draw_pds_ED([0, 16])
     clu.light_clustering()
+
+    #plot.draw_pds_ED([0, 2, 4, 6, 24, 26, 28, 30])
+
     print('-- Found ', dc.evt_list[-1].n_pds_peaks, ' PDS peaks')            
     print('- Found ', dc.evt_list[-1].n_pds_clusters, ' clusters ')
 
+    from collections import Counter
+    print(Counter([c.size for c in dc.pds_cluster_list]))
+    
+    
 def charge_pulsing():
     if(cf.n_sample[cf.imod] <= 0):
         return
@@ -78,7 +90,7 @@ def charge_signal_proc(deb, is_online):
         return
 
 
-    print('number of samples = ', cf.n_sample[cf.imod])
+
 
 
     """ mask the unused channels """
@@ -102,8 +114,8 @@ def charge_signal_proc(deb, is_online):
 
     if(is_online):
         plot.event_display_per_view([-100, 100],[-50, 300], option='raw', to_be_shown=False)
-
-        
+    
+    #plot.event_display_per_view([-50, 50],[-10, 150], option='raw', to_be_shown=True)
     t1 = time.time()
     """ low pass FFT cut """    
     #ps = noise.FFT_low_pass(True)
@@ -160,8 +172,7 @@ def charge_signal_proc(deb, is_online):
     ped.compute_pedestal(noise_type='filt')
     deb.ped_3[cf.imod] = time.time()-t1
 
-    
-    #plot.plot_2dview_hits([cf.imod], to_be_shown=True)
+
 
     #return ps, corr
 
@@ -183,6 +194,10 @@ def charge_reco(deb, is_online):
     deb.hit_f[cf.imod] = time.time()-t1
     print("----- Number Of Hits found : ", dc.evt_list[-1].n_hits[:,cf.imod])
 
+    """
+    if(cf.imod < 2):
+        plot.event_display_per_view_hits_found([-50, 50],[-10, 150], option='filt', to_be_shown=True)
+    """
     """ build hits R-tree used in track2D and single hit searches """
     clu.hits_rtree([cf.imod])
     
@@ -195,7 +210,7 @@ def charge_reco(deb, is_online):
     trk2d.find_tracks_hough([cf.imod])
     deb.trk2D_1[cf.imod] = time.time()-t1
 
-
+    
     """ stitch together pieces of 2D tracks """
     t1 = time.time()
 
@@ -205,7 +220,7 @@ def charge_reco(deb, is_online):
 
     print("---- Number Of 2D tracks found : ", dc.evt_list[-1].n_tracks2D)
 
-    
+
     """ tag potential ghosts """
     #ghost.ghost_finder()
     
@@ -236,14 +251,12 @@ def charge_reco(deb, is_online):
     deb.single[cf.imod] = time.time()-t1
     print('-- Found ', len(dc.single_hits_list), ' Single Hits!')
 
-    #plot.event_display_per_view_hits_found([-50, 50],[-20, 150], option='raw', to_be_shown=True)       
+
+    #plot.event_display_per_view_hits_found([-50, 50],[-10, 150], option='reco', to_be_shown=True)       
     #plot.plot_2dview_hits_3dtracks([cf.imod], option=None, to_be_shown=True)
-    
+
 def charge_reco_whole(is_online):
-
-
-    if(dc.evt_list[-1].det == 'cbbot' or dc.evt_list[-1].det == '50l' ):        
-        return
+    
            
     if(dc.evt_list[-1].det == 'pdhd'):
         stitch.stitch3D_across_modules([0,1])
@@ -254,23 +267,36 @@ def charge_reco_whole(is_online):
         stitch.stitch3D_across_modules([2,3])
         stitch.stitch3D_across_cathode([[2,3], [0,1]])
 
-    
+
+
+    tmg.compute_all_track_timing()
     #[t.dump() for t in dc.tracks3D_list]
 
+    """
+    for t in dc.tracks3D_list:
+        if(t.is_cathode_crosser and 170 < t.timestamp < 220):
+            plot.plot_one_track_3D(dc.tracks3D_list[t.ID_3D-dc.n_tot_trk3d], option=None, to_be_shown=True)    
+    """
+
+    
     if(is_online):
         plot.plot_3d(to_be_shown=True)
         plot.plot_noise_all_crps(to_be_shown=True)
+
     #plot.plot_3d(to_be_shown=True)    
     
 def match_charge_and_pds():
+    #[t.dump() for t in dc.tracks3D_list]
     #plot.plot_timeline(option=None, to_be_shown=True)
 
     if(cf.n_sample[cf.imod] <= 0 or (cf.n_pds_stream_sample <=0 and cf.n_pds_trig_sample <= 0)):
         return
     
     mat.matching_trk_pds()
-
+    #plot.plot_timeline(option=None, to_be_shown=True)
+    
     """
+
     for t in dc.tracks3D_list:
         if(t.match_pds_cluster >= 0):
             plot.plot_track_pds_matched(t, option=None, to_be_shown=True)
