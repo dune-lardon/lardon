@@ -229,7 +229,9 @@ def get_trigger_type(x):
     into the bit index.
     """
     if x == 0 or (x & (x - 1)) != 0:
-        raise ValueError("Trigger Type is not a power of two (single bit).")
+        #raise ValueError("Trigger Type is not a power of two (single bit).")
+        print('Unknown Trigger value?!')
+        return 0
     return x.bit_length() - 1
 
 
@@ -811,11 +813,12 @@ class wib:
         if(len(tstart_link)==0):
             return
 
-
-        tstart = min(tstart_link) if len(tstart_link)>0 else 0
+        #print('n links ', len(tstart_link))
+        #print(tstart_link)
+        tstart = np.nanmin(tstart_link) if len(tstart_link)>0 else 0
         if(np.isnan(tstart)):
            return
-        tstop  = max(tstop_link) if len(tstop_link)>0 else 0
+        tstop  = np.nanmax(tstop_link) if len(tstop_link)>0 else 0
         
         n_tot_frames = (tstop-tstart)        
         n_tot_frames *= cf.sampling[cf.imod]/1.953125
@@ -955,7 +958,7 @@ class wib:
             dc.mask_daq  = np.ones(new_shape, dtype=bool)
 
                     
-            charge_tstart = min(tstart_link)*32
+            charge_tstart = np.nanmin(tstart_link)*32
             ts = get_unix_timestamp_wib_2(charge_tstart)
             #t_s, t_ns = get_unix_time_wib_2(charge_tstart)
 
