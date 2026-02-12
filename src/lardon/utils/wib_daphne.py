@@ -12,7 +12,7 @@ import h5py as hp
 
 
 def get_unix_timestamp_wib_2(t):
-    return t*16e-9
+    return np.float64(t*16e-9)
 
 def get_unix_time_wib_2(t):
     ts = t*16 # in units of nanoseconds
@@ -408,23 +408,24 @@ class daphne:
                 glob = dc.chmap_daq_pds[daq].globch
                 if(glob < 0):
                     continue
-                else:
-
-                    if('M' in dc.chmap_pds[glob].det):                        
-                        dc.data_stream_pds[glob] = -1*out[ichan]
-                    else:
-                        dc.data_stream_pds[glob] = out[ichan]
+                else:                    
+                    dc.data_stream_pds[daq] = out[ichan]
                         
         if(cf.n_pds_stream_sample > 0):
             
             ts = get_unix_timestamp_wib_2(min(pds_tstart))
+
+            #The timestamp given in the DAQ header seems shifted by 64 ticks before the 1st sample
+            ts = ts + 64/cf.pds_sampling*1e-6
+
+            
             #print('PDS STREAM timestamp ', get_unix_time_wib_2(min(pds_tstart)))
             #print('TS = ', ts)
             dc.evt_list[-1].set_pds_stream_timestamp(ts)
             
         
     def read_pds_felix_trigger(self, evt, link_name, offset, nstream):
-
+        cf.n_pds_trig_sample = -1
         
         daq_header_type = get_daq_header('daphne_felix_trigger')
         daq_header_size = daq_header_type.itemsize
@@ -495,6 +496,9 @@ class daphne:
                 | (frames["daq"]["timestamp_2"].astype(np.uint64) << 32)
             )
 
+            #timestamp written is the self trigger time which is 64 ticks after the 1st sample
+            #times = [t-64*cf.pds_sampling for t in times]
+
             times_chunk.append(times)
 
             slots = (frames["daq"]["w0"] >>22) & 0xF
@@ -514,8 +518,9 @@ class daphne:
 
             adcs_chunk.append(adcs)
             
-        
-        times = np.concatenate(times_chunk)
+        if(len(times_chunk) == 0):
+            return
+        times = np.concatenate(times_chunk)#, dtype=np.float64)
         daq_chans = np.concatenate(daq_chans_chunk)
         adcs = np.concatenate(adcs_chunk, axis=0)
 
@@ -523,11 +528,13 @@ class daphne:
         cf.n_pds_trig_sample = int(max_t - min_t)+1024
 
         ts = get_unix_timestamp_wib_2(min_t)
+        #The timestamp given in the DAQ header corresponds to the time of the trigger which is 64 ticks after the 1st sample
+        ts = ts - 64/cf.pds_sampling*1e-6
         dc.evt_list[-1].set_pds_trig_timestamp(ts)
+
 
         #print('PDS TRIGGER timestamp ', get_unix_time_wib_2(min_t))
         #print('TS = ', ts)
-
 
         times = times-min_t
         if(cf.n_pds_trig_sample != dc.data_trig_pds.shape[-1]):
