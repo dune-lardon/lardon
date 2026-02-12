@@ -16,8 +16,57 @@ import colorcet as cc
 from lardon.plotting.save_plot import *
 
 
+def draw_pds_ED( glob_chans, option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
+    fig = plt.figure(figsize=(11,4))
+    ax = fig.add_subplot(111)
+    
+    for chan in glob_chans:
+        data_type = dc.chmap_pds[chan].data_type
+        daqch = dc.chmap_pds[chan].daqch
+        daq_offset = cf.pds_daqch_stream_start if data_type ==  "stream" else cf.pds_daqch_trig_start
+        
+        ts = dc.evt_list[-1].pds_stream_time if data_type ==  "stream" else dc.evt_list[-1].pds_trig_time
+        delta_t = (ts - dc.evt_list[-1].event_time)*1e6 # + dc.evt_list[-1].pds_time_offset[chan]
+        delta_t_off = (ts - dc.evt_list[-1].event_time)*1e6  + dc.evt_list[-1].pds_time_offset[chan]
+        
+        print('channel has delay ', dc.evt_list[-1].pds_time_offset[chan], " == ", delta_t)
+        n_sample = cf.n_pds_stream_sample if data_type == "stream" else cf.n_pds_trig_sample
 
-def draw_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
+        xx = np.linspace(delta_t, delta_t+(n_sample-1)/cf.pds_sampling, n_sample)
+        xx_off = np.linspace(delta_t_off, delta_t_off+(n_sample-1)/cf.pds_sampling, n_sample)
+        
+        data = dc.data_stream_pds if data_type == "stream" else dc.data_trig_pds
+
+        label = dc.chmap_pds[chan].det+' Ch. '+str(dc.chmap_pds[chan].chan)
+        
+        print(dc.chmap_pds[chan])
+        print(n_sample)
+        print(delta_t, " to ",  delta_t+(n_sample-1)/cf.pds_sampling)
+        print(data[daqch-daq_offset].shape)
+        
+        
+        l = ax.plot(xx, data[daqch-daq_offset], label=label)
+        ax.plot(xx_off, data[daqch-daq_offset], c=l[0].get_color(), ls="dashed")
+        ax.set_xlabel('Time wrt to trigger [mus]')
+
+
+        """
+        starts = []
+        for p in dc.pds_peak_list:
+
+            start = p.timestamp
+            channel  = p.glob_ch
+            if(channel == chan):
+                starts.append(start)
+
+        [ax.axvline(s) for s in starts]
+        """
+        
+    ax.legend()
+    plt.tight_layout()
+    plt.show()
+        
+def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
 
     n_tot_chan = cf.n_pds_tot_channels
     
