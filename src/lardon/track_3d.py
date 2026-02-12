@@ -4,6 +4,7 @@ import lardon.lar_param as lar
 import lardon.hits_3d as h3d
 import lardon.stitch_tracks as stitch
 
+import lardon.track_timing as tmg
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
@@ -165,10 +166,18 @@ def get_channel_from_pos(pos,view,module):
     return channel
 
 def get_channel_from_xy(x, y, view, module):
-    angle = np.radians(cf.view_angle[module][v_track])    
+    angle = np.radians(cf.view_angle[module][view])
+    shift = cf.view_offset_repet[module][view][0] +  cf.view_pitch[view]/2.
     pos = np.sin(angle)*x - np.cos(angle)*y - shift
 
     return get_channel_from_pos(pos, view, module)
+
+def get_view_pos_from_xy(x, y, view, module):
+    angle = np.radians(cf.view_angle[module][view])    
+    pos = np.sin(angle)*x - np.cos(angle)*y# - shift
+    
+    return pos
+
 
 def complete_trajectories(tracks):
     """ Could be better ! At the moment, matches with only 2 tracks """
@@ -360,317 +369,6 @@ def complete_trajectories(tracks):
     the_track.set_modules(module_ini, module_end)
     return the_track
 
-def compute_exit_point(trk, idx_anode, zcorr):
-    debug = False
-    
-    box_min = [min([cf.x_boundaries[i][0] for i in range(cf.n_module)]),min([cf.y_boundaries[i][0] for i in range(cf.n_module)]), min(cf.anode_z)]
-    box_max = [max([cf.x_boundaries[i][1] for i in range(cf.n_module)]),max([cf.y_boundaries[i][1] for i in range(cf.n_module)]), max(cf.anode_z)]
-    
-    if(idx_anode == 0):
-        theta = trk.ini_theta
-        phi   = trk.ini_phi
-        point = [trk.ini_x, trk.ini_y, trk.ini_z+zcorr]
-        sign = -1.*cf.drift_direction[trk.module_ini]*np.sign(phi)
-    else:
-        theta = trk.end_theta
-        phi   = trk.end_phi
-        point = [trk.end_x, trk.end_y, trk.end_z+zcorr]
-        sign = -1.*cf.drift_direction[trk.module_end]*np.sign(phi)
-
-
-    if(dc.evt_list[-1].det == 'pdhd'):
-        dx = sign*np.cos(np.radians(theta))
-        dy = sign*np.sin(np.radians(theta))*np.cos(np.radians(phi))
-        dz = sign*np.sin(np.radians(theta))*np.sin(np.radians(phi))
-
-
-
-    elif(dc.evt_list[-1].det == 'pdvd'):
-        sign = cf.drift_direction[trk.module_ini] if idx_anode==0 else cf.drift_direction[trk.module_end]
-
-        if(debug):
-            print('\n = = = = = ')
-            trk.dump()
-
-            print('test sign: ', cf.drift_direction[trk.module_end], 'and ', np.sign(phi), ' -->', sign)
-            print('box min', box_min)
-            print('box max', box_max)
-            print('zcorr :: ', zcorr)
-            print('idx anode: ', idx_anode)
-        
-        
-        dz = sign*np.cos(np.radians(theta))
-        dx = sign*np.sin(np.radians(theta))*np.cos(np.radians(phi))
-        dy = sign*np.sin(np.radians(theta))*np.sin(np.radians(phi))
-
-        if(debug):
-            print('--> ', dx, dy, dz)
-
-    else:        
-        print('Exit point computation to be checked for ', dc.evt_list[-1].det,' geometry')
-        return False, []
-
-    direction = np.array([dx, dy, dz])
-    origin = np.array(point)
-
-    #print('direction: ', direction)
-    #print('origin :', origin, ' point start ', idx_anode)
-    inv_dir = 1.0 / direction  # Inverse to avoid dividing multiple times
-
-    # Compute tmin and tmax for slabs
-    tmin = (box_min - origin) * inv_dir
-    tmax = (box_max - origin) * inv_dir
-
-    # Swap if needed to ensure correct ordering
-    t1 = np.minimum(tmin, tmax)
-    t2 = np.maximum(tmin, tmax)
-
-    # We're inside the box, so t_enter < 0 and we want the smallest positive t_exit
-    t_exit = np.min(t2)
-
-    if(debug):
-        print('\ntesting mins')
-        for t in tmin:
-            print(t, ' test out ', origin + t * direction)
-        print('testing maxs')
-        for t in tmax:
-            print(t, ' test out ', origin + t * direction)
-        print('---> t exit : ', t_exit)
-    
-    
-    if t_exit <= 0:
-        return False, []  # Line doesn't exit in the direction given
-
-    exit_point = origin + t_exit * direction
-    if(debug):
-        print('====>>>>> exit point ', exit_point)
-    return True, exit_point    
-    
-def correct_timing(trk, xtol, ytol, ztol):
-    debug = False
-
-    """ track points are ordered by decreasing vertical axis """
-    vdrift = lar.drift_velocity()
-    
-    z0 = 9999.
-    t0 = 9999.
-
-
-    mod_ini, mod_end = trk.module_ini, trk.module_end
-    
-    z_anodes = [cf.anode_z[mod_ini], cf.anode_z[mod_end]]
-
-    drift_times = [ cf.drift_length[mod_ini]/vdrift, cf.drift_length[mod_end]/vdrift]
-    
-    """ longest drifts """
-    max_drifts = [cf.anode_z[mod_ini] - cf.n_sample[mod_ini]*cf.drift_direction[mod_ini] * vdrift /cf.sampling[mod_ini], cf.anode_z[mod_ini] - cf.n_sample[mod_ini]*cf.drift_direction[mod_ini] * vdrift /cf.sampling[mod_ini]]
-    
-    z_cathodes = [cf.anode_z[mod_ini] - cf.drift_direction[mod_ini]*cf.drift_length[mod_ini], cf.anode_z[mod_end] - cf.drift_direction[mod_end]*cf.drift_length[mod_end]]
-    
-    trk_z_bounds = [trk.ini_z, trk.end_z]
-    trk_modules  = [mod_ini, mod_end]
-    trk_times    = [trk.ini_time/cf.sampling[mod_ini], trk.end_time/cf.sampling[mod_end]]
-    
-    through_anode = np.asarray([np.fabs(t-z) < ztol for t,z in zip(trk_z_bounds, z_anodes)], dtype=bool)
-    through_cathode = np.asarray([np.fabs(t-z) < ztol for t,z in zip(trk_z_bounds, max_drifts)], dtype = bool)
-
-    inside_ini_x = cf.x_boundaries[mod_ini][0]+xtol[mod_ini][0] <= trk.ini_x <= cf.x_boundaries[mod_ini][1]-xtol[mod_ini][1]
-    inside_ini_y = cf.y_boundaries[mod_ini][0]+ytol[mod_ini][0] <= trk.ini_y <= cf.y_boundaries[mod_ini][1]-ytol[mod_ini][1]
-    through_wall_ini = np.any([not inside_ini_x, not inside_ini_y])
-
-
-
-    inside_end_x = cf.x_boundaries[mod_end][0]+xtol[mod_end][0] <= trk.end_x <= cf.x_boundaries[mod_end][1]-xtol[mod_end][1]
-    inside_end_y = cf.y_boundaries[mod_end][0]+ytol[mod_end][0] <= trk.end_y <= cf.y_boundaries[mod_end][1]-ytol[mod_end][1]
-    through_wall_end = np.any([not inside_end_x, not inside_end_y])
-    
-
-    if(debug):
-        trk.dump()
-    
-        print('-> through anode ', through_anode, '::', z_anodes)
-        print('-> through cathode', through_cathode, "::", max_drifts)
-        print('-- ini inside x?', inside_ini_x, ' y?', inside_ini_y)        
-        print('-> through wall ini ', through_wall_ini, "::", cf.x_boundaries[mod_ini], " and ", cf.y_boundaries[mod_ini] )
-        print('-- end inside x?', inside_end_x, ' y?', inside_end_y)
-        print('-> through wall end ', through_wall_end, "::", cf.x_boundaries[mod_end], " and ", cf.y_boundaries[mod_end] )
-        print('drift times: ', drift_times)
-        print('trk_times: ', trk_times)
-
-    
-    if(through_wall_ini and through_wall_end):
-        """ wall to wall track: we cannot tell """
-        trk.set_t0_z0(t0, z0)
-        
-        """ compute time range of possibilities """
-        """ idx is the track endpoint closest to anode """
-        idx, idx_o = (0,1) if np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, z_anodes)]) == 0 else (1,0)
-        tref_a = trk_times[idx] # latest possible time
-        tref_b = trk_times[idx_o]-drift_times[idx_o] #earliest possible time
-        if(tref_a > tref_b):
-            tref_a, tref_b = tref_b, tref_a
-        trk.set_timestamp(tref_a, tref_b)
-
-        if(debug):
-            print('wall to wall ... no t0!')
-            print('IDX closest to anode: ', idx)
-            print('possible tref from ', tref_a, 'to', tref_b)
-            print('Ts= ', trk.timestamp, ' to ', trk.timestamp_r)
-            
-        return
-    
-    elif(through_wall_ini or through_wall_end):
-        ''' idx is the track endpoint at fc '''
-        idx, idx_o = (0, 1) if through_wall_ini else (1, 0)
-        if(through_anode[idx_o] or through_cathode[idx_o]):
-            """ wall to readout : we cannot tell """
-            trk.set_t0_z0(t0, z0)
-            
-            """ compute time range of possibilities """
-            """ now idx is the track endpoint closest to anode """
-            idx, idx_o = (0,1) if np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, z_anodes)]) == 0 else (1,0)
-            tref_a = trk_times[idx] # latest possible time
-            tref_b = trk_times[idx_o]-drift_times[idx_o] #earliest possible time
-            if(tref_a > tref_b):
-                tref_a, tref_b = tref_b, tref_a
-            trk.set_timestamp(tref_a, tref_b)
-
-            if(debug):
-                print('wall to anode/cathode ... no t0!')
-                print('IDX closest to anode', idx)
-                print('possible tref from ', tref_a, 'to', tref_b)
-                print('Ts= ', trk.timestamp, ' to ', trk.timestamp_r)
-            return
-        else:
-            zdir = 1 if (trk_z_bounds[idx_o]-trk_z_bounds[idx])>0 else -1
-            
-            
-            is_late = False
-            if(zdir == cf.drift_direction[trk_modules[idx_o]]):
-                zref = z_anodes[idx_o]
-                tref = trk_times[idx_o]
-                
-                is_late = True
-                if(debug): print('wall to anode dir', zdir, 'idxs',idx, idx_o)
-                trk.is_anode_crosser = True
-                
-                ok, exit_point = compute_exit_point(trk, idx_o, zref-trk_z_bounds[idx_o])
-                if(debug) :
-                    print('EXIT POINT IS ', exit_point)
-                if(ok):
-                    trk.set_anode_crosser(exit_point, idx)
-                    
-            else:
-                zref = z_cathodes[idx_o]
-                tref = trk_times[idx_o] - drift_times[idx_o]
-                trk.is_cathode_crosser = True
-                if(debug): print('wall to cathode dir', zdir,'idxs',idx,idx_o)
-                is_late = True #
-
-
-            z0 = zref - trk_z_bounds[idx_o]
-            t0 = tref#z0/vdrift
-            """
-            if(is_late == False and t0 > 0):
-                t0 *= -1
-            if(is_late == True and t0 < 0):
-                t0 *= -1
-            """
-            
-            trk.set_t0_z0(t0, z0)
-            trk.set_timestamp(tref, tref)
-            if(debug):
-                print('--> z0 = ', z0, 't0',t0)
-                print('time ref is ', tref)
-                print('Ts= ', trk.timestamp, ' to ', trk.timestamp_r)
-            return
-
-
-
-    """ if we're here : the track did not enter nor escaped by the FC """
-    
-    if(np.any(through_anode)):
-        """ then track is early """
-        """ which bound is closer to anode ?"""
-        """ idx is the trk endpoint closest to the anode"""
-        idx = np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, z_anodes)])
-        idx_o = 1 if idx == 0 else 0
-        z0 = z_cathodes[idx_o] - trk_z_bounds[idx_o]
-
-        tref = trk_times[idx_o]-drift_times[idx_o]
-        
-        if(np.sign(z0) == cf.drift_direction[trk_modules[idx_o]]):
-            z0 *= -1
-        t0 = tref#z0/vdrift
-        
-        #if(t0 > 0):
-        #    t0 *= -1
-            
-        trk.set_t0_z0(t0, z0)
-        trk.set_timestamp(tref, tref)
-        trk.is_cathode_crosser = True
-        
-        if(debug):
-            print('early track/cathode crosser! bound ',idx,'closer to anode, z0=', z0, "t0",t0)
-            print('tref: ', tref)
-            print('Ts= ', trk.timestamp, ' to ', trk.timestamp_r)
-        return
-    
-    if(np.any(through_cathode)):
-        """ then track is late """
-        """ which bound is closer to cathode?"""
-        """ idx is the trk endpoint closer to the cathode """
-        idx = np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, max_drifts)])
-        idx_o = 1 if idx == 0 else 0
-        z0 = z_anodes[idx_o] - trk_z_bounds[idx_o]
-        tref = trk_times[idx_o]
-
-        t0 = tref#z0/vdrift
-        #if(t0 < 0):
-        #    t0 *= -1
-        trk.set_t0_z0(t0, z0)
-        trk.set_timestamp(tref, tref)
-        trk.is_anode_crosser = True
-
-        
-        if(debug):
-            print('late track/anode crosser! bound ',idx,'closer to cathode, z0=', z0,"t0",t0)
-            print('tref ', tref)
-            print('Ts= ', trk.timestamp, ' to ', trk.timestamp_r)
-        
-        return
-
-    
-    """ what's left is a late track entering from the higher plane """
-    
-    highest_plane_idx = np.argmax([z_anodes[0], z_cathodes[0]])
-    highest_plane = z_anodes if highest_plane_idx == 0 else z_cathodes
-
-    """ idx is the track endpoint closer to the highest plane """    
-    idx = np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, highest_plane)])
-    z0 = highest_plane[idx] - trk_z_bounds[idx]
-    tref = trk_times[idx] - highest_plane_idx*drift_times[idx]
-    
-    t0 = tref
-    # = z0/vdrift
-    #if(t0 < 0):
-    #    t0 *= -1
-        
-    trk.set_t0_z0(t0, z0)
-    trk.set_timestamp(tref, tref)
-    trk.is_anode_crosser = True
-    if(debug):
-        print('no choice, late track!, z0=', z0, 't0',t0)
-        print('highest plane id is ', highest_plane_idx, ' at ', highest_plane)
-        print('tref ', tref)
-        print('Ts= ', trk.timestamp, ' to ', trk.timestamp_r)
-
-        #print('OR cathode crosser: ')
-        #lll
-    return
-
-    
-
 
 
 def check_track_3D(track):
@@ -737,7 +435,7 @@ def find_3D_tracks_with_missing_view(modules):
     dz_tol = dc.reco['track_3d']['timing']['dz_tol']
 
     
-    #d_thresh = dc.reco['track_3d']['missing_view']['d_thresh']
+    d_thresh = dc.reco['track_3d']['missing_view']['d_thresh']
     min_z_overlap = dc.reco['track_3d']['missing_view']['min_z_overlap']
     trk_min_dz = dc.reco['track_3d']['missing_view']['trk_min_dz']
     q_thr = dc.reco['track_3d']['missing_view']['q_thr']
@@ -747,6 +445,8 @@ def find_3D_tracks_with_missing_view(modules):
         unwrappers = [[0,0,0]]
     else:
         unwrappers = [[0,0,0], [cf.unwrappers[modules[0]][0], 0, 0], [0, cf.unwrappers[modules[0]][1], 0], [cf.unwrappers[modules[0]][0], cf.unwrappers[modules[0]][1], 0]]
+
+    debug = False#True
     
     if(len(dc.tracks2D_list) < 2):
         return
@@ -766,7 +466,8 @@ def find_3D_tracks_with_missing_view(modules):
     ntracks = len(tracks)
     ntracks_all = len(dc.tracks2D_list)
 
-
+    if(debug): print("nb of unmatched tracks ", ntracks)
+    
     if(ntracks < 2):
         return
     
@@ -778,7 +479,8 @@ def find_3D_tracks_with_missing_view(modules):
         module_stop =  max(t.module_ini, t.module_end)
 
         rtree_trk_idx.insert(t.trackID, (module_start, t.view, stop, module_stop, t.view, start))
-
+        #if(debug): t.mini_dump()
+        
     """ R-tree with the hits associated """
     hit_pties = index.Property()
     hit_pties.dimension = 4
@@ -799,19 +501,24 @@ def find_3D_tracks_with_missing_view(modules):
         module = h.module
         rtree_hit_idx.insert(h.ID, (h.module, h.view, h.match_2D, stop, h.module, h.view, h.match_2D, start))
 
-
+    if(debug): print("\n\n\ntesting tracks\n\n")
     tested = set()
     ok_combo = []
     for t in tracks:
-
+        if(debug):
+            print('----')
+            t.mini_dump()
+        
         t_start = t.path[0][1] + trk_ztol
         t_stop  = t.path[-1][1] - trk_ztol
         module_start = min(t.module_ini, t.module_end)
         module_stop =  max(t.module_ini, t.module_end)
         
         """ get all tracks in the other views compatible in time """
-        trk_overlaps = [[] for x in range(cf.n_view)]
+        trk_overlaps = [[] if x==t.view else [None] for x in range(cf.n_view)]
 
+
+        
         for iview in range(cf.n_view):
             if(iview == t.view):
                 trk_overlaps[iview].append(t.trackID)
@@ -820,11 +527,17 @@ def find_3D_tracks_with_missing_view(modules):
                 
                 
         
-        trk_overlaps =  [[None] if not x else x for x in trk_overlaps]
+        if(debug):
+            print("nb of overlaps", [len(t) for t in trk_overlaps])
+            print(trk_overlaps)
+        
+        #trk_overlaps = [[None] if not x else x for x in trk_overlaps]
+        #trk_overlaps = [sub + [None] for sub in lst]
 
+        
         """ get all 3 tracks combinations """
         trk_comb = list(product(*trk_overlaps))
-
+        trk_comb = [c for c in trk_comb if c.count(None) == 1]
         
         for tc in trk_comb:
             """ don't test a combination already tested """
@@ -832,11 +545,8 @@ def find_3D_tracks_with_missing_view(modules):
                 continue
             else:
                 tested.add(tc)
-
-
-
-            #get_channel_from_xy(x, y, view, module):
-
+            #if(debug): print('testing ', tc)
+            
             trks = [dc.tracks2D_list[i-trk_ID_shift] for i in tc if i!=None]
             if(len(trks) == 1):
                 continue
@@ -876,13 +586,91 @@ def find_3D_tracks_with_missing_view(modules):
 
             qtrk = [(q/qtrk_tot)<q_thr for q in qtrk]
 
-            if(np.any(qtrk)):
+            if(np.any(qtrk)):                
                 continue
 
-            ok_combo.append(tc)
-            
+
+            """ new """
+            start_ov = [[] for x in range(cf.n_view)]
+            stop_ov = [[] for x in range(cf.n_view)]
+
+            for iv in range(cf.n_view):
+                if(iv == hit_min_start.view):
+                    start_ov[iv].append(hit_min_start)
+                elif(tc[iv] == None):
+                    start_ov[iv].append(None)
+                else:
+                    intersect = list(rtree_hit_idx.intersection((module_start, iv, tc[iv], starts[0][0]-hit_ztol, module_stop, iv, tc[iv], starts[0][0]+hit_ztol)))
+                    [start_ov[iv].append(dc.hits_list[k-hits_ID_shift]) for k in intersect]
+
+                if(iv == hit_max_stop.view):
+                    stop_ov[iv].append(hit_max_stop)
+                elif(tc[iv] == None):
+                    stop_ov[iv].append(None)
+                else:
+                    intersect = list(rtree_hit_idx.intersection((module_start, iv, tc[iv], stops[-1][0]-1, module_stop, iv, tc[iv], stops[-1][0]+1)))
+                    [stop_ov[iv].append(dc.hits_list[k-hits_ID_shift]) for k in intersect]
+
+
+            for u in unwrappers:
+                unwrap = u
+                start_ok, stop_ok = False, False
+
+                start_d, start_xy, start_comb = h3d.compute_xy(start_ov, hit_min_start, d_thresh, u)
+                stop_d, stop_xy, stop_comb = h3d.compute_xy(stop_ov, hit_max_stop, d_thresh, u)                        
+                if(start_d>=0 and stop_d>=0):
+                    
+                    test_start = [np.fabs(h.X - get_view_pos_from_xy(start_xy[0], start_xy[1], h.view, h.module)) for h in start_comb if h is not None]
+                    test_stop = [np.fabs(h.X - get_view_pos_from_xy(stop_xy[0], stop_xy[1], h.view, h.module)) for h in stop_comb if h is not None]
+
+                    if(all(t < d_thresh for t in test_start) and all(t < d_thresh for t in test_stop)):
+                        if(debug):
+                            print('\nCOMBINATION MATCHES ',tc)
+                            print('start', start_d, "at ", start_xy)                        
+                            [h.mini_dump() for h in start_comb if h is not None]
+                            print("TEST STARTS ", test_start)
+
+                            print('\nstop', stop_d, "at", stop_xy)                
+                            [h.mini_dump() for h in stop_comb if h is not None]
+
+                            print('TEST STOP ', test_stop)
+                            print(' ------ \n')
+                
+
+                        ok_combo.append(tc)
+
+
+    
+    sparse = np.zeros((ntracks_all, ntracks_all))
+    for c in ok_combo:
+        ta, tb, tc = c
+        
+        if(ta==None): sparse[tb-trk_ID_shift, tc-trk_ID_shift] = 1
+        if(tb==None): sparse[ta-trk_ID_shift, tc-trk_ID_shift] = 1
+        if(tc==None): sparse[ta-trk_ID_shift, tb-trk_ID_shift] = 1
+
+
+    
+    graph = csr_matrix(sparse)
+    n_components, labels = connected_components(csgraph=graph, directed=False, return_labels=True)
+
+    count = Counter(labels)
+
+    n_3D_tracks = sum([1 if k>1 else 0 for k in count.values()])
+
+    ok_combo = []
+    for lab, nelem in count.items():
+        if(nelem < 2 or nelem > 3):
+            continue
+        else:
+            combin = np.where(labels == lab)[0]
+            nviews = len(set([dc.tracks2D_list[x].view for x in combin]))
+            if(nviews == nelem):
+                ok_combo.append(combin)
+
+    
     for tc in ok_combo:
-        flat_tracks = [dc.tracks2D_list[x-trk_ID_shift] for x in tc if x!=None]
+        flat_tracks = [dc.tracks2D_list[x] for x in tc if x!=None]
         t3D = complete_trajectories(flat_tracks)
 
         isok = check_track_3D(t3D)        
@@ -904,11 +692,13 @@ def find_3D_tracks_with_missing_view(modules):
 
 
         
-
+        if(debug):
+            print(tc,": 3D track made")
+            t3D.dump()
         trk_ID = dc.evt_list[-1].n_tracks3D + dc.n_tot_trk3d #+1
         t3D.ID_3D = trk_ID
 
-        correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+        #tmg.compute_timing(t3D)#, dx_tol, dy_tol, dz_tol)
 
         dc.tracks3D_list.append(t3D)
         dc.evt_list[-1].n_tracks3D += 1
@@ -1175,7 +965,7 @@ def find_track_3D_rtree_new(modules, debug=False):
         
         trk_ID = dc.evt_list[-1].n_tracks3D + dc.n_tot_trk3d #+1
         t3D.ID_3D = trk_ID
-        correct_timing(t3D, dx_tol, dy_tol, dz_tol)
+        #tmg.compute_timing(t3D)#, dx_tol, dy_tol, dz_tol)
 
 
         
