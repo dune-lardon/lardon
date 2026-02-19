@@ -27,8 +27,17 @@ def set_unused_channels():
         else:
             dc.alive_chan[i] = True
 
+def update_unused_daq_channels(daq_start, daq_stop):
+    """ if cards are disconnected (=no data in link) update unused channels list """
+    daqch_start = cf.module_daqch_start[cf.imod]
 
-    
+    for i in range(daq_start, daq_stop):
+        idaq = i + daqch_start
+        
+        module, view, chan, glob = dc.chmap[idaq].module, dc.chmap[idaq].view, dc.chmap[idaq].vchan, dc.chmap[idaq].globch
+        dc.alive_chan[i] = False
+
+
 def arange_in_view_channels():
     daqch_start = cf.module_daqch_start[cf.imod]
     daqch_stop = daqch_start + cf.module_nchan[cf.imod]
@@ -320,9 +329,7 @@ def get_pdhd_bot_mapping():
             dc.chmap.append(c)
 
 
-def get_pdvd_mapping():
-
-    
+def get_pdvd_mapping():    
     strip = get_strip_length()
     calib  = get_calibration(idx=1)
     
@@ -342,10 +349,10 @@ def get_pdvd_mapping():
             slot    = int(li[9])
             card = int(10*slot+femb)
 
-            gain = calib[daqch] if len(calib)==cf.n_tot_channels else calib[module]
+            gain = calib[globch] if len(calib)==cf.n_tot_channels else calib[module]
 
             if(globch >= 0 and view >= 0 and view < cf.n_view):
-                length, capa = strip[globch]
+                length, capa = strip[daqch]
 
                 nrepet = int(np.floor(channel/cf.view_chan_repet[view]))
                 
@@ -359,25 +366,24 @@ def get_pdvd_mapping():
             c = dc.channel(daqch, globch, module, view, channel, length, capa, gain, pos, card)
             dc.chmap.append(c)
             
-        print('nb of dummy channels : ', n_dummy)
 
 def get_strip_length():
     strip = []
+    print('---> strip length is ', cf.strips_length, len(cf.strips_length))
     if(len(cf.strips_length) > 0):
         print('---> strip length is ', cf.strips_length, len(cf.strips_length))
         with open(cf.strips_length,"r") as f:
             for line in f.readlines()[1:]:
                 li = line.split()
-                view =  int(li[0])
-                vch  =  int(li[1])
-                globch = int(li[2])
-                length = float(li[3])
-                
-                capa = length*cf.view_capa[view]
-                
+                #globch = int(li[1])
+                view =  int(li[2])
+                #vch  =  int(li[3])
+                length = float(li[5])                
+                capa = length*cf.view_capa[view]                
                 strip.append( (length, capa) )
+                
     else:
-        strip = [(0,0) for x in range(cf.n_tot_channels)]
+        strip = [(1,1) for x in range(cf.n_tot_channels)]
     return strip
 
 
