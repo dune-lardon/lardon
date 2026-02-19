@@ -15,6 +15,12 @@ def build_default_reco():
         print('Please check your lardon!')
         exit()
 
+def in_range(run, key):
+    if "-" not in key:
+        return False
+    lo, hi = key.split("-")
+    return int(lo) <= run <= int(hi)
+
 
 def set_param(key, val, ref):
 
@@ -29,17 +35,27 @@ def set_param(key, val, ref):
         print('FIY, the reco parameter ', key, ' is not an official parameter ...')
 
 
-def configure(detector, custom=""):
+def configure(detector, run, custom=""):
 
     the_file = cf.lardon_path+'/settings/'+detector+'/reco_parameters.json' if custom == "" else custom
 
     try:
         with open(the_file,'r') as f:        
-            data = json.load(f)['default']
-        
-            for k, v in data.items():
+            full = json.load(f)
+            #data = json.load(f)['default']
+            
+            defaults = full.get("default", {})
+
+            for k, v in defaults.items():
                 set_param(k,v, dc.reco)
 
+            for key, subconf in full.items():
+                if key == "default":
+                    continue
+                if in_range(int(run), key):
+                    for k, v in subconf.items():
+                        set_param(k, v, dc.reco)
+                    break
 
     except IOError:
         print("WARNING: Analysis configuration ",the_file," not found.")
