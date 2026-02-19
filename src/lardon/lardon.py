@@ -173,7 +173,7 @@ def main():
 
     """ set analysis parameters """
     params.build_default_reco()
-    params.configure(detector)
+    params.configure(detector, run)
     #params.dump()
 
     
