@@ -77,7 +77,6 @@ def coherent_noise():
 
 
 def regular_coherent_noise():
-
     """
     1. Computes the mean along group of channels for non ROI points
     2. Subtract mean to all points
@@ -123,21 +122,22 @@ def coherent_noise_per_view_per_card():
     n_chan = cf.module_nchan[cf.imod]
     n_tot_chan = cf.n_tot_channels
     n_sample = cf.n_sample[cf.imod]
-
+    daqch_start = cf.module_daqch_start[cf.imod]
 
     """ channel mapping """
-    views = np.array([dc.chmap[i].view for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
-    cards = np.array([dc.chmap[i].card for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
+    views = np.array([dc.chmap[i+daqch_start].view for i in range(n_chan)])
+    cards = np.array([dc.chmap[i+daqch_start].card for i in range(n_chan)])
 
     
     # Optional per-channel weights
     capa = np.ones(n_chan)
     calib = np.ones(n_chan)
     if capa_weight:
-        capa = np.array([dc.chmap[i].capacitance for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
-    if calibrated:
-        calib = np.array([dc.calib[i] for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
+        capa = np.array([dc.chmap[i+daqch_start].capa for i in range(n_chan)])
 
+    if calibrated:
+        calib = np.array([dc.chmap[i+daqch_start].gain for i in range(n_chan)])
+    
     """ Apply calibration and capacitance weighting """
     if calibrated or capa_weight:
         dc.data_daq = dc.data_daq * (calib / capa)[:, None]
@@ -154,7 +154,27 @@ def coherent_noise_per_view_per_card():
     _, group_ids = np.unique(keys, return_inverse=True)
     n_groups = group_ids.max() + 1
 
-    
+    '''
+    #DOES NOT WORK WELL ON NOISY DATA
+    # Compute median per group and per sample
+    medians = np.zeros((n_groups, n_sample), dtype=dc.data_daq.dtype)
+
+    for g in range(n_groups):
+        idx = (group_ids == g)
+        if not np.any(idx):
+            continue
+
+        # Use masked data only
+        valid = dc.mask_daq[idx]
+        if np.any(valid):
+            medians[g] = np.median(dc.data_daq[idx][valid], axis=0)
+        else:
+            medians[g] = 0.0
+
+    # Subtract per-channel median noise
+    dc.data_daq -= medians[group_ids]
+    '''
+
     # Weighted sums per group for all samples
     sums = np.zeros((n_groups, n_sample))
     norm = np.zeros((n_groups, n_sample))
@@ -172,9 +192,9 @@ def coherent_noise_per_view_per_card():
     means[norm == 0] = 0.0
 
     """ Subtract group mean from each channel """
-
     dc.data_daq -= means[group_ids]
-
+    
+    
     """ Reverse calibration """ 
     if calibrated or capa_weight:
         dc.data_daq = dc.data_daq * (capa / calib)[:, None]
@@ -182,7 +202,6 @@ def coherent_noise_per_view_per_card():
       
     
 def coherent_noise_per_view():
-
 
     groupings = dc.reco['noise']['coherent']['groupings']
     capa_weight = bool(dc.reco['noise']['coherent']['capa_weight'])
@@ -224,21 +243,12 @@ def coherent_noise_per_view():
         data_sliced  = dc.data_daq.reshape(n_slices, group, n_sample)
         mask_sliced  = dc.mask_daq.reshape(n_slices, group, n_sample)
         v_daq_sliced = v_daq.reshape(n_slices, group, n_sample)
-
-        #tmp_views = views.reshape(n_slices, group)
-        #print('temp :: ', tmp_views.shape)
-        
-        #print('data: ', data_sliced.shape)
-        #data_tmp  = np.zeros((n_slices, group, n_sample))
         
         mean = np.zeros((n_slices, n_sample))
     
         for i in range(cf.n_view):
-            #tmp_views_sel = (tmp_views == i)
-            #print([(k,np.sum(tmp_views_sel[k])) for k in range(5)])
             """ Create view mask """
             view_mask = (v_daq_sliced == i)
-            #print(" view ", i, view_mask.shape, "=::", np.sum(view_mask, axis=0), ' or ', np.sum(view_mask, axis=1))
             
             combined_mask = view_mask & mask_sliced
         
@@ -252,15 +262,12 @@ def coherent_noise_per_view():
         
             """ Subtract mean """
             data_sliced -= mean[:, None, :] * view_mask
-            #data_tmp += mean[:, None, :] * view_mask
+
 
             
         """ Restore original shape """
         dc.data_daq = data_sliced.reshape(n_chan, n_sample)
         dc.mask_daq = mask_sliced.reshape(n_chan, n_sample)
-
-        #data_tmp = data_tmp.reshape(n_chan, n_sample)
-        #dc.data_daq = data_tmp        
         
     """ Reverse calibration """ 
     if calibrated or capa_weight:
@@ -281,8 +288,6 @@ def shield_coupling():
     n_chan = cf.module_nchan[cf.imod]##
     n_sample = cf.n_sample[cf.imod]
     daqch_start = cf.module_daqch_start[cf.imod]
-
-    #print(n_chan, 'and ', daqch_start)
     
     """ Initialize arrays """
     v_daq = np.empty((n_chan, n_sample), dtype=np.int32)
@@ -290,27 +295,25 @@ def shield_coupling():
     calib = np.ones(n_chan)
 
     if capa_weight:
-        capa[:] = [dc.chmap[i].capa for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod]
+        capa = np.array([dc.chmap[i+daqch_start].capa for i in range(n_chan)])
     if calibrated:
-        calib[:] = [dc.chmap[i].gain for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod]
-
+        calib = np.array([dc.chmap[i+daqch_start].gain for i in range(n_chan)])
 
     
     """ Apply calibration and capacitance weighting """
     if calibrated or capa_weight:
         dc.data_daq = dc.data_daq * (calib / capa)[:, None]
 
-
+    """ only channels in the view 0 """
     views = np.array([int(dc.chmap[i].vchan // group)  if dc.chmap[i].view==0  else -1 for i in range(n_tot_chan) if dc.chmap[i].module==cf.imod])
 
-
-
     for icru in range(2):
-        idx = (views == icru)
-        if not np.any(idx):
+        idx = (views == icru) #only channels in this CRU
+        alive_idx = idx & dc.alive_chan  #only alive channels
+        if not np.any(alive_idx):
             continue
-        med = np.median(dc.data_daq[idx, :], axis=0)
-        dc.data_daq[idx, :] -= med
+        med = np.median(dc.data_daq[alive_idx, :], axis=0)
+        dc.data_daq[alive_idx, :] -= med #remove median noise to alive channels only
 
     
     """ Reverse calibration """ 
