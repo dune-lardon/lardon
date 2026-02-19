@@ -298,14 +298,14 @@ def recompute_hit_charge(hit):
 
         
 def find_hits():
-    min_thr       = dc.reco['hit_finder']['min_thr']
-    pad_left      = dc.reco['hit_finder']['pad']['left']
-    pad_right     = dc.reco['hit_finder']['pad']['right']
-    dt_min        = dc.reco['hit_finder']['dt_min']
-    n_sig_coll_1  = dc.reco['hit_finder']['coll']['amp_sig'][0]
-    n_sig_coll_2  = dc.reco['hit_finder']['coll']['amp_sig'][1]
-    n_sig_ind     = dc.reco['hit_finder']['ind']['amp_sig']
-    merge_tdc_thr =  dc.reco['hit_finder']['ind']['merge_tdc_thr']
+    min_thr       = dc.reco['hit_finder']['min_thr'][cf.imod]
+    pad_left      = dc.reco['hit_finder']['pad']['left'][cf.imod]
+    pad_right     = dc.reco['hit_finder']['pad']['right'][cf.imod]
+    dt_min        = dc.reco['hit_finder']['dt_min'][cf.imod]
+    n_sig_coll_1  = dc.reco['hit_finder']['coll']['amp_sig'][cf.imod][0]
+    n_sig_coll_2  = dc.reco['hit_finder']['coll']['amp_sig'][cf.imod][1]
+    n_sig_ind     = dc.reco['hit_finder']['ind']['amp_sig'][cf.imod]
+    merge_tdc_thr =  dc.reco['hit_finder']['ind']['merge_tdc_thr'][cf.imod]
 
     
     """ get boolean roi based on mask and alive channels """

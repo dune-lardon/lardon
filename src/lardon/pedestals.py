@@ -73,8 +73,8 @@ def compute_pedestal_nb(data, mask, is_raw):
 
             
         if( n < 10 ):
-            mean[idx] = -1.
-            res[idx] = -1.
+            mean[idx] = 0.#-1.
+            res[idx] = 0.#-1.
         else:
             val = np.sqrt((Ex2 - (Ex*Ex)/n)/(n-1))
             res[idx] = min_val if val < min_val else val
@@ -157,29 +157,29 @@ def refine_mask(n_pass = 1):
         if(cf.view_type[cf.imod][view] == "Collection"): 
 
             mask_collection_signal(dc.mask_daq[ch], dc.data_daq[ch],
-                                   dc.reco['mask']['coll']['min_dt'],
-                                   dc.reco['mask']['coll']['low_thr'][n_pass-1]*rms,
-                                   dc.reco['mask']['coll']['high_thr'][n_pass-1]*rms,
-                                   dc.reco['mask']['coll']['min_rise'],
-                                   dc.reco['mask']['coll']['min_fall'],
-                                   dc.reco['mask']['coll']['pad_bef'],
-                                   dc.reco['mask']['coll']['pad_aft'], debug)
+                                   dc.reco['mask']['coll']['min_dt'][cf.imod],
+                                   dc.reco['mask']['coll']['low_thr'][cf.imod][n_pass-1]*rms,
+                                   dc.reco['mask']['coll']['high_thr'][cf.imod][n_pass-1]*rms,
+                                   dc.reco['mask']['coll']['min_rise'][cf.imod],
+                                   dc.reco['mask']['coll']['min_fall'][cf.imod],
+                                   dc.reco['mask']['coll']['pad_bef'][cf.imod],
+                                   dc.reco['mask']['coll']['pad_aft'][cf.imod], debug)
             
         else:
             mask_induction_signal(dc.mask_daq[ch], dc.data_daq[ch],
-                                  dc.reco['mask']['ind']['max_dt_pos_neg'],
-                                  dc.reco['mask']['ind']['pos']['min_dt'],
-                                  dc.reco['mask']['ind']['pos']['low_thr'][n_pass-1]*rms,
-                                  dc.reco['mask']['ind']['pos']['high_thr'][n_pass-1]*rms,
-                                  dc.reco['mask']['ind']['pos']['min_rise'],
-                                  dc.reco['mask']['ind']['pos']['min_fall'],
-                                  dc.reco['mask']['ind']['neg']['min_dt'],
-                                  dc.reco['mask']['ind']['neg']['low_thr'][n_pass-1]*rms,
-                                  dc.reco['mask']['ind']['neg']['high_thr'][n_pass-1]*rms,
-                                  dc.reco['mask']['ind']['neg']['min_rise'],
-                                  dc.reco['mask']['ind']['neg']['min_fall'],
-                                  dc.reco['mask']['ind']['pad_bef'],
-                                  dc.reco['mask']['ind']['pad_aft'])
+                                  dc.reco['mask']['ind']['max_dt_pos_neg'][cf.imod],
+                                  dc.reco['mask']['ind']['pos']['min_dt'][cf.imod],
+                                  dc.reco['mask']['ind']['pos']['low_thr'][cf.imod][n_pass-1]*rms,
+                                  dc.reco['mask']['ind']['pos']['high_thr'][cf.imod][n_pass-1]*rms,
+                                  dc.reco['mask']['ind']['pos']['min_rise'][cf.imod],
+                                  dc.reco['mask']['ind']['pos']['min_fall'][cf.imod],
+                                  dc.reco['mask']['ind']['neg']['min_dt'][cf.imod],
+                                  dc.reco['mask']['ind']['neg']['low_thr'][cf.imod][n_pass-1]*rms,
+                                  dc.reco['mask']['ind']['neg']['high_thr'][cf.imod][n_pass-1]*rms,
+                                  dc.reco['mask']['ind']['neg']['min_rise'][cf.imod],
+                                  dc.reco['mask']['ind']['neg']['min_fall'][cf.imod],
+                                  dc.reco['mask']['ind']['pad_bef'][cf.imod],
+                                  dc.reco['mask']['ind']['pad_aft'][cf.imod])
             
 
 
