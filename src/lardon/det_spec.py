@@ -112,7 +112,8 @@ def configure(detector, run, do_pds, hash_path):
         cf.y_boundaries = [[float(x) for x in xv] for xv in data['y_boundaries']]
 
         try : 
-            cf.strips_length = cf.lardon_path+"/settings/chmap/"+data['strips_length']
+            cf.strips_length = cf.lardon_path+"/settings/chmap/"+data['strips_length'] if len(data['strips_length']) >0 else ""
+
         except KeyError:
             print('No strip length available')
             
