@@ -59,3 +59,53 @@ def plot_noise_all_crps(option=None, to_be_shown=False):
 
     if(to_be_shown):
         plt.show()
+
+
+
+def plot_noise_vs_length_all_crps(option=None, to_be_shown=False):
+
+    
+    fig = plt.figure(figsize=(12,4))
+    gs = gridspec.GridSpec(nrows=2, 
+                           ncols=2)#, wspace=0.08)
+    
+
+
+    ax_crps  = [fig.add_subplot(gs[1,0]), fig.add_subplot(gs[1,1]), fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1])] 
+    
+
+    ch_start = [0, 3072, 6144, 9216]
+    nch = 3072
+    crp_name = cf.module_name
+
+    raw = chmap.arange_in_glob_channels(list(itr.chain.from_iterable(x.ped_rms for x in dc.evt_list[-1].noise_raw)))
+    filt = chmap.arange_in_glob_channels(list(itr.chain.from_iterable(x.ped_rms for x in dc.evt_list[-1].noise_filt)))
+    daq_lengthes = [dc.chmap[i].capa for i in range(cf.n_tot_channels)]
+    lengthes = chmap.arange_in_glob_channels(daq_lengthes)
+    print(len(raw))
+    
+    for i in range(cf.n_module):
+
+        ax_crps[i].set_title(crp_name[i])
+        #chan = np.linspace(ch_start[i], ch_start[i]+nch, nch, endpoint=False)
+        length = lengthes[ch_start[i]:ch_start[i]+nch]
+        ax_crps[i].scatter(length, raw[ch_start[i]:ch_start[i]+3072], s=2, c='k', label='raw')
+        ax_crps[i].scatter(length, filt[ch_start[i]:ch_start[i]+3072], s=2, c='r', label='filtered')
+
+        #ax_crps[i].set_xlim(chan[0], chan[-1])
+        ax_crps[i].set_ylim(0, 50)
+    for ax in ax_crps:
+        ax.set_ylabel('Ped. RMS [ADC]')
+        ax.set_xlabel('Global Channel Nb')
+
+    plt.tight_layout()
+
+
+    save_with_details(fig, option, 'noise_vs_length_all_crps')
+
+
+    if(to_be_shown):
+        plt.show()
+
+
+
