@@ -652,7 +652,6 @@ class wib:
                 """ reshape the dc arrays accordingly """
                 dc.data = np.zeros((cf.n_module, cf.n_view, max(cf.view_nchan), cf.n_sample[cf.imod]), dtype=np.float32)
                 dc.data_daq = np.zeros((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]), dtype=np.float32) #view, vchan
-                #dc.alive_chan = np.ones((cf.n_tot_channels, cf.n_sample), dtype=bool)
                 dc.alive_chan = np.ones(cf.module_nchan[cf.imod], dtype=bool)
 
                 cmap.set_unused_channels()
@@ -813,8 +812,6 @@ class wib:
         if(len(tstart_link)==0):
             return
 
-        #print('n links ', len(tstart_link))
-        #print(tstart_link)
         tstart = np.nanmin(tstart_link) if len(tstart_link)>0 else 0
         if(np.isnan(tstart)):
            return
@@ -830,14 +827,39 @@ class wib:
         dc.data_daq = np.zeros((cf.module_nchan[cf.imod], cf.n_sample[cf.imod]), dtype=np.float32) #view, vchan
         event_begin = tstart
         event_end   = tstop
+
+
+
+        if(cf.n_sample[cf.imod] > 0):#llll
+
+            dc.data = np.zeros(( cf.n_view, max(cf.view_nchan), cf.n_sample[cf.imod]), dtype=np.float32)
+            new_shape = (cf.module_nchan[cf.imod], cf.n_sample[cf.imod])
+            dc.alive_chan = np.ones(cf.module_nchan[cf.imod], dtype=bool)
+            cmap.set_unused_channels()
+            dc.mask_daq  = np.ones(new_shape, dtype=bool)
+
+                    
+            charge_tstart = np.nanmin(tstart_link)*32
+            ts = get_unix_timestamp_wib_2(charge_tstart)
+            #t_s, t_ns = get_unix_time_wib_2(charge_tstart)
+
+            #print('min of start link ', min(tstart_link), ' --> ', min(tstart_link)*32)
+            #print('<-> timestamp ', ts)
+            
+            dc.evt_list[-1].set_charge_timestamp(cf.imod, ts)
+
+
         
 
+        """ 2nd pass, read again to extract data with proper times """
         for ilink in range(self.nlinks[cf.imod]):   
             name = names[ilink]
             try :
                 path = f"/{self.events_list[ievt]}/RawData/Detector_Readout_{name}_{cf.daq_link_name[cf.imod]}"
                 link_data = self.f_in[path][:]                
             except KeyError:
+                """ update unused channels here """
+                cmap.update_unused_daq_channels(ilink*self.n_chan_per_link, (ilink+1)*self.n_chan_per_link)
                 continue
 
             link_data = link_data[self.fragment_header_size:]
@@ -939,9 +961,9 @@ class wib:
 
 
 
-            if(out.shape[1] != dc.data_daq.shape[1]):
-                
+            if(out.shape[1] != dc.data_daq.shape[1]):                
                 continue
+            
             dc.data_daq[ilink*self.n_chan_per_link:(ilink+1)*self.n_chan_per_link] = out
         
         #self.nlinks = 0
@@ -949,23 +971,6 @@ class wib:
 
         
 
-        if(cf.n_sample[cf.imod] > 0):
-
-            dc.data = np.zeros(( cf.n_view, max(cf.view_nchan), cf.n_sample[cf.imod]), dtype=np.float32)
-            new_shape = (cf.module_nchan[cf.imod], cf.n_sample[cf.imod])
-            dc.alive_chan = np.ones(cf.module_nchan[cf.imod], dtype=bool)
-            cmap.set_unused_channels()
-            dc.mask_daq  = np.ones(new_shape, dtype=bool)
-
-                    
-            charge_tstart = np.nanmin(tstart_link)*32
-            ts = get_unix_timestamp_wib_2(charge_tstart)
-            #t_s, t_ns = get_unix_time_wib_2(charge_tstart)
-
-            #print('min of start link ', min(tstart_link), ' --> ', min(tstart_link)*32)
-            #print('<-> timestamp ', ts)
-            
-            dc.evt_list[-1].set_charge_timestamp(cf.imod, ts)
 
     def read_pds_evt(self, ievt):
         self.pds_decode.read_pds_evt(self.events_list[ievt])
