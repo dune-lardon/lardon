@@ -90,17 +90,13 @@ def charge_signal_proc(deb, is_online):
         ped.set_dummy_pedestals()
         print("setting dummy pedestals")
         return
-
-
-
+    
     """ mask the unused channels """
     dc.mask_daq = np.logical_and(dc.mask_daq, dc.alive_chan[:,None])
 
     t1 =time.time()
     """ compute the raw pedestal to get a rough mask estimate """
     ped.compute_pedestal(noise_type='raw')
-
-
     
     """ update the pedestal and ROI """
     for n_iter in range(2):
@@ -114,8 +110,13 @@ def charge_signal_proc(deb, is_online):
 
     if(is_online):
         plot.event_display_per_view([-100, 100],[-50, 300], option='raw', to_be_shown=False)
+
+    """
+    if(cf.imod < 4):
+        print('raw')
+        plot.event_display_per_view([-50, 50],[-10, 150], option='raw', to_be_shown=True)
+    """
     
-    #plot.event_display_per_view([-50, 50],[-10, 150], option='raw', to_be_shown=True)
     t1 = time.time()
     """ low pass FFT cut """    
     #ps = noise.FFT_low_pass(True)
@@ -144,9 +145,6 @@ def charge_signal_proc(deb, is_online):
         ped.compute_pedestal(noise_type='filt')
         ped.refine_mask(n_pass=2)
     deb.ped_2[cf.imod] = time.time()-t1
-
-
-
     
     """ special microphonic noise study """
     ped.study_noise()
@@ -157,14 +155,17 @@ def charge_signal_proc(deb, is_online):
 
     """ only for PDVD TDE View 0 """
     noise.shield_coupling()    
+
+
     noise.coherent_noise()
-    
+
     deb.cnr[cf.imod] = time.time()-t1
 
     
     """ microphonic noise removal """
     noise.median_filter()
-            
+
+    
     t1 = time.time()
     """ finalize pedestal RMS and ROI """
     ped.compute_pedestal(noise_type='filt')
@@ -172,6 +173,11 @@ def charge_signal_proc(deb, is_online):
     ped.compute_pedestal(noise_type='filt')
     deb.ped_3[cf.imod] = time.time()-t1
 
+    """
+    if(cf.imod < 2):
+        print('after microphonic')
+        plot.event_display_per_view([-50, 50],[-10, 150], option='micro', to_be_shown=True)
+    """
 
 
     #return ps, corr
@@ -194,10 +200,8 @@ def charge_reco(deb, is_online):
     deb.hit_f[cf.imod] = time.time()-t1
     print("----- Number of Hits found per view: ", dc.evt_list[-1].n_hits[:,cf.imod])
 
-    """
-    if(cf.imod < 2):
-        plot.event_display_per_view_hits_found([-50, 50],[-10, 150], option='filt', to_be_shown=True)
-    """
+    
+    
     """ build hits R-tree used in track2D and single hit searches """
     clu.hits_rtree([cf.imod])
     
@@ -252,8 +256,13 @@ def charge_reco(deb, is_online):
     deb.single[cf.imod] = time.time()-t1
     print('-- Number of blips found: ', len(dc.single_hits_list)-nSH_prev, " total: ", len(dc.single_hits_list))
 
-
-    #plot.event_display_per_view_hits_found([-50, 50],[-10, 150], option='reco', to_be_shown=True)       
+    """
+    if(cf.imod < 4):
+        plot.event_display_per_view_hits_found([-50, 50],[-10, 150], option='filt', to_be_shown=True)
+    """
+    
+    #plot.event_display_per_view_hits_found([-50, 50],[-10, 150], option='reco', to_be_shown=True)    
+        
     #plot.plot_2dview_hits_3dtracks([cf.imod], option=None, to_be_shown=True)
 
 def charge_reco_whole(is_online):
@@ -271,14 +280,18 @@ def charge_reco_whole(is_online):
 
 
     tmg.compute_all_track_timing()
-    #[t.dump() for t in dc.tracks3D_list]
+    
     
     if(is_online):
         plot.plot_3d(to_be_shown=True)
         plot.plot_noise_all_crps(to_be_shown=True)
 
+
+
+    #[t.dump() for t in dc.tracks3D_list]
     #plot.plot_3d(to_be_shown=True)    
-    #plot.plot_one_track_3D(dc.tracks3D_list[0], option=None, to_be_shown=True)
+    #plot.plot_one_track_3D(dc.tracks3D_list[13], option=None, to_be_shown=True)
+    #plot.plot_one_track_3D(dc.tracks3D_list[22], option=None, to_be_shown=True)
 
     
 def match_charge_and_pds():
