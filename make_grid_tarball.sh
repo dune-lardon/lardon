@@ -6,33 +6,70 @@
 #   lardon/src/...  <- the lardon package (+ settings/)
 #   setup.sh        <- runtime activation handler
 #
-# One-liner (from anywhere):
-#   bash /path/to/lardon/make_grid_tarball.sh [ENV_NAME] [OUTPUT_TARBALL]
+# Usage (from anywhere):
+#   bash /path/to/lardon/make_grid_tarball.sh [options]
 #
-# Defaults : ENV_NAME=grid   OUTPUT=<repo>/lardon-<ENV_NAME>.tar
-# Overrides: PIXI=/path/to/pixi   STAGE=/path/to/staging   KEEP_STAGING=1
+# Options:
+#   -e, --env NAME       pixi environment to pack            (default: grid)
+#   -o, --output FILE    output tarball path                 (default: <repo>/lardon-<env>.tar)
+#   -p, --pixi PATH      path to the pixi binary             (default: from PATH, else $PIXI_HOME/bin/pixi)
+#   -s, --stage DIR      staging directory                   (default: <repo>/.pkg_<env>)
+#   -k, --keep-staging   keep the staging dir (don't delete it afterward)
+#   -h, --help           show this help and exit
 #
 # Notes:
-#  - Requires pixi on PATH (or $PIXI). Installs the env if it isn't built yet.
+#  - Requires pixi (on PATH or via --pixi). Installs the env if it isn't built yet.
 #  - Run inside the TARGET OS (e.g. the SL7 container) so binaries match the grid nodes.
 
 set -euo pipefail
+
+# print the leading comment block (everything from line 2 up to the first non-# line)
+usage() { awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "${BASH_SOURCE[0]:-$0}"; }
 
 # Repo root = the directory holding this script (alongside setup.sh / pixi.toml).
 _SRC="${BASH_SOURCE[0]:-$0}"
 PROJ="$(cd "$(dirname "$_SRC")" && pwd)"
 
-ENV_NAME="${1:-grid}"
-OUT="${2:-$PROJ/lardon-${ENV_NAME}.tar}"
-STAGE="${STAGE:-$PROJ/.pkg_${ENV_NAME}}"
+# --- defaults ---
+ENV_NAME="grid"
+OUTPUT=""
+PIXI=""
+STAGE=""
+KEEP_STAGING=0
+
+# --- parse flags ---
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -e|--env)          shift; [ $# -ge 1 ] || { echo "ERROR: --env requires a value"    >&2; exit 2; }; ENV_NAME="$1" ;;
+    --env=*)           ENV_NAME="${1#*=}" ;;
+    -o|--output)       shift; [ $# -ge 1 ] || { echo "ERROR: --output requires a value" >&2; exit 2; }; OUTPUT="$1" ;;
+    --output=*)        OUTPUT="${1#*=}" ;;
+    -p|--pixi)         shift; [ $# -ge 1 ] || { echo "ERROR: --pixi requires a value"   >&2; exit 2; }; PIXI="$1" ;;
+    --pixi=*)          PIXI="${1#*=}" ;;
+    -s|--stage)        shift; [ $# -ge 1 ] || { echo "ERROR: --stage requires a value"  >&2; exit 2; }; STAGE="$1" ;;
+    --stage=*)         STAGE="${1#*=}" ;;
+    -k|--keep-staging) KEEP_STAGING=1 ;;
+    -h|--help)         usage; exit 0 ;;
+    --)                shift; break ;;
+    -*)                echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *)                 echo "ERROR: unexpected argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+# --- apply derived defaults ---
+[ -n "$OUTPUT" ] || OUTPUT="$PROJ/lardon-${ENV_NAME}.tar"
+[ -n "$STAGE" ]  || STAGE="$PROJ/.pkg_${ENV_NAME}"
 
 # Locate pixi.
-PIXI="${PIXI:-$(command -v pixi || true)}"
-if [ -z "$PIXI" ] && [ -x "${PIXI_HOME:-$HOME/.pixi}/bin/pixi" ]; then
-  PIXI="${PIXI_HOME:-$HOME/.pixi}/bin/pixi"
+if [ -z "$PIXI" ]; then
+  PIXI="$(command -v pixi || true)"
+  if [ -z "$PIXI" ] && [ -x "${PIXI_HOME:-$HOME/.pixi}/bin/pixi" ]; then
+    PIXI="${PIXI_HOME:-$HOME/.pixi}/bin/pixi"
+  fi
 fi
 if [ -z "$PIXI" ] || [ ! -x "$PIXI" ]; then
-  echo "ERROR: pixi not found. Put it on PATH or set PIXI=/path/to/pixi." >&2
+  echo "ERROR: pixi not found. Put it on PATH or pass --pixi /path/to/pixi." >&2
   exit 1
 fi
 
@@ -63,15 +100,15 @@ echo "[4/5] adding lardon source + setup.sh"
 cp -r "$PROJ/src/lardon" "$STAGE/lardon/src/"
 cp "$PROJ/setup.sh" "$STAGE/setup.sh"
 
-echo "[5/5] writing tarball: $OUT"
-tar -C "$STAGE" -czf "$OUT" .
-[ "${KEEP_STAGING:-0}" = "1" ] || rm -rf "$STAGE"
+echo "[5/5] writing tarball: $OUTPUT"
+tar -C "$STAGE" -czf "$OUTPUT" .
+[ "$KEEP_STAGING" = "1" ] || rm -rf "$STAGE"
 
 echo
 echo "Done."
-ls -lh "$OUT"
-command -v sha1sum >/dev/null 2>&1 && echo "sha1: $(sha1sum "$OUT" | awk '{print $1}')"
+ls -lh "$OUTPUT"
+command -v sha1sum >/dev/null 2>&1 && echo "sha1: $(sha1sum "$OUTPUT" | awk '{print $1}')"
 echo
 echo "Next:"
-echo "  justin-cvmfs-upload $OUT      # from an RCDS-reachable node; prints INPUT_TAR_DIR_LOCAL"
+echo "  justin-cvmfs-upload $OUTPUT      # from an RCDS-reachable node; prints INPUT_TAR_DIR_LOCAL"
 echo "  source \$INPUT_TAR_DIR_LOCAL/setup.sh   # in the job, then run lardon-run ..."
