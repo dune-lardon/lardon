@@ -12,6 +12,8 @@ gallery_plots
 *.def
 *.sif
 *.sh
+!setup.sh
+!make_grid_tarball.sh
 # Virtual environment
 .venv/
 
