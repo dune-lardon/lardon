@@ -25,6 +25,11 @@ json-with-comments = ">=1.2.10, <2"
 
 lardon={path='.', editable = true }
 
+# Lean environment for grid jobs: minimal prod deps plus xrootd (for remote file access).
+# Built and shipped via conda-pack + setup.sh; see plan / setup.sh.
+[feature.grid.dependencies]
+xrootd = "*"
+
 [feature.local.dependencies]
 xrootd = "*"
 iminuit = "*"
@@ -57,5 +62,6 @@ check = "ruff check"
 
 [environments]
 prod = { solve-group = "prod" }
+grid = { features = ["grid"], solve-group = "prod" }
 test = { features = ["test"], solve-group = "prod" }
 default = { features = ["local", "dev", "test"], solve-group = "prod" }
