@@ -53,8 +53,8 @@ def get_daq_header(daq):
         ])
     else:
         daq_header_type = np.dtype([
-            ("w0", '<u4'),      
-            ("w1", '<u4'),
+            ("w0", '<u8'),      
+            ("timestamp", '<u8'),
         ])        
     return daq_header_type
 
@@ -75,7 +75,7 @@ def decode_daq_header(x, daq):
 
     else:
         w0 = x['w0']
-        w1 = x['w1']
+        timestamp = x['timestamp']
 
         return  {
             "version":      get_bits(w0, 0, 6),
@@ -86,7 +86,7 @@ def decode_daq_header(x, daq):
             "reserved":     get_bits(w0, 34, 6),
             "seq_id":       get_bits(w0, 40, 12),
             "block_length": get_bits(w0, 52, 12),
-            "timestamp":    w1
+            "timestamp":    timestamp
         }
 
 
@@ -100,16 +100,18 @@ def get_daphne_header(daq):
         ])
     else:
         daphne_header_type = np.dtype([
-            ("w0", '<u4'),
-            ("w1", '<u4'),
-            ("w2", '<u4'),
-            ("w3", '<u4'),
-            ("w4", '<u4'),
-            ("w5", '<u4'),
-            ("w6", '<u4'),
+            ("w0", '<u8'),
+            ("w1", '<u8'),
+            ("w2", '<u8'),
+            ("w3", '<u8'),
+            ("w4", '<u8'),
+            ("w5", '<u8'),
+            ("w6", '<u8'),
             
         ])        
     return daphne_header_type
+
+            
 
 
 def decode_daphne_header(x, daq):
@@ -332,7 +334,9 @@ class daphne:
                 self.read_pds_felix_stream(evt, link_name, offset, nstream)            
             elif(daq == 'daphne_felix_trigger'):
                 self.read_pds_felix_trigger(evt, link_name, offset, nstream)
-            
+            elif(daq == 'daphne_eth_trigger'):
+                self.read_pds_eth_trigger(evt, link_name, offset, nstream)
+                
     def read_pds_felix_stream(self, evt, link_name, offset, nstream):        
         cf.n_pds_stream_sample = -1
         
@@ -452,10 +456,7 @@ class daphne:
         
         
         frame_size = daq_header_size + daphne_header_size + num_adc_size + daphne_peak_size
-        
-        
-
-
+               
         
         names = ["0x"+format(istream*10+offset, '08x') for istream in range(nstream)]
 
@@ -504,6 +505,137 @@ class daphne:
             slots = (frames["daq"]["w0"] >>22) & 0xF
             channels = frames["hdr"]["w0"] & 0x3F
 
+            daq_trigger_offset = cf.pds_daqch_trig_start
+            new_chan = slots*100 + channels
+            """ mask to ignore peaks from PDS we are not interested in """
+            mask_ch = np.in1d(new_chan, self.ok_chans, assume_unique=False)
+
+            """ convert channel nb into daq number """
+            daq_chans = np.asarray([self.chan2daq[x]-daq_trigger_offset if m==True else -1 for x,m in zip(new_chan, mask_ch)], dtype=np.int32)
+            daq_chans_chunk.append(daq_chans)
+            
+            adc_words = frames["adc"]
+            adcs = read_felix_adc_trigger(adc_words)
+
+            adcs_chunk.append(adcs)
+            
+        if(len(times_chunk) == 0):
+            return
+        times = np.concatenate(times_chunk)#, dtype=np.float64)
+        daq_chans = np.concatenate(daq_chans_chunk)
+        adcs = np.concatenate(adcs_chunk, axis=0)
+
+        min_t, max_t = min(times), max(times)
+        cf.n_pds_trig_sample = int(max_t - min_t)+1024
+
+        ts = get_unix_timestamp_wib_2(min_t)
+        #The timestamp given in the DAQ header corresponds to the time of the trigger which is 64 ticks after the 1st sample
+        ts = ts - 64/cf.pds_sampling*1e-6
+        dc.evt_list[-1].set_pds_trig_timestamp(ts)
+
+
+        #print('PDS TRIGGER timestamp ', get_unix_time_wib_2(min_t))
+        #print('TS = ', ts)
+
+        times = times-min_t
+        if(cf.n_pds_trig_sample != dc.data_trig_pds.shape[-1]):
+            dc.data_trig_pds = np.zeros((cf.n_pds_trig_channels, cf.n_pds_trig_sample), dtype=np.float32)
+            dc.data_trig_pds[:] = np.nan
+
+        assemble_waveforms(dc.data_trig_pds, daq_chans, times, adcs)
+        
+
+
+
+    def read_pds_eth_trigger(self, evt, link_name, offset, nstream):
+        cf.n_pds_trig_sample = -1
+        
+        daq_header_type = get_daq_header('daphne_eth_trigger')
+        daq_header_size = daq_header_type.itemsize
+
+        daphne_header_type = get_daphne_header('daphne_eth_trigger')
+        daphne_header_size = daphne_header_type.itemsize
+        
+        #daphne_peak_type = get_daphne_peak('daphne_eth_trigger')
+        #daphne_peak_size = daphne_peak_type.itemsize
+
+        num_adc_size = self.num_adc * self.n_bits_per_adc // 8
+
+        print('DAQ HEADER SIZE ', daq_header_size)
+        print('DAPHNE HEADER SIZE ', daphne_header_size)
+        print('num adc size = ', num_adc_size)
+        
+        
+        frame_dtype = np.dtype([
+            ("daq", daq_header_type),
+            ("hdr", daphne_header_type),
+            ("adc", '<u8', int(num_adc_size/self.n_bytes_u64))
+            #("peaks", daphne_peak_type),   # PeakDescriptorData = 13 words
+        ])
+
+
+        """ pds chmap """
+        
+        """ extract triggered time, slot*100+channel, waveforms """
+        """ do not care about the peak found by DAQ - some are missing """
+        
+        
+        frame_size = daq_header_size + daphne_header_size + num_adc_size# + daphne_peak_size
+        print('FRAME SIZE ', frame_size)
+               
+        
+        names = ["0x"+format(istream + offset, '08x') for istream in range(nstream)]
+        print('STREAM NAMES ', names)
+        
+        times_chunk, daq_chans_chunk, adcs_chunk = [], [], []
+        for istream in range(nstream):
+            name = names[istream]
+            try:
+                path = f"/{evt}/RawData/Detector_Readout_{name}_{link_name}"
+
+                
+                stream_data = self.f_in[path][:]#self.fragment_header_size:].reshape(-1)
+                
+            except KeyError:
+                print("no ", path, " data ")
+                continue
+
+            
+            #fragment = np.frombuffer(stream_data[:self.fragment_header_size], dtype=self.fragment_header_type)
+            #print('---> TRIGGER FRAGMENT TIMESTAMP ', fragment['timestamp'])
+            print('full stream data size: ', len(stream_data))
+            
+            """ don't read the fragment header """
+            stream_data = stream_data[self.fragment_header_size:].reshape(-1)
+
+            
+            if(len(stream_data) == 0):
+                """ the event is empty, just skip it """
+                continue
+
+
+            
+            nframes = int(len(stream_data)/frame_size)
+            print('stream ', name)
+            print(' has ', len(stream_data),'/', frame_size, '=', len(stream_data)/frame_size)
+            
+            frames = stream_data.view(frame_dtype)
+            """ extract all timestamps, channel nb and adc at once """
+            times = (
+                frames["daq"]["timestamp"].astype(np.uint64)
+                
+            )
+
+            #timestamp written is the self trigger time which is 64 ticks after the 1st sample
+            #times = [t-64*cf.pds_sampling for t in times]
+
+            times_chunk.append(times)
+
+            slots = (frames["daq"]["w0"] >>22) & 0xF
+            channels = (frames["hdr"]["w0"] >> 56) & 0xFF
+            print(' CHANNELS ', channels)
+
+            print(list(set(channels)))
             daq_trigger_offset = cf.pds_daqch_trig_start
             new_chan = slots*100 + channels
             """ mask to ignore peaks from PDS we are not interested in """
