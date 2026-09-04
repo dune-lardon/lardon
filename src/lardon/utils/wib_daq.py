@@ -94,6 +94,29 @@ def decode_8_to_5_3(x):
     read3 = (x & 0xe0) >> 5
     return read5, read3
 
+def get_hsi_frame():
+    hsi_frame_type = np.dtype([
+        ('hsiinfos',  '<u4'), #8
+        ('ts_low',    '<u4'), #16
+        ('ts_high',   '<u4'), #32        
+        ('input_low', '<i4'), #40
+        ('input_high','<i4'), #48
+        ('trigger',   '<u4'), #56
+        ('sequence',  '<u4') #64
+    ])
+    return hsi_frame_type
+
+def get_bits(val, offset, width):
+    return (val >> offset) & ((1 << width) - 1)
+
+def decode_hsi_infos(x):
+    return {
+        "version":  get_bits(x, 0, 6),
+        "det_id":   get_bits(x, 6, 6),
+        "crate_id": get_bits(x, 12, 10),
+        "slot_id":  get_bits(x, 22, 4),
+        "link_id":  get_bits(x, 26, 6),
+    }
 
 
 
@@ -471,6 +494,7 @@ class wib:
         self.wib_header_size = self.wib_header_type.itemsize
 
 
+
         if(self.daq == 'wib_1'):
             self.cb_header_size = get_colddata_header_type(self.daq).itemsize            
             self.wib_frame_size = self.wib_header_size + 4*(self.cb_header_size + int(64*3/2))
@@ -478,7 +502,9 @@ class wib:
 
 
         elif(self.daq == 'wib_2_eth'):
-
+            self.hsi_frame_type = get_hsi_frame()
+            self.hsi_frame_size = self.hsi_frame_type.itemsize
+            
             self.pds_decode = daphne.daphne(self.f_in)
 
             self.daphne_header_type = get_daphne_header(self.daq)
@@ -575,7 +601,7 @@ class wib:
         if(head['header_marker'][0] != header_magic or (head['header_version'][0] != header_version_1 and head['header_version'][0] != header_version_2)):
             print(' there is a problem with the header magic / version ')
             print("marker : ", head['header_marker'][0], " vs ", header_magic)
-            print("version : ", head['header_version'][0], " vs ", header_version)
+            print("version : ", head['header_version'][0], " vs ", header_version_1, " or ", header_version_2)
 
 
         trigger = get_trigger_type(int(head['trigger_type'][0]))
@@ -609,8 +635,21 @@ class wib:
         dc.evt_list.append( dc.event(self.det, "bot", head['run_nb'][0], sub, ievt, head['trig_num'][0], ts, t_s, t_ns, trigger) )
         
 
+        #decode hardware signal interface
+        try: 
+            hsi_nb = cf.daq_hsi_number
+            name = "0x"+format(hsi_nb, '08x')
+            path = f"/{self.events_list[ievt]}/RawData/HW_Signals_Interface_{name}_Hardware_Signal"
+            hsi_rec = self.f_in[path][self.fragment_header_size:]
+
+            HSI = np.frombuffer(hsi_rec[:self.hsi_frame_size], dtype=self.hsi_frame_type)        
+            dc.evt_list[-1].set_hsi(HSI['input_low'][0], HSI['input_high'][0])
 
 
+        except KeyError:
+            #continue
+            print('no hsi fragments')
+            return
 
     def read_evt(self, ievt):
         
