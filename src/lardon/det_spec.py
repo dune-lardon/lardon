@@ -148,6 +148,11 @@ def configure(detector, run, do_pds, hash_path):
 
         cf.daq_TRBuilder_number = data['daq_TRBuilder_number']
         cf.daq_link_name = [x for x in data['daq_link_name']]
+
+        try:
+            cf.daq_hsi_number = data['daq_hsi_number']
+        except KeyError:
+            pass
         
         if(do_pds == True):
             
@@ -167,6 +172,8 @@ def configure(detector, run, do_pds, hash_path):
             cf.pds_x_length = [float(x) for x in data['pds_x_length']]
             cf.pds_y_length = [float(y) for y in data['pds_y_length']]
             cf.pds_z_length = [float(z) for z in data['pds_z_length']]
+            cf.pds_gain     = [float(z) for z in data['pds_gain']]
+            cf.pds_eff      = [float(z) for z in data['pds_eff']]
             cf.pds_daq       = [ x for x in data['pds_daq']]
             cf.pds_daq_link_name   = [ x for x in data['pds_daq_link_name']]
             cf.pds_daq_link_offset = [int(x) for x in data['pds_daq_link_offset']]
@@ -174,5 +181,9 @@ def configure(detector, run, do_pds, hash_path):
             cf.pds_daqch_stream_start = int(data['pds_daqch_stream_start'])
             cf.pds_daqch_trig_start = int(data['pds_daqch_trig_start'])
 
+            if(data['pds_pred_fit_param'] is None):
+                cf.pds_pred_fit_param=None
+            else:
+                cf.pds_pred_fit_param=cf.lardon_path+"/settings/parametrization/"+data['pds_pred_fit_param']
             
                   
