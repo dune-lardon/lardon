@@ -29,19 +29,65 @@ def is_track_in_module(t, modules):
         return False
     
 
+def extract_new_endpoints_from_segment(ta, tb, thr):
+    """ extract hits of long track a that overlaps & close to smaller track b """
+    """ Endpoints of small track b """
+    B0 = np.array(tb.path[0], dtype=float)
+    B1 = np.array(tb.path[-1], dtype=float)
+    dB = B1 - B0
+    dB2 = np.dot(dB, dB)
+
+    """ All hits from track A """
+    H = np.array(ta.path, dtype=float)   # shape (N,2)
+
+    """ Vector from B start to each hit"""
+    w = H - B0
+
+    """ Parametric coordinate along B"""
+    s = np.dot(w, dB) / dB2             # shape (N,)
+
+    """ Select hits fully "inside" the segment: 0 <= s <= 1"""
+    mask = (s >= 0) & (s <= 1)
+
+    if(sum(mask) > 10):
+        return H[mask][0], H[mask][-1]
+    else:
+        return H[0], H[-1]
 
 def stitch2D_test_and_merge(tracks, align_thr, dma_thr, dist_thr, unwrappers, debug=False):
     ntrks = len(tracks)    
     sparse = np.zeros((ntrks, ntrks))
     trk_ID_shift = dc.n_tot_trk2d 
 
-    n=0
-    for ti in tracks[:-1]:
-        stitchable = [tracks2D_compatibility(ti, tt, unwrappers, align_thr, dma_thr, dist_thr, False) for tt in tracks[n+1:]]
-             
-        for k in np.where(stitchable)[0]:
-            sparse[n, n+k+1] = 1
-        n = n+1
+    """ all tracks starts & ends """
+    P0 = np.array([t.path[0] for t in tracks], dtype=float) 
+    P1 = np.array([t.path[-1] for t in tracks], dtype=float)
+
+    """ Unit direction vectors"""
+    V = P1 - P0
+    norms = np.linalg.norm(V, axis=1, keepdims=True)
+    dirs = V / norms
+
+    """ Pairwise dot products gives alignment """
+    dots = dirs @ dirs.T
+    aligned_matrix = (dots * dots) > align_thr**2
+
+
+    for i in range(len(tracks)):
+
+        ti = tracks[i]
+        ok_idx = np.nonzero(aligned_matrix[i])[0]
+        ok_idx = ok_idx[ok_idx > i]  # remove self
+        n_ok = len(ok_idx)
+        if n_ok == 0:
+            continue
+        
+        stitchable = [tracks2D_compatibility(ti, tracks[j], unwrappers, align_thr, dma_thr, dist_thr, debug) for j in ok_idx]
+
+        
+        for k in ok_idx[np.where(stitchable)[0]]:
+            sparse[i, k] = 1
+
 
     graph = csr_matrix(sparse)
     n_components, labels = connected_components(csgraph=graph, directed=False, return_labels=True)
@@ -56,9 +102,10 @@ def stitch2D_test_and_merge(tracks, align_thr, dma_thr, dist_thr, unwrappers, de
             tmerge = [it for it, l in zip(tracks, labels) if l == lab]
             
             if(debug):
-                print('!!!!!!!!!!!!!!!! lets merge tracks ', [it.trackID for it in tmerge])
+                print('! lets merge tracks ', [it.trackID for it in tmerge])
             merge_2D(tmerge, align_thr, dma_thr, dist_thr)
             n_merge += 1
+    #print('--> merged ', n_merge, 'tracks')
     return n_merge
 
 
@@ -91,14 +138,14 @@ def stitch2D_from_3Dbuilder(tracks, debug=False):
     _ = stitch2D_test_and_merge(tracks, align_thr, dma_thr, dist_thr, unwrappers, debug)
         
         
-def stitch2D_in_module(modules = [cf.imod]):
+def stitch2D_in_module(modules = [cf.imod], debug=False):
     
     
     align_thr = dc.reco['stitching_2d']['in_module']['align_thr']
     dma_thr = dc.reco['stitching_2d']['in_module']['dma_thr']
     dist_thr = dc.reco['stitching_2d']['in_module']['dist_thr']
     
-    debug=False
+    #debug=True
 
     n_merge = 0
     for iv in range(cf.n_view):
@@ -208,16 +255,17 @@ def merge_2D(trks,  align_thr, dma_thr, dist_thr, debug=False):
 
             """ re-check the compatibility between tracks (in case some merging) """
             if(tracks2D_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, False)==False):
-
+                
                 if(debug):
-                    print(ta.trackID, ' with ', tb.trackID,' IS NOPE')
+                    print("---> ", ta.trackID, ' with ', tb.trackID,' IS NOPE')
+                
                 continue
             
-
 
             a1, a2, b1, b2 = np.array(ta.path[0]), np.array(ta.path[-1]), np.array(tb.path[0]), np.array(tb.path[-1])
         
             if(in_between(a1, a2, b1) or in_between(b1, b2, a2)):
+                #print('--> merged! ', ta.trackID, ' with ', tb.trackID)
                 ta.merge(tb)
                 tb.set_ID(-1)
             else:
@@ -231,6 +279,7 @@ def merge_2D(trks,  align_thr, dma_thr, dist_thr, debug=False):
                     ta.shift_x_coordinates(i)
                 if(j != 0):
                     tb.shift_x_coordinates(j)                
+                #print('--> merged! ', ta.trackID, ' with ', tb.trackID)
                 ta.merge(tb)
                 tb.set_ID(-1)
 
@@ -241,9 +290,19 @@ def merge_2D(trks,  align_thr, dma_thr, dist_thr, debug=False):
 @nb.jit(nopython=True)
 def dist(p, p1, p2):
     s = p2 - p1
-    q = p1 + (np.dot(p - p1, s) / np.dot(s, s)) * s
-    return np.linalg.norm(p - q)
+    ss = np.dot(s, s)
 
+    # If segment has zero length → return point-to-point distance
+    if ss < 1e-10:
+        return np.linalg.norm(p - p1)
+
+    # Projection parameter
+    t = np.dot(p - p1, s) / ss
+
+    # Closest point on the segment
+    q = p1 + t * s
+
+    return np.linalg.norm(p - q)
 
 
 @nb.jit(nopython=True)
@@ -260,6 +319,7 @@ def is_aligned(a, b, c, d, thr):
     li /= np.linalg.norm(li)
     lj /= np.linalg.norm(lj)
     return abs(li.dot(lj)) > thr
+
 
 def is_aligned_debug(a, b, c, d, thr):
     li = b-a
@@ -280,7 +340,7 @@ def is_close_debug(a1, a2, b1, b2, thr):
     return False
 
 
-def one_close(a1, a2, b1, b2, thr):
+def both_close(a1, a2, b1, b2, thr):
     """ test if one endpoint of trk a is close to trk b """
     dists = np.array([dist(a1, b1, b2), dist(a2, b1, b2)])
     if(np.all(dists< thr)):
@@ -299,7 +359,10 @@ def is_all_close(a1, a2, b1, b2, thr):
         return True
     return False
     
-    
+def is_close(a, b, c, thr):
+    """ test if point c is close to track endpoints a->b """
+    return dist(c, a, b) < thr
+
 def in_between(a,b,c):
     return np.all([a[i]<c[i]<b[i] or a[i]>c[i]>b[i]  for i in range(2) ])
 
@@ -318,24 +381,54 @@ def tracks2D_compatibility(ta, tb, unwrappers, align_thr, dma_thr, dist_thr, deb
     b2 = np.array(tb.path[-1])
 
 
+    if(debug):
+        print("\n",ta.trackID, ' a1 ', a1, 'a2', a2)
+        print("->", tb.trackID, ' b1 ', b1, 'b2', b2)
+        print('b1 in between a1-a2?', in_between(a1, a2, b1), 'b2 in between a1-a2?', in_between(a1, a2, b2))
+        print('a1 between b1b2?', in_between(b1, b2, a1), 'a2 between b1b2?', in_between(b1, b2, a2))
+        is_aligned_debug(a1, a2, b1, b2, align_thr)
+        is_close_debug(a1, a2, b1, b2, dma_thr)
+
+        if(in_between(a1, a2, b1) and in_between(b1, b2, a2)):
+            print('partially overlap::: ', is_close(a1, a2, b1, dma_thr), " & ", is_close(b1, b2, a2, dma_thr))
+        if(in_between(a1, a2, b1) and in_between(a1, a2, b2)):
+            print('b with a ')
+            a1p, a2p = extract_new_endpoints_from_segment(ta, tb, 1)
+            print('new endpoints of A according to b:', a1p, a2p, "-->>", both_close(b1, b2, a1p, a2p, dma_thr))
+        if(in_between(b1, b2, a1) and in_between(b1, b2, a2)):
+            print('a within b')
+            b1p, b2p = extract_new_endpoints_from_segment(tb, ta, 1)
+            print('new endpoints of B according to A:', b1p, b2p, "-->>", both_close(a1, a2, b1p, b2p, dma_thr))
+
+        print('other case, broken track ')
+        print([[np.linalg.norm(a1+(i,0) - b2-(j,0))< dist_thr, np.linalg.norm(b1+(j,0) - a2-(i,0))< dist_thr] for i,j in unwrappers])
+
+
+            
     """ test the slopes """
+    '''
     if(is_aligned(a1, a2, b1, b2, align_thr) == False):        
         return False
-
-
+    '''
+        
     if(in_between(a1, a2, b1) and in_between(b1, b2, a2)):
-        """ test if trk a completely overlaps with trk b (or vice versa) """
-        return is_all_close(a1, a2, b1, b2, dma_thr )
+        """ test if trk a partially overlaps with trk b (or vice versa) """
+        return is_close(a1, a2, b1, dma_thr) and is_close(b1, b2, a2, dma_thr)
+
+
 
     
     elif(in_between(a1, a2, b1) or in_between(b1, b2, a2)):
-        """ test if trk a partially overlaps with trk b (or vice versa) """
+        """ test if trk a completely overlaps with trk b (or vice versa) """
         if(in_between(a1, a2, b1) and in_between(a1, a2, b2)):
-            return one_close(b1, b2, a1, a2, dma_thr)
+            a1p, a2p = extract_new_endpoints_from_segment(ta, tb, 1)
+            return both_close(b1, b2, a1p, a2p, dma_thr)
+
         elif(in_between(b1, b2, a1) and in_between(b1, b2, a2)):
-            return one_close(a1, a2, b1, b2, dma_thr)
+            b1p, b2p = extract_new_endpoints_from_segment(tb, ta, 1)
+            return both_close(a1, a2, b1p, b2p, dma_thr)
         else:
-            return False
+            return both_close(a1, a2, b1, b2, dma_thr) or both_close(b1, b2, a1, a2, dma_thr)  
         
     else:
         """ test if trk a & b are broken because of wrapped wires """
