@@ -133,8 +133,8 @@ class effective_chan:
 
 def show_all_event(data_eff_ind, data_eff_coll,conf_style, is_top, tmin, tmax):
     
-    adc_ind_min, adc_ind_max = -150, 150
-    adc_coll_min, adc_coll_max = -50, 350
+    adc_ind_min, adc_ind_max = -400, 400#-150, 150
+    adc_coll_min, adc_coll_max = -50, 9000#-50, 350
 
     fig = plt.figure(figsize=(12,5.5))
 
@@ -187,7 +187,7 @@ def show_all_event(data_eff_ind, data_eff_coll,conf_style, is_top, tmin, tmax):
         #a.set_yticks([])
     ax[-1].yaxis.set_label_position("right")
 
-
+    #where = 'Top' if is_top else 'Bottom'
     ax_col_coll.set_title('Collected Charge [ADC]')
     cb = fig.colorbar(ax[2].images[-1], cax=ax_col_coll, orientation='horizontal')
     cb.ax.xaxis.set_ticks_position('top')
