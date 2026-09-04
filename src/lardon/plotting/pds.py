@@ -44,13 +44,14 @@ def draw_pds_ED( glob_chans, option=None, to_be_shown=False, draw_peak=False, dr
         ax.plot(xx_off, data[daqch-daq_offset], c=l[0].get_color(), ls="dashed")
         ax.set_xlabel('Time wrt to trigger [mus]')
         ax.set_ylabel('ADC')
-
+    ax.axhline(0, c='k',ls='dotted',lw=0.5)
     nchans = len(glob_chans)
 
-    if(nchans>4):
-        ax.legend(ncols=2)
-    else:
-        ax.legend()
+    if(nchans<20):
+        if(nchans>4):
+            ax.legend(ncols=2)
+        else:
+            ax.legend()
 
         
     plt.tight_layout()
@@ -61,7 +62,60 @@ def draw_pds_ED( glob_chans, option=None, to_be_shown=False, draw_peak=False, dr
         plt.show()
 
     plt.close()
+
+
+def draw_pds_start_ED( glob_chans, option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
+    fig = plt.figure(figsize=(11,3*len(glob_chans)))
+    gs = gridspec.GridSpec(nrows=len(glob_chans), ncols=1)
+    axs = [fig.add_subplot(gs[i,0]) for i in range(len(glob_chans))]
+    for ax in axs[1:]:
+        ax.sharex(axs[0])
+
+    i=0
+    for chan in glob_chans:
+        ax = axs[i]
+        i+=1
+        data_type = dc.chmap_pds[chan].data_type
+        daqch = dc.chmap_pds[chan].daqch
+        daq_offset = cf.pds_daqch_stream_start if data_type ==  "stream" else cf.pds_daqch_trig_start
         
+        ts = dc.evt_list[-1].pds_stream_time if data_type ==  "stream" else dc.evt_list[-1].pds_trig_time
+        delta_t = (ts - dc.evt_list[-1].event_time)*1e6 # + dc.evt_list[-1].pds_time_offset[chan]
+        delta_t_off = (ts - dc.evt_list[-1].event_time)*1e6  + dc.evt_list[-1].pds_time_offset[chan]
+        
+
+        n_sample = cf.n_pds_stream_sample if data_type == "stream" else cf.n_pds_trig_sample
+
+        xx = np.linspace(delta_t, delta_t+(n_sample-1)/cf.pds_sampling, n_sample)
+        xx_off = np.linspace(delta_t_off, delta_t_off+(n_sample-1)/cf.pds_sampling, n_sample)
+        
+        data = dc.data_stream_pds if data_type == "stream" else dc.data_trig_pds
+
+        label = dc.chmap_pds[chan].det+' Ch. '+str(dc.chmap_pds[chan].chan)
+                
+        
+        l = ax.plot(xx, data[daqch-daq_offset], color='k', label=label)
+        ax.plot(xx_off, data[daqch-daq_offset], c='k', ls="dashed")
+        ax.set_xlabel('Time wrt to trigger [mus]')
+        ax.set_ylabel('ADC')
+        ax.legend()
+
+        for p in dc.pds_peak_list:
+            if(p.glob_ch == chan):
+                ax.axvline(p.timestamp, c='coral', lw=0.4)
+
+        
+    plt.tight_layout()
+
+    save_with_details(fig, option, 'ED_pds_'+data_type)
+
+    if(to_be_shown):
+        plt.show()
+
+    plt.close()
+
+
+    
 def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_peak=False, draw_cluster=False, draw_roi=False):
 
     n_tot_chan = cf.n_pds_tot_channels
@@ -84,8 +138,8 @@ def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_pe
         mask = dc.mask_trig_pds
         daq_offset = cf.pds_daqch_trig_start
 
-        nrows = 8
-        ncols = 3
+        nrows = 10
+        ncols = 4
 
     else:
         print('data type ', data_type, ' does not exists for PDS')
@@ -119,7 +173,7 @@ def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_pe
 
 
         rms = dc.evt_list[-1].noise_pds_filt.ped_rms[daq_ipds+daq_offset]
-
+        #print('channel ', ipds, ' = ',dc.chmap_pds[ipds].det,' rms = ', rms)
         axs_pds[k].axhline(rms, c='orange', lw=0.5, zorder=100)
         axs_pds[k].axhline(-rms, c='orange', lw=0.5, zorder=100)
 
@@ -149,7 +203,8 @@ def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_pe
         if(draw_peak==True):
             for p in dc.pds_peak_list:
                 if(p.glob_ch == ipds):
-                    axs_pds[k].axvline(p.max_t, c='coral', lw=0.4)
+                    axs_pds[k].axvline(p.max_t, c='tab:olive', lw=0.4)
+                    axs_pds[k].axvline(p.start, c='coral', lw=0.4)
 
         k = k+1
 
@@ -171,7 +226,56 @@ def draw_all_pds_ED( data_type="stream", option=None, to_be_shown=False, draw_pe
     plt.close()
 
 
+def draw_pds_peaks(option=None, to_be_shown=False):
+    ts_stream = dc.evt_list[-1].pds_stream_time
+    ts_trig = dc.evt_list[-1].pds_trig_time
+    
+    if(ts_stream < 0 and ts_trig < 0):
+        return
+    elif(ts_stream > 0 and ts_trig < 0):
+        ts_ini = ts_stream
+        duration = 1e-6*cf.n_pds_stream_sample/cf.pds_sampling
+    elif(ts_stream < 0 and ts_trig > 0):
+        ts_ini = ts_trig
+        duration = 1e-6*cf.n_pds_trig_sample/cf.pds_sampling
+    else:
+        ts_ini = min(ts_trig, ts_stream)
+        ts_stream_end = ts_stream+ 1e-6*cf.n_pds_stream_sample/cf.pds_sampling
+        ts_trig_end = ts_trig+ 1e-6*cf.n_pds_trig_sample/cf.pds_sampling
+        ts_end = max(ts_trig_end, ts_stream_end)
+        duration = ts_end-ts_ini
 
+    delta_t = (ts_ini - dc.evt_list[-1].event_time)*1e6
+    duration *= 1e6
+
+    peak_starts = [[] for x in range(cf.n_pds_tot_channels)]    
+    [peak_starts[x.glob_ch].append(x.timestamp) for x in dc.pds_peak_list]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    for ch in range(cf.n_pds_tot_channels):
+        delay = dc.evt_list[-1].pds_time_offset[ch]
+        for p in peak_starts[ch]:
+            ax.plot([p,p],[ch,ch+1], c='k',lw=1)
+            ax.plot([p+delay,p+delay],[ch,ch+1], c='tab:cyan',lw=1)
+
+    ax.set_xlim(delta_t, delta_t+duration)
+    ax.set_ylim(0, cf.n_pds_tot_channels)
+    ax.axhline(16,c='r',lw=1)
+    ax.axhline(32,c='r',lw=1)
+    ax.axhline(39,c='r',lw=1)
+
+    ax.axvline(0, c='r',lw=0.5)
+    ax.set_xlabel('Time wrt to trigger [mus]')
+    ax.set_ylabel('PDS global channel')
+
+
+    for p in dc.pds_cluster_list:
+        ax.axvline(p.timestamp, c='gray',lw=0.5, alpha=0.2, zorder=-100)        
+    plt.show()
+    
+    
     
 
 def charge_pds_zoom(pds_chan, charge_ch_range, charge_t_range, option=None, to_be_shown=False):
