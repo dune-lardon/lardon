@@ -58,6 +58,14 @@ def arange_in_glob_channels(array):
     array = [array[x[0]] for x in glob_order]    
     return array
 
+
+def arange_in_pds_glob_channels(array):
+    glob_order = [(i, dc.chmap_daq_pds[i].get_globch()) for i in range(cf.n_pds_tot_channels)]
+    glob_order = sorted(glob_order, key=lambda tup: tup[1])            
+
+    array = [array[x[0]] for x in glob_order]    
+    return array
+
         
     
 def previous_and_next(some_iterable):
@@ -369,9 +377,8 @@ def get_pdvd_mapping():
 
 def get_strip_length():
     strip = []
-    print('---> strip length is ', cf.strips_length, len(cf.strips_length))
+
     if(len(cf.strips_length) > 0):
-        print('---> strip length is ', cf.strips_length, len(cf.strips_length))
         with open(cf.strips_length,"r") as f:
             for line in f.readlines()[1:]:
                 li = line.split()
