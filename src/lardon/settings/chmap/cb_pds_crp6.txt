@@ -1,4 +1,4 @@
-DAQ	Glob	Det	Channel	Module
+DAQ	Glob	Det	Channel	Module 
 0	0	'C1'	0	0
 1	-1	'xx'	1	-1
 2	-1	'xx'	6	-1
