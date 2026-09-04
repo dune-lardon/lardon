@@ -189,15 +189,30 @@
 	"noise":{
 	    "flat_baseline_window":4000,
 	},
-	
-        "hit_finder":{
-            "amp_sig": [5, 8],
-            "dt_min": 50,
+        "hit_finder":{	    
+            "amp_sig":{
+		"Cathode": [20, 40],
+		"Membrane":[20,40],
+		"PMT":[6,12]
+	    },
+            "dt_min": {
+		"Cathode":40,
+		"Membrane":40,
+		"PMT":20
+	    },
 	    "pad":{
-		"left":30,
-		"right":50
-	    },		 
-        },
+		"left":{
+		    "Cathode":30,
+		    "Membrane":30,
+		    "PMT":20
+		},
+		"right":{
+		    "Cathode":60,
+		    "Membrane":60,
+		    "PMT":80
+		},
+	    },
+	},		 
 	
 	"cluster":{
 	    "max_lag":50, //to align waveform, in PDS tick nb
