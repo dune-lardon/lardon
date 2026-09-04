@@ -251,7 +251,7 @@ def plot_2dview_hits_tracks(modules, draw_2D=True, draw_3D=True, option=None, to
 
         """ 2D tracks """
 
-        sel = 't.ghost == False and ('+trk_sel+')'
+        sel = 't.is_ghost == False and ('+trk_sel+')'
 
         axs = draw_all_tracks(axs, sel, legend='2D Track', c=color_track2d, linewidth=1)
         leg_handle.append(mlines.Line2D([], [], color=color_track2d, linestyle='solid', lw=3, label='Track 2D'))     
@@ -263,7 +263,7 @@ def plot_2dview_hits_tracks(modules, draw_2D=True, draw_3D=True, option=None, to
         leg_handle.append(mlines.Line2D([], [], color='k', linestyle='solid', lw=3, label='Bad Track 2D'))     
 
 
-        sel = 't.ghost == True and ('+trk_sel+')'
+        sel = 't.is_ghost == True and ('+trk_sel+')'
         axs = draw_all_tracks(axs, sel, legend='Ghost', c=color_ghost, linewidth=1)
 
         leg_handle.append(mlines.Line2D([], [], color=color_ghost, linestyle='solid', lw=3, label='Ghost'))     
