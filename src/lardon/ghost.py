@@ -31,7 +31,7 @@ def ghost_finder():
     """ to be called before 3D finder """
 
     """ 2D tracks in collection view """
-    tracks = [t for t in dc.tracks2D_list if t.view == 2]
+    tracks = [t for t in dc.tracks2D_list if t.view == 2 and t.module_ini == cf.imod]
     n_trk = len(tracks)
 
 
@@ -68,15 +68,18 @@ def ghost_finder():
             if(mod[0] == mod[1]):
                 if(min_2Ddist < dist_thresh):                
                     if(min_2Ddist < best_dist):
-                        best_dist = min_2Ddist
-                        best_idx = j
-                        print(idx)
+                        idx_case = (0,0) if cf.drift_direction[mod[0]] >0 else (1,1)
+                        if( idx == idx_case):
+                            
+                            best_dist = min_2Ddist
+                            best_idx = j
+                            #print(idx)
 
         best_match[i] = best_idx
         best_mindist[i] = best_dist
 
     for i,ti in enumerate(tracks):
-        if(ti.ghost == True):
+        if(ti.is_ghost == True):
             continue
 
         idx = best_match[i]
@@ -88,7 +91,7 @@ def ghost_finder():
             continue
         dmin = best_mindist[i]
         tj = tracks[idx]
-        if(tj.ghost == True):
+        if(tj.is_ghost == True):
             continue
 
         qi = ti.tot_charge
@@ -98,7 +101,9 @@ def ghost_finder():
             continue
 
         if(qi < qj):
-            ti.ghost = True
+            ti.is_ghost = True
+            tj.ghost_track_partner = ti
+            
             ghost = dc.ghost(ti.trackID, tj.trackID, dmin, qi, qj, ti.n_hits, [ti.module_ini, ti.module_end])
             dc.ghost_list.append(ghost)
             
@@ -109,7 +114,8 @@ def ghost_finder():
             tj.mini_dump()
             print('\n')
         else:
-            tj.ghost = True
+            tj.is_ghost = True
+            ti.ghost_track_partner = tj
             ghost = dc.ghost(tj.trackID, ti.trackID, dmin, qj, qi, tj.n_hits, [tj.module_ini, tj.module_end])
             dc.ghost_list.append(ghost)
             
@@ -139,9 +145,20 @@ def ghost_trajectory():
 
     debug = False
 
-    ang_track = np.radians(cf.view_angle[0][2])
+    ang_track = np.radians(cf.view_angle[cf.imod][2])
     pitch = cf.view_pitch[2]
 
+    trks = [t for t in dc.tracks2D_list if (t.ghost_track_partner is not None) and (t.match_3D==True)]
+    print('nb of tracks with ghost: ', len(trks))
+    for t in trks:
+        print("track::::")
+        t.mini_dump()
+        tghost = t.ghost_track_partner
+        print('ghost:::')
+        tghost.mini_dump()
+
+    return
+    #for t in 
     prev_ghost_list = dc.ghost_list.copy()
     dc.ghost_list.clear()
     for g in prev_ghost_list:
