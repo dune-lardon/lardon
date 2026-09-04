@@ -367,9 +367,12 @@ def compute_pedestal_pds(first=False):
     n_iter = dc.reco['pds']['pedestal']['n_iter']
 
     if(first==True):
+        dc.data_stream_pds= np.where(dc.data_stream_pds==0, np.nan, dc.data_stream_pds)
+        dc.data_trig_pds= np.where(dc.data_trig_pds==0, np.nan, dc.data_trig_pds)
+
         """ very simple raw mean pedestal computation atm, 
         remove the median value of the waveform """
-        s_med = bn.median(dc.data_stream_pds, axis=1)
+        s_med = bn.nanmedian(dc.data_stream_pds, axis=1)
         dc.data_stream_pds -= s_med[:,None]                
         dc.mask_stream_pds = ne.evaluate( "(isnan(data)) | (data <=  adc_thresh)| (data <=  -abs(baseline)+10)", global_dict={'data':dc.data_stream_pds, 'baseline':s_med[:,None]})
 
@@ -377,6 +380,7 @@ def compute_pedestal_pds(first=False):
         dc.data_trig_pds -= t_med[:,None]                
         dc.mask_trig_pds = ne.evaluate( "(isnan(data)) | (data <=  adc_thresh)| (data <=  -abs(baseline)+10)", global_dict={'data':dc.data_trig_pds, 'baseline':t_med[:,None]})
 
+        
 
     #else:
         #med = dc.evt_list[-1].noise_pds_raw.ped_mean
