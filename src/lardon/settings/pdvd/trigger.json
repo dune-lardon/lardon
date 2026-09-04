@@ -1,0 +1,19 @@
+{
+  "default":{
+      "trigger_nb":[28, 34, 16],
+      "trigger_case":{
+	  "28":"laser",
+	  "34":"crt_horizontal",
+	  "16":"crt_diagonal"
+      },
+      
+      "laser":{
+	  "point_x":"-123.64",
+	  "point_y":"450.26",
+	  "point_z":"247.39",
+	  "search_radius":"15",
+	  "search_modules":[2,3]
+      }
+
+  }
+}
