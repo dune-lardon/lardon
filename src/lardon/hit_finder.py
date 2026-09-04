@@ -230,7 +230,7 @@ def hit_search_collection_nb(data, start, dt_min, thr1, thr2, nsamp):
                 minimum = val
 
                 
-            if(minSamp >= 0 and it > minSamp and val > minimum + thr2 and (it-h_start[h_num]) >= dt_min):
+            if(minSamp >= 0 and it > minSamp and val > minimum + thr2 and (it-h_start[h_num]) >= dt_min and (minSamp-1-h_start[h_num])>=dt_min):
                 h_stop[h_num]      = minSamp-1
                 h_num += 1
                 hitFlag = True
@@ -306,6 +306,7 @@ def find_hits():
     n_sig_coll_2  = dc.reco['hit_finder']['coll']['amp_sig'][cf.imod][1]
     n_sig_ind     = dc.reco['hit_finder']['ind']['amp_sig'][cf.imod]
     merge_tdc_thr =  dc.reco['hit_finder']['ind']['merge_tdc_thr'][cf.imod]
+
 
     
     """ get boolean roi based on mask and alive channels """
@@ -404,7 +405,7 @@ def find_hits():
                     else:
                         hh[i].pad_start = 0
                 else:
-                    if(hh[i].start - pad_left > hh[i-1].pad_stop):
+                    if(hh[i].start - pad_left > hh[i-1].pad_stop and hh[i-1].daq_channel==hh[i].daq_channel):
                         hh[i].pad_start -= pad_left
                     else:
                         hh[i].pad_start = hh[i-1].stop #+ 1
@@ -417,7 +418,7 @@ def find_hits():
                     else:
                         hh[i].pad_stop = cf.n_sample[cf.imod]
                 else:
-                    if(hh[i].stop + pad_right < hh[i+1].pad_start):
+                    if(hh[i].stop + pad_right < hh[i+1].pad_start  and hh[i+1].daq_channel==hh[i].daq_channel):
                         hh[i].pad_stop += pad_right
                     else:
                         hh[i].pad_stop = hh[i+1].start #- 1
@@ -479,9 +480,11 @@ def find_pds_peak(data_type):
     pad_left     = dc.reco['pds']['hit_finder']['pad']['left']
     pad_right    = dc.reco['pds']['hit_finder']['pad']['right']
     dt_min       = dc.reco['pds']['hit_finder']['dt_min']
-    n_sig_coll_1 = dc.reco['pds']['hit_finder']['amp_sig'][0]
-    n_sig_coll_2 = dc.reco['pds']['hit_finder']['amp_sig'][1]
+    n_sig_coll   = dc.reco['pds']['hit_finder']['amp_sig']
+    #n_sig_coll_1 = dc.reco['pds']['hit_finder']['amp_sig'][0]
+    #n_sig_coll_2 = dc.reco['pds']['hit_finder']['amp_sig'][1]
 
+    dt_min_min = min([x for x in dt_min.values()])
     
     """ get boolean roi based on mask and alive channels """
     ROI = np.array(~mask_pds, dtype=bool)
@@ -496,7 +499,7 @@ def find_pds_peak(data_type):
     """ a change from true to false in difference is = -1 """
     end   = np.where(d==-1)
     """ look at long enough sequences of trues """
-    gpe = (end[1]-start[1])>=dt_min
+    gpe = (end[1]-start[1])>=dt_min_min
 
     assert len(start[0])==len(end[0]), " Mismatch in groups of hits"
     assert len(gpe)==len(start[0]), "Mismatch in groups of hits"    
@@ -508,20 +511,22 @@ def find_pds_peak(data_type):
             assert start[0][g] == end[0][g], "Hit Mismatch"
             daq_chan = start[0][g] #+ daqch_offset
             glob_chan = dc.chmap_daq_pds[daq_chan + daqch_offset].globch
-
-                
+            chan    = dc.chmap_daq_pds[daq_chan + daqch_offset].chan
+            module  = dc.chmap_daq_pds[daq_chan + daqch_offset].module
+            pds_type = cf.pds_modules_type[module]
+            #print(daq_chan, glob_chan, chan, module, pds_type)
             tdc_start = start[1][g]
             tdc_stop = end[1][g]            
             
             
             """ add l/r paddings """
-            for il in range(pad_left, 0, -1):
+            for il in range(pad_left[pds_type], 0, -1):
                 if(tdc_start-1>=0 and not ROI[daq_chan, tdc_start-1]):
                     tdc_start -= 1
                 else:
                     break
 
-            for ir in range(0, pad_right):
+            for ir in range(0, pad_right[pds_type]):
                 if(tdc_stop+1 < n_pds_sample and not ROI[daq_chan,tdc_stop+1]):
                     tdc_stop += 1
                 else:
@@ -530,49 +535,49 @@ def find_pds_peak(data_type):
             
             adc = data_pds[daq_chan, tdc_start:tdc_stop+1].astype(np.float64)
             mean, rms = dc.evt_list[-1].noise_pds_filt.ped_mean[daq_chan + daqch_offset], dc.evt_list[-1].noise_pds_filt.ped_rms[daq_chan + daqch_offset]
-            thr1 = n_sig_coll_1 * rms
-            thr2 = n_sig_coll_2 * rms
+            raw_mean = dc.evt_list[-1].noise_pds_raw.ped_mean[daq_chan + daqch_offset]
+            thr1 = n_sig_coll[pds_type][0] * rms
+            thr2 = n_sig_coll[pds_type][1] * rms
 
-
+                
             if(thr1 < 0.5): thr1 = 0.5
             if(thr2 < 0.5): thr2 = 0.5
 
-            chan    = dc.chmap_daq_pds[daq_chan + daqch_offset].chan
-            module  = dc.chmap_daq_pds[daq_chan + daqch_offset].module
                 
             hh = []
             
-            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(adc,tdc_start, dt_min, thr1, thr2, n_pds_sample)
-
+            n, h_start, h_stop, h_max_t, h_max_adc = hit_search_collection_nb(adc,tdc_start, dt_min[pds_type], thr1, thr2, n_pds_sample)
             
             for i in range(n):
                 hh.append(dc.pds_peak(glob_chan, chan,  module, h_start[i], h_stop[i], h_max_t[i], h_max_adc[i], delta_time_ref + h_start[i]/cf.pds_sampling))
-
+                
+                if(h_max_adc[i] >= pow(2,14)-raw_mean-rms/2.):
+                    hh[i].saturates = True
             
             """add padding to found hits"""
             for i in range(len(hh)): 
                 """ to the left """
                 if(i == 0): 
-                    if(hh[i].pad_start > pad_left):
-                        hh[i].pad_start -= pad_left
+                    if(hh[i].pad_start > pad_left[pds_type]):
+                        hh[i].pad_start -= pad_left[pds_type]
                     else:
                         hh[i].pad_start = 0
                 else:
-                    if(hh[i].pad_start - pad_left > hh[i-1].pad_stop):
-                        hh[i].pad_start -= pad_left
+                    if(hh[i].pad_start - pad_left[pds_type] > hh[i-1].pad_stop):
+                        hh[i].pad_start -= pad_left[pds_type]
                     else:
                         hh[i].pad_start = hh[i-1].pad_stop + 1
                 
 
                 """ to the right """
                 if(i == len(hh)-1):
-                    if(hh[i].pad_stop < n_pds_sample - pad_right):
-                        hh[i].pad_stop += pad_right
+                    if(hh[i].pad_stop < n_pds_sample - pad_right[pds_type]):
+                        hh[i].pad_stop += pad_right[pds_type]
                     else:
                         hh[i].pad_stop = n_pds_sample
                 else:
-                    if(hh[i].pad_stop + pad_right < hh[i+1].pad_start):
-                        hh[i].pad_stop += pad_right
+                    if(hh[i].pad_stop + pad_right[pds_type] < hh[i+1].pad_start):
+                        hh[i].pad_stop += pad_right[pds_type]
                     else:
                         hh[i].pad_stop = hh[i+1].pad_start - 1
 
