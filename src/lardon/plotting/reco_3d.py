@@ -184,9 +184,9 @@ def plot_3d(option=None, to_be_shown=True):
     if(len(sh)>0):
         if(cf.tpc_orientation == 'Vertical'):
             ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=1)
-            ax_xy.scatter([x[0] for x in sh], [x[1] for x in sh], c='k', s=3)
-            ax_xz.scatter([x[0] for x in sh], [x[2] for x in sh], c='k', s=3)
-            ax_yz.scatter([x[1] for x in sh], [x[2] for x in sh], c='k', s=3)
+            ax_xy.scatter([x[0] for x in sh], [x[1] for x in sh], c='k', s=2)
+            ax_xz.scatter([x[0] for x in sh], [x[2] for x in sh], c='k', s=2)
+            ax_yz.scatter([x[1] for x in sh], [x[2] for x in sh], c='k', s=2)
         
         elif(cf.tpc_orientation == 'Horizontal'):
             ax.scatter(*zip(*correct_path_orientation(sh)), c='k', s=1)
@@ -445,6 +445,186 @@ def plot_one_track_3D(trk, option=None, to_be_shown=True):
 
     ax_infos.set_axis_off()
     ax_infos.text(0., 2., f'Track {trk.ID_3D} length {max(trk.len_straight):.1f} cm at {trk.timestamp:.3f} mus', ha='left')
+        
+    save_with_details(fig, option, 'track_'+str(trk.ID_3D), is3D=False)
+
+    if(to_be_shown):
+        plt.show()
+    plt.close()
+
+
+
+
+def plot_test_track_3D(tracks, z0s, option=None, to_be_shown=True):
+    if(cf.tpc_orientation == 'Horizontal'):
+        return
+    
+    v = lar.drift_velocity()
+
+    #trk.dump()
+    
+    xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
+    ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
+    zmin, zmax = min(cf.anode_z), max(cf.anode_z)
+    
+    xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
+
+
+    fig = plt.figure(figsize=(6, 6))
+    gs = gridspec.GridSpec(nrows = 2, ncols = 1, height_ratios=[1, 20])
+    ax  = fig.add_subplot(gs[1,0], projection='3d')
+    ax_infos = fig.add_subplot(gs[0,0])
+
+    
+    """ cathode plane """
+    rect = patches.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, alpha=.2, facecolor='gray')
+    ax.add_patch(rect)
+    art3d.pathpatch_2d_to_3d(rect, z=0, zdir="z")
+
+    """ crp separation """
+    ax.plot([0,0],[ymin,ymax], zs=zmax, zdir="z", c='k',ls='dashed')
+    ax.plot([0,0],[ymin,ymax], zs=0., zdir="z", c='k',ls='dashed')
+    ax.plot([0,0],[ymin,ymax], zs=zmin, zdir="z", c='k',ls='dashed')
+    
+
+    
+    color = ['#FBA120', '#435497', '#df5286']
+    for trk,z0 in zip(tracks,z0s):
+        for iv in range(3):
+            pts = [p for p in trk.path[iv]]
+
+        
+            x,y,z = zip(*pts)
+            z = [i+z0 for i in z]
+    
+            ax.scatter(x, y, z, c=color[iv], s=4)
+
+
+
+        
+    ax.set_xlim3d(xmin, xmax)
+    ax.set_ylim3d(ymin, ymax)
+    ax.set_zlim3d(zmin, zmax)
+
+    ax.set_xlabel(xlabel+' [cm]')
+    ax.set_ylabel(ylabel+' [cm]')
+    ax.set_zlabel(zlabel+' [cm]')
+
+    
+    ax.grid(False)
+    ax.xaxis.pane.set_edgecolor('black')
+    ax.yaxis.pane.set_edgecolor('black')
+    ax.zaxis.pane.set_edgecolor('black')
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+    ax.view_init(elev=10, azim=-45)
+
+    ax_infos.set_axis_off()
+    #ax_infos.text(0., 2., f'Track {trk.ID_3D} length {max(trk.len_straight):.1f} cm at {trk.timestamp:.3f} mus', ha='left')
+        
+    #save_with_details(fig, option, 'track_'+str(trk.ID_3D), is3D=False)
+
+    if(to_be_shown):
+        plt.show()
+    plt.close()
+
+
+
+def plot_track_dqds(trk, option=None, to_be_shown=True):
+    if(cf.tpc_orientation == 'Horizontal'):
+        return
+    
+    v = lar.drift_velocity()
+
+    trk.dump()
+    
+    xmin, xmax = min(min(cf.x_boundaries)), max(max(cf.x_boundaries))
+    ymin, ymax = min(min(cf.y_boundaries)), max(max(cf.y_boundaries))
+    zmin, zmax = min(cf.anode_z), max(cf.anode_z)
+    
+    xlabel, ylabel, zlabel = 'x', 'y', 'Drift/z'
+
+
+    fig = plt.figure(figsize=(6, 8))
+    gs = gridspec.GridSpec(nrows = 2, ncols = 1, height_ratios=[20, 5])
+    ax  = fig.add_subplot(gs[0,0], projection='3d')
+    ax_infos = fig.add_subplot(gs[1,0])
+
+    
+    """ cathode plane """
+    rect = patches.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, alpha=.2, facecolor='gray')
+    ax.add_patch(rect)
+    art3d.pathpatch_2d_to_3d(rect, z=0, zdir="z")
+
+    """ crp separation """
+    ax.plot([0,0],[ymin,ymax], zs=zmax, zdir="z", c='k',ls='dashed')
+    ax.plot([0,0],[ymin,ymax], zs=0., zdir="z", c='k',ls='dashed')
+    ax.plot([0,0],[ymin,ymax], zs=zmin, zdir="z", c='k',ls='dashed')
+    
+    z0_corr = trk.z0_light
+    if(z0_corr >= 9999):
+        z0_corr = 0.0
+
+    color = ['#FBA120', '#435497', '#df5286']
+    xe,ye,ze=trk.end_x, trk.end_y, trk.end_z+z0_corr
+
+    for iv in range(3):
+        pts = [p for p in trk.path[iv]]
+
+        dqds = [q/s for q,s in zip(trk.dQ[iv], trk.ds[iv])]
+
+        x,y,z = zip(*pts)
+        z = [i+z0_corr for i in z]
+
+        trk_range = [np.sqrt(pow(ix-xe,2)+pow(iy-ye,2)+pow(iz-ze,2)) for ix,iy,iz in zip(x,y,z)]
+        if(len(z)>2):
+            ax.scatter(x, y, z, c=color[iv], s=dqds)
+            ax_infos.scatter(trk_range, dqds, color=color[iv])
+
+    if(trk.cathode_crosser_ID >=0):
+        trk_id_shift = dc.n_tot_trk3d
+        other_trk = dc.tracks3D_list[trk.cathode_crosser_ID-trk_id_shift]
+        other_z0_corr = other_trk.z0_corr #other_trk.z0_corr
+        print('Other cathode crossing track ')
+        other_trk.dump()
+        for iv in range(3):
+            pts = [p for p in other_trk.path[iv]]
+
+            x,y,z = zip(*pts)
+            z = [i+other_z0_corr for i in z]
+            dqds = [q/s for q,s in zip(other_trk.dQ[iv], other_trk.ds[iv])]            
+            ax.scatter(x, y, z, c='gray', s=4, alpha=0.5)
+    
+
+
+    if(trk.is_anode_crosser and trk.exit_trk_end >=0):
+        truth_from = [trk.ini_x, trk.ini_y, trk.ini_z+z0_corr] if trk.exit_trk_end == 1 else [trk.end_x, trk.end_y, trk.end_z+z0_corr]
+        truth_to = trk.exit_point
+        ax.plot([truth_from[0], truth_to[0]], [truth_from[1], truth_to[1]],[truth_from[2], truth_to[2]], c='r', ls='dotted')
+
+
+        
+    ax.set_xlim3d(xmin, xmax)
+    ax.set_ylim3d(ymin, ymax)
+    ax.set_zlim3d(zmin, zmax)
+
+    ax.set_xlabel(xlabel+' [cm]')
+    ax.set_ylabel(ylabel+' [cm]')
+    ax.set_zlabel(zlabel+' [cm]')
+
+    
+    ax.grid(False)
+    ax.xaxis.pane.set_edgecolor('black')
+    ax.yaxis.pane.set_edgecolor('black')
+    ax.zaxis.pane.set_edgecolor('black')
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+    ax.view_init(elev=10, azim=-45)
+
+    #ax_infos.set_axis_off()
+    #ax_infos.text(0., 2., f'Track {trk.ID_3D} length {max(trk.len_straight):.1f} cm at {trk.timestamp:.3f} mus', ha='left')
         
     save_with_details(fig, option, 'track_'+str(trk.ID_3D), is3D=False)
 
