@@ -31,6 +31,8 @@ class Event(IsDescription):
     pds_stream_time  = Float64Col()
     pds_trig_time    = Float64Col()
     n_sample         = UInt32Col(shape=(cf.n_module_used))
+    hsi_low          = Int32Col()
+    hsi_high         = Int32Col()
     n_hits           = UInt32Col(shape=(cf.n_view, cf.n_module))
     n_tracks2D       = UInt32Col(shape=(cf.n_view))
     n_tracks3D       = UInt32Col()
@@ -231,11 +233,17 @@ class Tracks3D(IsDescription):
     z0_light = Float64Col()
     t0_light = Float32Col()
     timestamp_light = Float32Col()
+    light_logL = Float64Col()
+    extrapolation_AV_ta = Float64Col()
+    extrapolation_AV_tb = Float64Col()
     
     d_match = Float32Col()
     timestamp  = Float64Col()
     cluster_ID = Int32Col()
 
+    is_trigger = BoolCol()
+    is_decay_from_light = BoolCol()
+    
     is_cathode_crosser = BoolCol()
     cathode_crossing = Float32Col(shape=(2,6))
     cathode_crosser_ID = Int32Col()
@@ -342,9 +350,13 @@ class PDS_Peak(IsDescription):
     max_t   = Int32Col()
     charge  = Float64Col()
     max_adc = Float64Col()
+    npe  = Float64Col()
+    max_npe = Float64Col()
 
     cluster_ID = Int32Col()
     timestamp = Float64Col()
+    saturates = BoolCol()
+
     
 class PDS_Cluster(IsDescription):
     event   = UInt32Col()
@@ -354,10 +366,12 @@ class PDS_Cluster(IsDescription):
 
     size = UInt32Col()
 
-    start_t = Int32Col()
-    stop_t  = Int32Col()
+    #start_t = Int32Col()
+    #stop_t  = Int32Col()
 
     timestamp = Float64Col()
+    timestamp_end = Float64Col()
+    
     match_trk3D  = Int32Col(cf.n_drift_volumes)
     match_single = Int32Col()
 
@@ -438,7 +452,7 @@ def create_tables_pds(h5file):
     t = h5file.create_vlarray("/", 'pds_peakID_clusters', Float32Atom(shape=(1)), "Peak IDs")
 
     for v in range(cf.n_drift_volumes):
-        t = h5file.create_vlarray("/", 'charge_pds_match_vol'+str(v), Float32Atom(shape=(12)), "(PeakID, PDSglobchan, distance, charge, max_adc, x_impact, y_impact, z_impact, x_closest, y_closest, z_closest, closestIsExtrapolated)")
+        t = h5file.create_vlarray("/", 'charge_pds_match_vol'+str(v), Float32Atom(shape=(14)), "(PeakID, PDSglobchan, npe, dist_closest, costheta_closest, x_closest, y_closest, z_closest, geo_pred, pred, dist_maxval, x_maxval, y_maxval, z_maxval")
     
     
 def store_run_infos(h5file, run, sub, nevent, time):
@@ -468,6 +482,8 @@ def store_event(h5file):
     evt['pds_stream_time'] = dc.evt_list[-1].pds_stream_time
     evt['pds_trig_time']   = dc.evt_list[-1].pds_trig_time
     evt['n_sample']        = [cf.n_sample[i] for i in cf.module_used]
+    evt['hsi_low']         = dc.evt_list[-1].hsi_low
+    evt['hsi_high']        = dc.evt_list[-1].hsi_high
     evt['n_hits']          = dc.evt_list[-1].n_hits
     evt['n_tracks2D']      = dc.evt_list[-1].n_tracks2D
     evt['n_tracks3D']      = dc.evt_list[-1].n_tracks3D
@@ -494,10 +510,11 @@ def store_pedestals(h5file):
 
 def store_pds_pedestals(h5file):
     ped = h5file.root.pds_pedestals.row
-    ped['raw_mean']   = dc.evt_list[-1].noise_pds_raw.ped_mean
-    ped['raw_rms']    = dc.evt_list[-1].noise_pds_raw.ped_rms
-    ped['filt_mean']   = dc.evt_list[-1].noise_pds_filt.ped_mean
-    ped['filt_rms']    = dc.evt_list[-1].noise_pds_filt.ped_rms
+    
+    ped['raw_mean']   = chmap.arange_in_pds_glob_channels(dc.evt_list[-1].noise_pds_raw.ped_mean)
+    ped['raw_rms']   = chmap.arange_in_pds_glob_channels( dc.evt_list[-1].noise_pds_raw.ped_rms)
+    ped['filt_mean']   = chmap.arange_in_pds_glob_channels( dc.evt_list[-1].noise_pds_filt.ped_mean)
+    ped['filt_rms']   = chmap.arange_in_pds_glob_channels( dc.evt_list[-1].noise_pds_filt.ped_rms)
     ped.append()
 
 def store_noisestudy(h5file):
@@ -726,15 +743,22 @@ def store_tracks3D(h5file):
        t3d['timestamp'] = it.timestamp
        t3d['cluster_ID'] = it.match_pds_cluster
        t3d['timestamp_light'] = it.timestamp_light
+       t3d['light_logL'] = it.logL_pds_cluster
+       t3d['extrapolation_AV_ta'] = it.extrap_ta_AV
+       t3d['extrapolation_AV_tb'] = it.extrap_tb_AV
+
 
        
+       t3d['is_trigger']    = it.is_trigger
+       t3d['is_decay_from_light'] = it.is_decay_from_light
+       
        t3d['is_cathode_crosser'] = it.is_cathode_crosser
-       t3d['cathode_crossing'] = it.cathode_crossing
+       t3d['cathode_crossing']   = it.cathode_crossing
        t3d['cathode_crosser_ID'] = it.cathode_crosser_ID
        t3d['cathode_crossing_trk_end'] = it.cathode_crossing_trk_end
               
        t3d['is_module_crosser'] = it.is_module_crosser
-       t3d['module_crossing'] = it.module_crossing
+       t3d['module_crossing']   = it.module_crossing
 
        t3d['is_anode_crosser'] = it.is_anode_crosser
        t3d['exit_point'] = it.exit_point
@@ -897,9 +921,14 @@ def store_pds_peak(h5file):
         pds['max_t']   = p.max_t
         pds['charge']  = p.charge
         pds['max_adc'] = p.max_adc
+
+        pds['npe']  = p.npe
+        pds['max_npe'] = p.max_npe
         
         pds['cluster_ID'] = p.cluster_ID
         pds['timestamp']  = p.timestamp
+        pds['saturates']  = p.saturates
+        
         pds.append()
 
 
@@ -916,16 +945,25 @@ def store_pds_cluster(h5file):
 
         clu['ID'] = c.ID
         clu['size'] = c.size
-        clu['start_t'] = c.t_start
-        clu['stop_t'] = c.t_stop
+        #clu['start_t'] = c.t_start
+        #clu['stop_t'] = c.t_stop
         clu['timestamp'] = c.timestamp
+        clu['timestamp_end'] = c.timestamp_end
         clu['match_trk3D'] = c.match_trk3D
         clu['match_single'] = c.match_single
 
         vl_ids.append([[i] for i in c.peak_IDs])
-    
+
+        
         for vol in range(cf.n_drift_volumes):
-            pts = [[i, g, d, q, adc, p[0], p[1], p[2], h[0], h[1], h[2], e] for  i, g, d, q, adc,  p, e, h in zip(c.peak_IDs, c.glob_chans, c.dist_closest[vol], c.charges, c.max_adcs, c.point_impact[vol], c.point_closest_is_extrapolated[vol], c.point_closest[vol])]
+            pts = [[i, g, q, c_d, c_ct, c_p[0], c_p[1], c_p[2], geo, pred, m_d, m_p[0], m_p[1], m_p[2]]
+                   for i, g, q, c_d,  c_ct, c_p, geo, pred, m_d, m_p
+                   in zip(c.peak_IDs, c.glob_chans, c.npes,
+                          c.dist_closest[vol], c.costheta_closest[vol], c.point_closest[vol],
+                          c.n_geo_predicted[vol], c.n_predicted[vol], c.dist_maxval[vol], c.point_maxval[vol])]
+
+
+            
             vl_match[vol].append(pts)
         clu.append()
 
