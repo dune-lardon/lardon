@@ -4,6 +4,68 @@ import lardon.lar_param as lar
 import numpy as np
 
 
+def track_direction_near_anode(trk,zcorr):
+    mod_ini, mod_end = trk.module_ini, trk.module_end    
+    z_anodes = [cf.anode_z[mod_ini], cf.anode_z[mod_end]]
+    trk_z_bounds = [trk.ini_z, trk.end_z]    
+    idx_anode = 0 if np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, z_anodes)]) == 0 else 1
+    #print("index near anode ", idx_anode)
+    if(idx_anode == 0):
+        theta = trk.ini_theta
+        phi   = trk.ini_phi
+        point = [trk.ini_x, trk.ini_y, trk.ini_z+zcorr]
+        other = [trk.end_x, trk.end_y, trk.end_z+zcorr]
+        sign  = cf.drift_direction[trk.module_ini]
+    else:
+        theta = trk.end_theta
+        phi   = trk.end_phi
+        point = [trk.end_x, trk.end_y, trk.end_z+zcorr]
+        other = [trk.ini_x, trk.ini_y, trk.ini_z+zcorr]
+        sign  = cf.drift_direction[trk.module_end]
+
+
+    if(cf.tpc_orientation == 'Horizontal'):
+        dx = sign*np.cos(np.radians(theta))
+        dy = sign*np.sin(np.radians(theta))*np.cos(np.radians(phi))
+        dz = sign*np.sin(np.radians(theta))*np.sin(np.radians(phi))
+
+    elif(cf.tpc_orientation == 'Vertical'):
+        dz = sign*np.cos(np.radians(theta))
+        dx = sign*np.sin(np.radians(theta))*np.cos(np.radians(phi))
+        dy = sign*np.sin(np.radians(theta))*np.sin(np.radians(phi))
+
+    return point, other, [dx, dy, dz]
+
+def track_point_direction(trk, zcorr):
+    point0, point1, tdir = track_direction_near_anode(trk, zcorr)
+    #print("testing z0", zcorr)
+    #print('AT anode: ', point0, ' to ', point1)
+
+
+    
+    if(trk.cathode_crosser_ID >= 0):
+        id_trk3d_shift = dc.n_tot_trk3d
+        other_trk = dc.tracks3D_list[trk.cathode_crosser_ID-id_trk3d_shift]
+        other_point0, other_point1, other_tdir = track_direction_near_anode(other_trk, -1.*zcorr)
+        
+        
+        if(cf.tpc_orientation == 'Vertical'):
+            idx = 2
+            if(other_point0[idx] > point0[idx]):
+                return other_point0, point0, other_tdir
+            else:
+                return point0, other_point0, tdir
+
+        else:
+            idx = 1
+            if(other_point0[idx] > point0[idx]):
+                return other_point0, point1, other_tdir
+            else:
+                return point0, other_point1, tdir
+            
+           
+    return point0, point1, tdir
+
 def compute_exit_point(trk, idx_anode, zcorr):
     debug = False
 
@@ -19,12 +81,13 @@ def compute_exit_point(trk, idx_anode, zcorr):
         phi   = trk.ini_phi
         point = [trk.ini_x, trk.ini_y, trk.ini_z+zcorr]
         sign = -1.*cf.drift_direction[trk.module_ini]*np.sign(phi)
+        idx_out = 1
     else:
         theta = trk.end_theta
         phi   = trk.end_phi
         point = [trk.end_x, trk.end_y, trk.end_z+zcorr]
         sign = -1.*cf.drift_direction[trk.module_end]*np.sign(phi)
-
+        idx_out = 0
 
     if(dc.evt_list[-1].det == 'pdhd'):
         dx = sign*np.cos(np.radians(theta))
@@ -54,7 +117,7 @@ def compute_exit_point(trk, idx_anode, zcorr):
 
     else:        
         print('Exit point computation to be checked for ', dc.evt_list[-1].det,' geometry')
-        return [-9999, -9999, -9999]
+        return [-9999, -9999, -9999], 0
 
     direction = np.array([dx, dy, dz])
     origin = np.array(point)
@@ -80,17 +143,33 @@ def compute_exit_point(trk, idx_anode, zcorr):
     
     
     if t_exit <= 0:
-        return [-9999, -9999, -9999]  # Line doesn't exit in the direction given
+        return [-9999, -9999, -9999],idx_out # Line doesn't exit in the direction given
 
     exit_point = origin + t_exit * direction
     if(debug):
         print('====> exit point ', exit_point)
         
-    return  exit_point    
+    return  exit_point, idx_out
 
 
+def possible_timestamp_range(trk):
 
+    mod_ini, mod_end = trk.module_ini, trk.module_end    
+    delay = dc.evt_list[-1].delay_charge_time[mod_ini]
+    
+    vdrift = lar.drift_velocity(mod_ini)
+    z_anodes = [cf.anode_z[mod_ini], cf.anode_z[mod_end]]
+    drift_times = [ cf.drift_length[mod_ini]/vdrift, cf.drift_length[mod_end]/vdrift]        
+    trk_z_bounds = [trk.ini_z, trk.end_z]
+    trk_times    = [trk.ini_time/cf.sampling[mod_ini], trk.end_time/cf.sampling[mod_end]]
 
+    """ idx is the track endpoint closest to the anode """
+    idx, idx_o = (0,1) if np.argmin([np.fabs(t-z) for t,z in zip(trk_z_bounds, z_anodes)]) == 0 else (1,0)
+    ts_a = delay + trk_times[idx]
+    ts_b = delay + (trk_times[idx_o]-drift_times[idx_o])
+    ts_min = min(ts_a, ts_b)
+    ts_max = max(ts_a, ts_b)
+    return ts_min, ts_max
 
 def compute_time_for_anode_crosser(trk):
 
@@ -107,9 +186,9 @@ def compute_time_for_anode_crosser(trk):
     tref = trk_times[idx]
     t0 = tref
     
-    exit_point = compute_exit_point(trk, idx, z0)
+    exit_point, idx_out = compute_exit_point(trk, idx, z0)
     
-    return tref, t0, z0, exit_point, idx
+    return tref, t0, z0, exit_point, idx_out
 
 
 
@@ -138,9 +217,10 @@ def compute_missing_time_for_late_cathode_crosser(trk, debug):
 
 
     dx = np.fabs(a2[0]-b1[0])
-
+    dy = np.fabs(a2[1]-b1[1])
     if(debug):
-        print('--> dx = ', dx)
+        print('--> missing dx = ', dx, "missing dy ", dy)
+        
     if(is_horizontal):
         dz_a = np.fabs(-dx*np.sin(np.radians(ta.end_phi))*np.tan(np.radians(ta.end_theta)))
         dz_b = np.fabs(-dx*np.sin(np.radians(tb.ini_phi))*np.tan(np.radians(tb.ini_theta)))
@@ -148,14 +228,14 @@ def compute_missing_time_for_late_cathode_crosser(trk, debug):
         if(np.tan(np.radians(ta.end_theta)) == 0. or np.tan(np.radians(tb.ini_theta)) == 0):
             return 0.
         
-        if(np.cos(np.radians(ta.end_phi)) != 0.):
+        if(np.cos(np.radians(ta.end_phi)) >0.5):
             dz_a = np.fabs(-dx/np.tan(np.radians(ta.end_theta))/np.cos(np.radians(ta.end_phi)))
         else:
-            dz_a = np.fabs(-dx/np.tan(np.radians(ta.end_theta)))        
-        if(np.cos(np.radians(tb.ini_phi)) != 0):                           
+            dz_a = np.fabs(-dy/np.tan(np.radians(ta.end_theta))/np.sin(np.radians(ta.end_phi)))       
+        if(np.cos(np.radians(tb.ini_phi)) > 0.5):                           
             dz_b = np.fabs(-dx/np.tan(np.radians(tb.ini_theta))/np.cos(np.radians(tb.ini_phi)))
         else:
-            dz_b = np.fabs(-dx/np.tan(np.radians(tb.ini_theta)))
+            dz_b = np.fabs(-dy/np.tan(np.radians(tb.ini_theta))/np.sin(np.radians(ta.end_phi)))
 
 
     if(debug):
@@ -272,13 +352,13 @@ def adjust_timestamp_range(trk):
     other.set_timestamp(trk_timestamp, other_timestamp)
     
 def compute_all_track_timing():
-    [compute_timing(t) for t in dc.tracks3D_list]
+    [compute_timing(t) for t in dc.tracks3D_list if t.is_trigger==False]
 
     cathode_crossers = [t for t in dc.tracks3D_list if t.is_cathode_crosser and t.cathode_crosser_ID >= 0]
     [adjust_timestamp_range(t) for t in cathode_crossers]
     
 def compute_timing(trk):
-    debug = False#True
+    debug = False
 
     is_anode_crosser = trk.is_anode_crosser
     is_cathode_crosser = trk.is_cathode_crosser and trk.cathode_crosser_ID >= 0
@@ -311,12 +391,16 @@ def compute_timing(trk):
         print('Through wall ini ?', through_wall_ini, ' end ? ', through_wall_end)
         print('Is too early ? ', is_too_early, ' is too late?' , is_too_late)
         print('Is anode crosser ? ', is_anode_crosser, ' Cathode crosser ? ', is_cathode_crosser, ' has already a T0? ', has_already_t0,"\n")
-
+        if(is_cathode_crosser):
+            print('the other track:')
+            other = dc.tracks3D_list[trk.cathode_crosser_ID - dc.n_tot_trk3d]
+            other.dump()
 
     
     z0 = 9999.
     t0 = 9999.
     
+    trk.set_epoch(np.any(is_too_early), np.any(is_too_late))
     
     if(not is_full_drift and is_anode_crosser and is_cathode_crosser):
         print("There is a reconstruction issue !!! ")
@@ -373,7 +457,7 @@ def compute_timing(trk):
     if(is_anode_crosser):
         tref, t0, z0, exit_point, idx_exit = compute_time_for_anode_crosser(trk)
 
-        trk.set_t0_z0(t0, z0)
+        trk.set_t0_z0(t0, z0, False)
         trk.compute_timestamp(tref, tref)
         trk.is_anode_crosser = True
         trk.set_anode_crosser(exit_point, idx_exit)
