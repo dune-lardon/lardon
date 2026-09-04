@@ -200,6 +200,8 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
         print('--> ', view, ch, ' daq ', daq_ch, ' ped = ', ped_mean, ' rms = ', ped_rms)
         print('wvf min ',min(dc.data_daq[daq_ch-daq_start]), ' max ', max(dc.data_daq[daq_ch-daq_start]))
 
+
+        
               
         """ draw rois """
         ROI = np.r_['-1',0,np.array(~dc.mask_daq[daq_ch-daq_start], dtype=int),0]
@@ -233,23 +235,23 @@ def plot_wvf_current_hits_roi_vch(vch_list, adc_min=-1, adc_max=-1, tmin=0, tmax
                 ax[i].axvline(t_start, ls='dashed',c=c,lw=.5,zorder=300)
                 ax[i].axvline(t_stop, ls='dotted',c=c,lw=.5,zorder=300)
 
+        if(cf.view_type[cf.imod][view] == "Collection"):
 
-        if(cf.view_type[view] == "Collection"):
-            for j in dc.reco['mask']['coll']['low_thr']:#[2, 3.5]:
+            for j in dc.reco['mask']['coll']['low_thr'][cf.imod]:#[2, 3.5]:
                 ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
 
-            for j in dc.reco['mask']['coll']['high_thr']:#[2, 3.5]:
+            for j in dc.reco['mask']['coll']['high_thr'][cf.imod]:#[2, 3.5]:
                 ax[i].axhline(ped_mean+j*ped_rms, ls='dotted',c='orange',lw=.5)
                 
-        if(cf.view_type[view] == "Induction"):
-            for j in dc.reco['mask']['ind']['pos']['low_thr']:#[2, 3.5]:
+        if(cf.view_type[cf.imod][view] == "Induction"):
+            for j in dc.reco['mask']['ind']['pos']['low_thr'][cf.imod]:#[2, 3.5]:
                 ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
-            for j in dc.reco['mask']['ind']['neg']['low_thr']:#[2, 3.5]:
+            for j in dc.reco['mask']['ind']['neg']['low_thr'][cf.imod]:#[2, 3.5]:
                 ax[i].axhline(ped_mean+j*ped_rms, ls='dashdot',c='orange',lw=.5)
                 
-            for j in dc.reco['mask']['ind']['pos']['high_thr']:#[2, 3.5]:
+            for j in dc.reco['mask']['ind']['pos']['high_thr'][cf.imod]:#[2, 3.5]:
                 ax[i].axhline(ped_mean+j*ped_rms, ls='dotted',c='orange',lw=.5)
-            for j in dc.reco['mask']['ind']['neg']['high_thr']:#[2, 3.5]:
+            for j in dc.reco['mask']['ind']['neg']['high_thr'][cf.imod]:#[2, 3.5]:
                 ax[i].axhline(ped_mean+j*ped_rms, ls='dotted',c='orange',lw=.5)
 
 
