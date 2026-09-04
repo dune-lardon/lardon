@@ -98,7 +98,7 @@ In the file `src/lardon/gallery/pdvd.py` you can set the parameter `self.confere
 **Examples to run lardon**
 *e.g. 1* : To run TPC reco on event 11 of PDVD file `np02vd_raw_run039229_0024_df-s05-d4_dw_0_20250829T115242.hdf5` on lxplus: 
 
-`lardon -det pdvd -run 39229 -sub 24 -flow 4 -writer 0 -serv 5 -hash 86/ad -event 11 -out one_event -trk`
+`lardon -det pdvd -run 39229 -sub 24 -flow 4 -writer 0 -serv 5 -hash 86/da -event 11 -out one_event -trk`
 
 the output h5file will be **$LARDON_RECO/pdvd_39229_24_40_one_event.h5**
 
