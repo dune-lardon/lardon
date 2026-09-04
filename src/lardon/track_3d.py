@@ -461,7 +461,7 @@ def find_3D_tracks_with_missing_view(modules):
     trk_ID_shift = dc.n_tot_trk2d
 
     """ list good 2D tracks not matched """
-    tracks = [x for x in dc.tracks2D_list if x.len_straight >= len_min and x.dz > trk_min_dz and x.ghost == False and track_in_module(x, modules) == True and x.match_3D < 0]
+    tracks = [x for x in dc.tracks2D_list if x.len_straight >= len_min and x.dz > trk_min_dz and x.is_ghost == False and track_in_module(x, modules) == True and x.match_3D < 0]
 
     ntracks = len(tracks)
     ntracks_all = len(dc.tracks2D_list)
@@ -490,7 +490,7 @@ def find_3D_tracks_with_missing_view(modules):
     
     hits_ID_shift = dc.hits_list[0].ID
 
-    hits = [x for x in dc.hits_list if x.match_2D >=0 and dc.tracks2D_list[x.match_2D-trk_ID_shift].len_straight>=len_min and dc.tracks2D_list[x.match_2D-trk_ID_shift].dz > trk_min_dz and dc.tracks2D_list[x.match_2D-trk_ID_shift].ghost==False and x.module in modules and x.match_3D < 0]
+    hits = [x for x in dc.hits_list if x.match_2D >=0 and dc.tracks2D_list[x.match_2D-trk_ID_shift].len_straight>=len_min and dc.tracks2D_list[x.match_2D-trk_ID_shift].dz > trk_min_dz and dc.tracks2D_list[x.match_2D-trk_ID_shift].is_ghost==False and x.module in modules and x.match_3D < 0]
     nhits = len(hits)
     #print('nb of hits un-matched in 3D ', nhits)
     
@@ -743,7 +743,7 @@ def find_track_3D_rtree_new(modules, debug=False):
 
     trk_ID_shift = dc.tracks2D_list[0].trackID
     
-    tracks = [x for x in dc.tracks2D_list if x.len_straight >= len_min and x.dz > trk_min_dz and x.dx > trk_min_dx and x.ghost == False and track_in_module(x, modules) == True]
+    tracks = [x for x in dc.tracks2D_list if x.len_straight >= len_min and x.dz > trk_min_dz and x.dx > trk_min_dx and x.is_ghost == False and track_in_module(x, modules) == True]
     ntracks = len(tracks)
     ntracks_all = len(dc.tracks2D_list)
 
@@ -770,7 +770,7 @@ def find_track_3D_rtree_new(modules, debug=False):
     hits_ID_shift = dc.hits_list[0].ID
 
     
-    hits = [x for x in dc.hits_list if x.match_2D >=0 and dc.tracks2D_list[x.match_2D-trk_ID_shift].len_straight>=len_min and dc.tracks2D_list[x.match_2D-trk_ID_shift].dz > trk_min_dz and dc.tracks2D_list[x.match_2D-trk_ID_shift].dx > trk_min_dx and dc.tracks2D_list[x.match_2D-trk_ID_shift].match_3D==-1 and dc.tracks2D_list[x.match_2D-trk_ID_shift].ghost==False and x.module in modules]
+    hits = [x for x in dc.hits_list if x.match_2D >=0 and dc.tracks2D_list[x.match_2D-trk_ID_shift].len_straight>=len_min and dc.tracks2D_list[x.match_2D-trk_ID_shift].dz > trk_min_dz and dc.tracks2D_list[x.match_2D-trk_ID_shift].dx > trk_min_dx and dc.tracks2D_list[x.match_2D-trk_ID_shift].match_3D==-1 and dc.tracks2D_list[x.match_2D-trk_ID_shift].is_ghost==False and x.module in modules]
 
 
     nhits = len(hits)
