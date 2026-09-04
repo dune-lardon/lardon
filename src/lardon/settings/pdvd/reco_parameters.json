@@ -1,17 +1,17 @@
 {
   "default":{
       "pedestal":{ 
-          "raw_rms_thr": 3,
+          "raw_rms_thr": 4,
 	  "n_iter":2
       },
 	 
       "mask":{
 	  "coll":{//per module
-	      "min_dt":[8,8,6,6],
-	      "low_thr":[[2.0, 2.2], [2.0, 2.2], [1.6, 1.8], [1.6, 1.8]],
-	      "high_thr":[[2.5, 3.0], [2.5, 3.0], [2.0, 2.2], [2.0, 2.2]],
-	      "min_rise":[3,3,3,3],
-	      "min_fall":[5,5,5,5],
+	      "min_dt":[7,7,6,6],
+	      "low_thr":[[3.0, 2.5], [3.0, 2.5], [2.0, 1.8], [2.0, 1.8]],
+	      "high_thr":[[4.0, 3.0], [4.0, 3.0], [3.0, 2.2], [3.0, 2.2]],
+	      "min_rise":[3,3,2,2],
+	      "min_fall":[3,3,2,2],
 	      "pad_bef":[10,10,15,15],
 	      "pad_aft":[15,15,20,20]
 	  },
@@ -24,16 +24,16 @@
 		  "min_dt":[4,4,4,4],
 		  "low_thr":[[2.0,2.2],[2.0,2.2],[1.6,1.8],[1.6,1.8]],
 		  "high_thr":[[2.5,3.0],[2.5,3.0],[2.0,2.2],[2.0,2.2]],
-		  "min_rise":[2,2,2,2],
-		  "min_fall":[1,1,1,1]
+		  "min_rise":[1,1,1,1],
+		  "min_fall":[3,3,2,2]
 	      },
 	      
 	      "neg":{
-		  "min_dt":[4,4,4,4],
-		  "low_thr":[[-2.0,-2.2],[-2.0,-2.2],[-1.6,-1.8],[-1.6,-1.8]],
+		  "min_dt":[4,4,3,3],
+		  "low_thr":[[-1.8,-2.0],[-1.8,-2.0],[-1.6,-1.8],[-1.6,-1.8]],
 		  "high_thr":[[-2.5,-3.0],[-2.5,-3.0],[-2.0,-2.2],[-2.0,-2.2]],
-		  "min_rise":[1,1,1,1],
-		  "min_fall":[2,2,2,2]
+		  "min_rise":[1,1,3,3],
+		  "min_fall":[1,1,1,1]
 	      }
 	  }
       },
@@ -44,7 +44,7 @@
 	      "per_view_per_card":1,
 	      "per_view":0,
 	      "capa_weight":0,
-	      "calibrated":1
+	      "calibrated":0
           },
 
           "fft":{
@@ -53,7 +53,7 @@
           },
 
 	  "microphonic":{
-	      "window":400
+	      "window":-1
 	  },
 	  "study":{
 	      "to_be_done":1
@@ -62,12 +62,12 @@
       
       "hit_finder":{
 	  "dt_min":[4,4,4,4],
-	  "min_thr":[0.5,0.5,0.5,0.5],
+	  "min_thr":[0.1,0.1,0.1,0.1],
           "coll":{
-              "amp_sig": [[1.8,2.4],[1.8,2.4],[1.6,2.2],[1.6,2.2]],
+              "amp_sig": [[1.5,2.0],[1.5,2.0],[1.5,2.0],[1.5,2.0]],
           },
           "ind":{
-              "amp_sig": [1.6,1.6,1.5,1.5],
+              "amp_sig": [1.8,1.8,1.5,1.5],
 	      "merge_tdc_thr":[8,8,8,8]
           },
           "pad":{
@@ -97,8 +97,8 @@
       
        "stitching_2d":{
 	  "in_module":{
-	      "align_thr":0.97,
-	      "dma_thr":4.0,
+	      "align_thr":0.98,
+	      "dma_thr":5.5,
 	      "dist_thr":15.0	
 	  },
 	  "from_3d":{
@@ -170,45 +170,62 @@
     "pds":{
 	/* for the light reconstruction */
 	"pedestal":{
-	    "raw_adc_thresh":200,
-	    "rms_thresh":3,
+	    "raw_adc_thresh":30,
+	    "rms_thresh":4,
 	    "n_iter":3
 	},
 	"noise":{
 	    "flat_baseline_window":4000,
 	},
 	
-        "hit_finder":{
-            "amp_sig": [5, 8],
-            "dt_min": 50,
+        "hit_finder":{	    
+            "amp_sig":{
+		"Cathode": [15, 80],//20,40
+		"Membrane":[15, 80],//15,20
+		"PMT":[6,12]
+	    },
+            "dt_min": {
+		"Cathode":60,
+		"Membrane":60,
+		"PMT":20
+	    },
 	    "pad":{
-		"left":30,
-		"right":60
-	    },		 
-        },
+		"left":{
+		    "Cathode":30,
+		    "Membrane":30,
+		    "PMT":20
+		},
+		"right":{
+		    "Cathode":60,
+		    "Membrane":60,
+		    "PMT":80
+		},
+	    },
+	},		 
+	
 	
 	"cluster":{
-	    "max_lag":100, //to align waveform, in PDS tick nb
+	    "max_lag":30, //to align waveform, in PDS tick nb
 	    "time_tol":0.2,
 	},
 
 	"tpc_matching":{//all times in mus
-	    "min_cluster_size":6,
+	    "min_cluster_size":8,
 	    "trigger":{
 		"time_tol_bef":[5,5],
 		"time_tol_aft":[5,5]
 	    },
 	    "anode_crosser":{//per volume 0: bde, 1: tde
-		"time_tol_bef":[5.0, 5.0],
-		"time_tol_aft":[0.5, 0.5]
+		"time_tol_bef":[5.5, 5.5],
+		"time_tol_aft":[1.0, 1.0]
 	    },
 	    "cathode_crosser":{
-		"time_tol_bef":[80, 80],
-		"time_tol_aft":[5, 5]
+		"time_tol_bef":[100, 100],
+		"time_tol_aft":[3, 3]
 	    },
 	    "unknown":{		
-		"time_tol_bef":[5,5],
-		"time_tol_aft":[5,5]
+		"time_tol_bef":[50,50],
+		"time_tol_aft":[50,50]
 	    },
 	    
 	    "single_hits":{
