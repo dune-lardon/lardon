@@ -118,6 +118,7 @@ def main():
     import lardon.config as cf
     import lardon.data_containers as dc
     import lardon.decode_data as decoder
+    import lardon.trigger as trig
     import lardon.channel_mapping as cmap
 
     if(is_job == False):
@@ -174,6 +175,7 @@ def main():
     """ set analysis parameters """
     params.build_default_reco()
     params.configure(detector, run)
+    trig.configure(detector)
     #params.dump()
 
     
@@ -399,9 +401,9 @@ def main():
             #store.store_pds_event(output)
             store.store_pds_pedestals(output)
             store.store_pds_peak(output)
-
-            if(do_charge and  cf.n_sample[cf.imod] > 0):
-                store.store_pds_cluster(output)
+            store.store_pds_cluster(output)
+            
+            
         deb.output = time.time()-t1
         
         dc.n_tot_hits  += np.sum(dc.evt_list[-1].n_hits)
