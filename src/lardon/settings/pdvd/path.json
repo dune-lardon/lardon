@@ -1,6 +1,7 @@
 {
 
     "cern":"/eos/experiment/neutplatform/protodune/dune/vd-protodune/",
+    "cern_buffer":"/eos/experiment/neutplatform/protodune/dune/np_buffer/vd-protodune/",
     "cern_top2":"/eos/experiment/neutplatform/protodune/dune/tdedata/",
     "cern_top3":"/eos/experiment/neutplatform/protodune/dune/vd-protodune-top/",
     "cern_top":"/eos/experiment/neutplatform/protodune/rawdata/online_recon",
