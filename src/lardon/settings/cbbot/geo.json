@@ -355,7 +355,7 @@
 	"daq_link_name":["WIBEth"],
     },
 
-    "40898-99999":
+    "40898-42999":
     {
 	"module_name":["CRP6a-8b"],
 	"view_angle":[["60", "120", "180"]],
@@ -371,6 +371,7 @@
 	"daq_nlinks":["48"],
 	"daq_links_offset":["1000"],
 	"chmap":"cb_chmap_bde_crp6_inv.txt",
+	"strips_length":"",
 	"channel_calib":"",
 	"view_boundaries_min":[["-200","-200","-200"]],
 	"view_boundaries_max":[["200","200","200"]],
@@ -391,6 +392,69 @@
 	"pds_z_center":["-11.1", "-11.1", "-11.1", "-11.1"],
 	"pds_drift_vol":["0"],
 	"pds_length":65.3,
+    },
+
+    "43000-99999":
+    {
+	"module_name":["CRP6a-8b"],
+	"view_angle":[["60", "120", "180"]],
+        "broken_channels":[797, 814, 850, 875, 908, 1036, 1042, 1068, 1078, 1080, 1081, 1082, 1088, 1089, 1091, 1553, 1565, 1566, 1677, 2552, 2554], 
+	"view_z_offset":[["-1.32","-0.32","0"]],
+	"anode_z":["-10.1"],
+	"drift_direction":["-1"],
+	"e_drift":["0.449"],
+	"drift_length":["20.2"],
+	"e_per_ADCtick":["13.8"],
+	"view_offset_repet":[[["-144.77","-219.26"],["-219.26","-144.77"],["-149.1","-149.1","0.13","0.13"]]],
+	"daq":"wib_2_eth",
+	"daq_nlinks":["48"],
+	"daq_links_offset":["1000"],
+	"chmap":"cb_chmap_bde_crp6_inv.txt",
+	"strips_length":"",
+	"channel_calib":"",
+	"view_boundaries_min":[["-200","-200","-200"]],
+	"view_boundaries_max":[["200","200","200"]],
+	"daq_TRBuilder_number":20,
+	"daq_link_name":["WIBEth"],
+
+
+
+	"pds_daq":["","daphne_eth_trigger"],
+	
+	"pds_daq_link_name":["","DAPHNEEth"],
+	"pds_daq_link_offset":["0","800"],
+	"pds_daq_link_nstream":["0","2"],
+
+	"n_pds_stream_channels":0,
+	"n_pds_trig_channels":8,
+	"pds_daqch_stream_start":0,
+	"pds_daqch_trig_start":0,
+	"pds_sampling":62.5,
+	"n_pds_stream_sample":262144,
+	"n_pds_trig_sample":262144,
+	"pds_n_modules":4,
+
+
+	"pds_channel_map":"cb_pds_crp68_inv.txt",
+	"pds_n_modules":4,
+	"pds_modules_type":["Cathode", "Cathode", "Cathode", "Cathode"],
+	"pds_x_center":["-116.8", "-51.5", "116.8", "51.5"],
+	"pds_y_center":["-42.05", "107.35", "42.05", "-107.35"],
+	"pds_z_center":["-11.1", "-11.1", "-11.1", "-11.1"],
+	"pds_x_length":["58.8","58.8","58.8","58.8"],
+
+	"pds_y_length":["0","0","0","0"],
+	"pds_z_length":["58.8","58.8","58.8","58.8"],
+
+	"pds_drift_vol":["0"],	
+	"pds_arapuca_x_length":58.8,
+	"pds_arapuca_y_length":58.8,
+	"pds_pmt_diameter":20,
+	
+	"pds_gain":["1","1","1","1"],
+
+	"pds_eff":["1","1","1","1"],
+	"pds_pred_fit_param":"pdvd_light_prediction_correction_parameters_0ppm.txt",
     },
 
 }
