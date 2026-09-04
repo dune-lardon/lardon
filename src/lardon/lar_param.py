@@ -29,4 +29,15 @@ def drift_velocity(imod = cf.imod):
         vd = vd * tmp2/tmp1
 
     return vd*0.1 # in cm/us
-        
+
+
+
+def recombination(imod = cf.imod, dedx = 2.1):
+    """ from ICARUS paper, defined as the proportion of electrons that survives the recombination """
+    A = 0.8
+    k = 0.0486
+    rho = 1.3849
+    Edrift = cf.e_drift[imod]
+    r = A/(1+(k/Edrift)*dedx/rho)
+    return r
+    
